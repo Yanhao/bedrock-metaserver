@@ -51,15 +51,16 @@ func LoadConfigFromFile(filePath string) (*Configuration, error) {
 	ret.EtcdName = c.Get("etcd.name").(string)
 	ret.EtcdDataDir = c.Get("etcd.data_dir").(string)
 	ret.EtcdWalDir = c.Get("etcd.wal_dir").(string)
-	ret.EtcdServerPort = c.Get("etcd.port").(uint16)
+	ret.EtcdServerPort = uint16(c.Get("etcd.port").(int64))
 	ret.EtcdPreVote = c.Get("etcd.prevote").(bool)
 
-	etcdPeerAddrStr := c.Get("etcd.peer_addr").(string)
+	etcdPeerAddrStr := c.Get("etcd.raft_addr").(string)
 	ret.EtcdPeerAddr, _ = url.Parse(etcdPeerAddrStr)
 
 	etcdClientAddrStr := c.Get("etcd.client_addr").(string)
 	ret.EtcdClientAddr, _ = url.Parse(etcdClientAddrStr)
 
+	ret.EtcdClusterPeers = c.Get("etcd.peers").(string)
 	ret.EtcdClientTimeout = time.Duration(c.Get("etcd.client_timeout").(int64)) * time.Second
 
 	ret.LogFile = c.Get("log_file").(string)

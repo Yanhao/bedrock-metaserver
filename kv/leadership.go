@@ -38,7 +38,7 @@ func NewLeaderShip(etcd *embed.Etcd, client *clientv3.Client, key, value string)
 		notifier:    make(chan NewRole, 128),
 		client:      client,
 		stop:        make(chan struct{}),
-		lease:       nil,
+		lease:       &atomic.Value{},
 		leaderKey:   key,
 		leaderValue: value,
 	}
@@ -67,19 +67,21 @@ func (l *LeaderShip) Campaign() bool {
 	l.setLease(&ls)
 
 	ctx, cancel := context.WithTimeout(l.client.Ctx(), 3*time.Second)
+	defer cancel()
+
 	grantResp, err := ls.Grant(ctx, 10)
 	if err != nil {
 		log.Error("failed to grant lease")
+
 		return false
 	}
-	cancel()
 	l.leaseID = grantResp.ID
 
 	resp, err := l.client.Txn(ctx).If(clientv3.Compare(clientv3.CreateRevision(l.leaderKey), "=", 0)).
 		Then(clientv3.OpPut(l.leaderKey, l.leaderValue, clientv3.WithLease(grantResp.ID))).
 		Commit()
 	if err != nil || !resp.Succeeded {
-		log.Error("failed to compaign leader")
+		log.Debug("failed to compaign leader")
 		return false
 	}
 

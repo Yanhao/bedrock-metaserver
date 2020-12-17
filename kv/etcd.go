@@ -47,16 +47,16 @@ func NewEtcdNode() EtcdNode {
 func (en *EtcdNode) Start() error {
 	e, err := embed.StartEtcd(en.config)
 	if err != nil {
-		log.Error("failed to start embeded etcd node, err: %v", err)
+		log.Error("failed to start embed etcd node, err: %v", err)
 		return err
 	}
 
 	select {
 	case <-e.Server.ReadyNotify():
-		log.Info("embeded etcd is read")
+		log.Info("embeded etcd is ready")
 	case <-time.After(time.Minute):
 		e.Server.Stop()
-		log.Error("failed to start embeded etcd")
+		log.Error("failed to start embed etcd")
 		return errors.New("timeout")
 	}
 

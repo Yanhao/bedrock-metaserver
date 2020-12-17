@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
@@ -65,5 +66,9 @@ func Start() {
 			}
 		}
 	}()
+
+	for {
+		time.Sleep(time.Second)
+	}
 
 }

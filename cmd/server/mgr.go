@@ -1,7 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"sr.ht/moyanhao/bedrock-metaserver/metaserver"
+)
 
 func main() {
-    fmt.Println("Hello MGR")
+	fmt.Println("Hello MGR")
+	metaserver.Start()
 }

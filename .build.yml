@@ -1,0 +1,11 @@
+image: debian/sid
+packages:
+  - golang-go
+sources:
+  - https://git.sr.ht/~moyanhao/bedrock-metaserver
+tasks:
+  - setup: |
+      cd bedrock-metaserver
+  - build: |
+      cd bedrock-metaserver
+      make

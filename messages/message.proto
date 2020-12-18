@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package messages;
+// option go_package ="sr.ht/moyanhao/metaserver/proto/messages";
+
+message HelloRequest {
+    string msg = 1;
+}
+
+message HelloResponse {
+    string msg = 1;
+}
+
+service MetaService {
+    rpc Hello (HelloRequest) returns (HelloResponse) {}
+}

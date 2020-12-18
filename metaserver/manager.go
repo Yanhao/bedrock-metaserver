@@ -3,18 +3,42 @@ package metaserver
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
+	"google.golang.org/grpc"
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
+	"sr.ht/moyanhao/bedrock-metaserver/messages"
+	"sr.ht/moyanhao/bedrock-metaserver/service"
 )
 
 func runAsFollower() {
 }
 
 func runAsLeader() {
+}
+
+func StartGrpcServer() error {
+	lis, err := net.Listen("tcp", config.MsConfig.ServerAddr)
+	if err != nil {
+		fmt.Printf("failed to listen on %v\n", config.MsConfig.ServerAddr)
+		return err
+	}
+
+	opts := []grpc.ServerOption{}
+
+	grpcServer := grpc.NewServer(opts...)
+	messages.RegisterMetaServiceServer(grpcServer, &service.MetaService{})
+
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Error("failed to start grpc server")
+		return err
+	}
+
+	return nil
 }
 
 func Start() {
@@ -66,6 +90,8 @@ func Start() {
 			}
 		}
 	}()
+
+	go StartGrpcServer()
 
 	for {
 		time.Sleep(time.Second)

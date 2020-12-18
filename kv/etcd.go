@@ -28,7 +28,8 @@ func NewEtcdNode() EtcdNode {
 
 	cfg.LCUrls = []url.URL{*config.MsConfig.EtcdClientAddr}
 	cfg.LPUrls = []url.URL{*config.MsConfig.EtcdPeerAddr}
-	cfg.LogOutput = config.MsConfig.LogFile
+	// cfg.LogOutput = config.MsConfig.LogFile
+	cfg.LogLevel = "info"
 	cfg.InitialCluster = config.MsConfig.EtcdClusterPeers
 
 	cfg.ACUrls = cfg.LCUrls
@@ -53,7 +54,7 @@ func (en *EtcdNode) Start() error {
 
 	select {
 	case <-e.Server.ReadyNotify():
-		log.Info("embeded etcd is ready")
+		log.Info("embed etcd is ready")
 	case <-time.After(time.Minute):
 		e.Server.Stop()
 		log.Error("failed to start embed etcd")

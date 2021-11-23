@@ -9,10 +9,10 @@ proto-gogo:
 	protoc --gofast_out=plugins=grpc:. messages/message.proto
 
 mgr: cmd/server/mgr.go
-	go build -mod=vendor $^
+	go build $^
 
 mscli: cmd/client/mscli.go
-	go build -mod=vendor $^
+	go build $^
 
 clean:
 	rm -f mgr mscli

@@ -44,8 +44,8 @@ func StartGrpcServer() error {
 func Start() {
 	fmt.Println("Starting ...")
 
-	configFile := flag.String("config", "", "Sepcify the configuration file")
-	logFile := flag.String("log", "", "Speclify the log file")
+	configFile := flag.String("config", "", "Specify the configuration file")
+	logFile := flag.String("log", "", "Specify the log file")
 	help := flag.Bool("help", false, "Display this help infomation")
 
 	flag.Parse()

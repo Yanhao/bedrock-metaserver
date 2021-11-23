@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/embed"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/server/v3/embed"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 )
@@ -90,8 +90,8 @@ func (l *LeaderShip) Campaign() bool {
 }
 
 func (l *LeaderShip) keepLeader() {
-	tiker := time.NewTicker(time.Second)
-	defer tiker.Stop()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 
 	for {
 		ctx := context.TODO()
@@ -102,7 +102,7 @@ func (l *LeaderShip) keepLeader() {
 			return
 		}
 		select {
-		case <-tiker.C:
+		case <-ticker.C:
 		case <-l.stop:
 			return
 		}

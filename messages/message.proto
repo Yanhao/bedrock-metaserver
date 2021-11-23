@@ -1,16 +1,19 @@
 syntax = "proto3";
+option go_package = "sr.ht/moyanhao/bedrock-metaserver/messages";
 
 package messages;
-// option go_package ="sr.ht/moyanhao/metaserver/proto/messages";
 
-message HelloRequest {
-    string msg = 1;
+enum ErrorCode {
+    ErrOk = 0;
 }
 
-message HelloResponse {
-    string msg = 1;
+message HeartBeatRequest {
+}
+
+message HeartBeatResponse {
+    ErrorCode error = 255;
 }
 
 service MetaService {
-    rpc Hello (HelloRequest) returns (HelloResponse) {}
+    rpc HeartBeat (HeartBeatRequest) returns (HeartBeatResponse) {}
 }

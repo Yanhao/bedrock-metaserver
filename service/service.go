@@ -9,8 +9,6 @@ type MetaService struct {
 	messages.UnimplementedMetaServiceServer
 }
 
-func (m *MetaService) Hello(ctx context.Context, req *messages.HelloRequest) (*messages.HelloResponse, error) {
-	return &messages.HelloResponse{
-		Msg: "hello world",
-	}, nil
+func (m *MetaService) HeartBeat(ctx context.Context, req *messages.HeartBeatRequest) (*messages.HeartBeatResponse, error) {
+	panic("")
 }

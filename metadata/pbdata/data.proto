@@ -1,0 +1,20 @@
+syntax = "proto3";
+option go_package = "sr.ht/moyanhao/bedrock-metaserver/metadata/pbdata";
+
+package pbdata;
+
+message Shard {
+}
+
+message DataServer {
+    
+    uint32 Ip = 1;
+    uint32 Port = 2;
+    uint64 Capacity = 3;
+    uint64 Free = 4;
+
+    repeated  Shard shards = 5;
+}
+
+message Volume {
+}

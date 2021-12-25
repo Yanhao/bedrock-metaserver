@@ -4,6 +4,7 @@ proto:
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		messages/message.proto
+	protoc --go_out=. --go_opt=paths=source_relative metadata/pbdata/data.proto
 
 proto-gogo:
 	protoc --gofast_out=plugins=grpc:. messages/message.proto
@@ -17,4 +18,4 @@ mscli: cmd/client/mscli.go
 clean:
 	rm -f mgr mscli
 
-.PHONY: clean proto
+.PHONY: clean proto mgr mscli

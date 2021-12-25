@@ -16,9 +16,16 @@ import (
 )
 
 func runAsFollower() {
+	GetHeartBeater().Stop()
+	log.Info("stop heartbeater ...")
 }
 
 func runAsLeader() {
+	err := GetHeartBeater().Run()
+	if err != nil {
+		log.Error("failed to start heartbeater, err: %v", err)
+	}
+	log.Info("start heartbeater ...")
 }
 
 func StartGrpcServer() error {
@@ -42,11 +49,11 @@ func StartGrpcServer() error {
 }
 
 func Start() {
-	fmt.Println("Starting ...")
+	fmt.Println("starting ...")
 
-	configFile := flag.String("config", "", "Specify the configuration file")
-	logFile := flag.String("log", "", "Specify the log file")
-	help := flag.Bool("help", false, "Display this help infomation")
+	configFile := flag.String("config", "", "specify the configuration file")
+	logFile := flag.String("log", "", "specify the log file")
+	help := flag.Bool("help", false, "display this help infomation")
 
 	flag.Parse()
 	if *help {
@@ -79,6 +86,7 @@ func Start() {
 
 			select {
 			case <-stop:
+				log.Info("metaserver stopping")
 				return
 			case c := <-leaderChangeNotifier:
 				switch c.Role {

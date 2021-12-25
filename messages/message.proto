@@ -7,13 +7,152 @@ enum ErrorCode {
     ErrOk = 0;
 }
 
+message DataServerAddr {
+    uint32 ip = 1;
+    uint32 port = 2;
+}
+
+message Storage {
+    uint64 id = 1;
+    string name = 2;
+}
+
+message Shard {
+    uint64 id = 1;
+}
+
+message Replicate {
+    repeated DataServerAddr addr = 1;
+}
+
+message RouteRecord {
+    uint64 shard_id = 1;
+    repeated DataServerAddr = 2;
+}
+
 message HeartBeatRequest {
+    DataServerAddr addr = 1;
 }
 
 message HeartBeatResponse {
     ErrorCode error = 255;
 }
 
+message CreateStorageRequest {
+    string name = 1;
+}
+
+message CreateStorageResponse {
+    uint64 id = 1;
+
+    ErrorCode error = 255;
+}
+
+message DeleteStorageRequest {
+    repeated uint64 ids = 1;
+}
+
+message DeleteStorageResponse {
+    ErrorCode error = 255;
+}
+
+message RenameStorageRequest {
+    uint64 id = 1;
+    string new_name = 2;
+}
+
+message RenameStorageResponse {
+    ErrorCode error = 255;
+}
+
+message ResizeStorageRequest {
+    uint64 id = 1;
+    uint64 new_size = 2;
+}
+
+message ResizeStorageResponse {
+    ErrorCode error = 255;
+}
+
+message GetStoragesRequest {
+    repeated uint64 ids = 1;
+    repeated string names = 2;
+}
+
+message GetStoragesResponse {
+    repeated Storage storages = 1;
+
+    ErrorCode error = 255;
+}
+
+message GetShardRoutesRequest {
+    repeated uint64 shard_ids = 1;
+}
+
+message GetShardRoutesResponse {
+    repeated RouteRecord routes = 1;
+
+    ErrorCode error = 255;
+}
+
+message GetShardRoutesByStorageRequest {
+    uint64 storage_id = 1;
+    uint64 timestamp = 2;
+}
+
+message GetShardRoutesByStorageResponse {
+    repeated RouteRecord routes = 1;
+    uint64 timestamp = 2;
+    bool is_full = 3;
+    
+    ErrorCode error = 255;
+}
+
+message AddDataServerRequest {
+    DataServerAddr addr = 1;
+}
+
+message AddDataServerResponse {
+    ErrorCode error = 255;
+}
+
+message RemoveDataServerRequest {
+    DataServerAddr addr = 1;
+}
+
+message RemoveDataServerResponse {
+    ErrorCode error = 255;
+}
+
+message ListDataServerRequest {
+}
+
+message ListDataServerResponse {
+    repeated DataServer data_servers = 1;
+
+    ErrorCode error = 255;
+}
+
+message UpdateDataServerRequest {
+}
+
+message UpdateDataServerResponse {
+    ErrorCode error = 255;
+}
+
 service MetaService {
     rpc HeartBeat (HeartBeatRequest) returns (HeartBeatResponse) {}
+
+    rpc CreateStorage (CreateStorageRequest) returns (CreateStorageResponse) {}
+    rpc DeleteStorage (DeleteStorageRequest) returns (DeleteStorageResponse) {}
+    rpc RenameStorage (RenameStorageRequest) returns (RenameStorageResponse) {}
+    rpc ResizeStorage (ResizeStorageRequest) returns (ResizeStorageResponse) {}
+    rpc GetStorages (GetStoragesRequest) returns (GetStoragesResponse) {}
+
+    rpc GetShardRoutes (GetShardRoutesRequest) returns (GetShardRoutesResponse) {}
+
+    rpc AddDataServer (AddDataServerRequest) returns (AddDataServerResponse) {}
+    rpc RemoveDataServer (RemoveDataServerRequest) returns (RemoveDataServerResponse) {}
+    rpc ListDataServer (ListDataServerRequest) returns (ListDataServerResponse) {}
+    rpc UpdateDataServer (UpdateDataServerRequest) returns (UpdateDataServerResponse) {}
 }

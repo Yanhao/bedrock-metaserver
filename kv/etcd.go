@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"time"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
+	client "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
@@ -14,7 +14,7 @@ import (
 type EtcdNode struct {
 	etcdServer *embed.Etcd
 	config     *embed.Config
-	client     *clientv3.Client
+	client     *client.Client
 	LeaderShip *LeaderShip
 }
 
@@ -61,7 +61,7 @@ func (en *EtcdNode) Start() error {
 		return errors.New("timeout")
 	}
 
-	en.client, err = clientv3.New(clientv3.Config{
+	en.client, err = client.New(client.Config{
 		Endpoints:   []string{config.MsConfig.EtcdClientAddr.String()},
 		DialTimeout: config.MsConfig.EtcdClientTimeout,
 		TLS:         nil,

@@ -1,4 +1,4 @@
-default: mgr mscli
+default: metaserver mscli
 
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative \
@@ -9,13 +9,13 @@ proto:
 proto-gogo:
 	protoc --gofast_out=plugins=grpc:. messages/message.proto
 
-mgr: cmd/server/mgr.go
+metaserver: cmd/server/metaserver.go
 	go build $^
 
 mscli: cmd/client/mscli.go
 	go build $^
 
 clean:
-	rm -f mgr mscli
+	rm -f metaserver mscli
 
-.PHONY: clean proto mgr mscli
+.PHONY: clean proto metaserver mscli

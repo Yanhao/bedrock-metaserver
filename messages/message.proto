@@ -141,18 +141,18 @@ message UpdateDataServerResponse {
 }
 
 service MetaService {
-    rpc HeartBeat (HeartBeatRequest) returns (HeartBeatResponse) {}
+    rpc HeartBeat (HeartBeatRequest) returns (HeartBeatResponse);
+    
+    rpc CreateStorage (CreateStorageRequest) returns (CreateStorageResponse);
+    rpc DeleteStorage (DeleteStorageRequest) returns (DeleteStorageResponse);
+    rpc RenameStorage (RenameStorageRequest) returns (RenameStorageResponse);
+    rpc ResizeStorage (ResizeStorageRequest) returns (ResizeStorageResponse);
+    rpc GetStorages (GetStoragesRequest) returns (GetStoragesResponse);
 
-    rpc CreateStorage (CreateStorageRequest) returns (CreateStorageResponse) {}
-    rpc DeleteStorage (DeleteStorageRequest) returns (DeleteStorageResponse) {}
-    rpc RenameStorage (RenameStorageRequest) returns (RenameStorageResponse) {}
-    rpc ResizeStorage (ResizeStorageRequest) returns (ResizeStorageResponse) {}
-    rpc GetStorages (GetStoragesRequest) returns (GetStoragesResponse) {}
+    rpc GetShardRoutes (GetShardRoutesRequest) returns (GetShardRoutesResponse);
 
-    rpc GetShardRoutes (GetShardRoutesRequest) returns (GetShardRoutesResponse) {}
-
-    rpc AddDataServer (AddDataServerRequest) returns (AddDataServerResponse) {}
-    rpc RemoveDataServer (RemoveDataServerRequest) returns (RemoveDataServerResponse) {}
-    rpc ListDataServer (ListDataServerRequest) returns (ListDataServerResponse) {}
-    rpc UpdateDataServer (UpdateDataServerRequest) returns (UpdateDataServerResponse) {}
+    rpc AddDataServer (AddDataServerRequest) returns (AddDataServerResponse);
+    rpc RemoveDataServer (RemoveDataServerRequest) returns (RemoveDataServerResponse);
+    rpc ListDataServer (ListDataServerRequest) returns (ListDataServerResponse);
+    rpc UpdateDataServer (UpdateDataServerRequest) returns (UpdateDataServerResponse);
 }

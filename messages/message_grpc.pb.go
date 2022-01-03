@@ -7,6 +7,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -18,11 +19,12 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MetaServiceClient interface {
-	HeartBeat(ctx context.Context, in *HeartBeatRequest, opts ...grpc.CallOption) (*HeartBeatResponse, error)
+	HeartBeat(ctx context.Context, in *HeartBeatRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	CreateStorage(ctx context.Context, in *CreateStorageRequest, opts ...grpc.CallOption) (*CreateStorageResponse, error)
 	DeleteStorage(ctx context.Context, in *DeleteStorageRequest, opts ...grpc.CallOption) (*DeleteStorageResponse, error)
 	RenameStorage(ctx context.Context, in *RenameStorageRequest, opts ...grpc.CallOption) (*RenameStorageResponse, error)
 	ResizeStorage(ctx context.Context, in *ResizeStorageRequest, opts ...grpc.CallOption) (*ResizeStorageResponse, error)
+	GetStorages(ctx context.Context, in *GetStoragesRequest, opts ...grpc.CallOption) (*GetStoragesResponse, error)
 	GetShardRoutes(ctx context.Context, in *GetShardRoutesRequest, opts ...grpc.CallOption) (*GetShardRoutesResponse, error)
 	AddDataServer(ctx context.Context, in *AddDataServerRequest, opts ...grpc.CallOption) (*AddDataServerResponse, error)
 	RemoveDataServer(ctx context.Context, in *RemoveDataServerRequest, opts ...grpc.CallOption) (*RemoveDataServerResponse, error)
@@ -38,8 +40,8 @@ func NewMetaServiceClient(cc grpc.ClientConnInterface) MetaServiceClient {
 	return &metaServiceClient{cc}
 }
 
-func (c *metaServiceClient) HeartBeat(ctx context.Context, in *HeartBeatRequest, opts ...grpc.CallOption) (*HeartBeatResponse, error) {
-	out := new(HeartBeatResponse)
+func (c *metaServiceClient) HeartBeat(ctx context.Context, in *HeartBeatRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/messages.MetaService/HeartBeat", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -77,6 +79,15 @@ func (c *metaServiceClient) RenameStorage(ctx context.Context, in *RenameStorage
 func (c *metaServiceClient) ResizeStorage(ctx context.Context, in *ResizeStorageRequest, opts ...grpc.CallOption) (*ResizeStorageResponse, error) {
 	out := new(ResizeStorageResponse)
 	err := c.cc.Invoke(ctx, "/messages.MetaService/ResizeStorage", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *metaServiceClient) GetStorages(ctx context.Context, in *GetStoragesRequest, opts ...grpc.CallOption) (*GetStoragesResponse, error) {
+	out := new(GetStoragesResponse)
+	err := c.cc.Invoke(ctx, "/messages.MetaService/GetStorages", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,11 +143,12 @@ func (c *metaServiceClient) UpdateDataServer(ctx context.Context, in *UpdateData
 // All implementations must embed UnimplementedMetaServiceServer
 // for forward compatibility
 type MetaServiceServer interface {
-	HeartBeat(context.Context, *HeartBeatRequest) (*HeartBeatResponse, error)
+	HeartBeat(context.Context, *HeartBeatRequest) (*emptypb.Empty, error)
 	CreateStorage(context.Context, *CreateStorageRequest) (*CreateStorageResponse, error)
 	DeleteStorage(context.Context, *DeleteStorageRequest) (*DeleteStorageResponse, error)
 	RenameStorage(context.Context, *RenameStorageRequest) (*RenameStorageResponse, error)
 	ResizeStorage(context.Context, *ResizeStorageRequest) (*ResizeStorageResponse, error)
+	GetStorages(context.Context, *GetStoragesRequest) (*GetStoragesResponse, error)
 	GetShardRoutes(context.Context, *GetShardRoutesRequest) (*GetShardRoutesResponse, error)
 	AddDataServer(context.Context, *AddDataServerRequest) (*AddDataServerResponse, error)
 	RemoveDataServer(context.Context, *RemoveDataServerRequest) (*RemoveDataServerResponse, error)
@@ -149,7 +161,7 @@ type MetaServiceServer interface {
 type UnimplementedMetaServiceServer struct {
 }
 
-func (UnimplementedMetaServiceServer) HeartBeat(context.Context, *HeartBeatRequest) (*HeartBeatResponse, error) {
+func (UnimplementedMetaServiceServer) HeartBeat(context.Context, *HeartBeatRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HeartBeat not implemented")
 }
 func (UnimplementedMetaServiceServer) CreateStorage(context.Context, *CreateStorageRequest) (*CreateStorageResponse, error) {
@@ -163,6 +175,9 @@ func (UnimplementedMetaServiceServer) RenameStorage(context.Context, *RenameStor
 }
 func (UnimplementedMetaServiceServer) ResizeStorage(context.Context, *ResizeStorageRequest) (*ResizeStorageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ResizeStorage not implemented")
+}
+func (UnimplementedMetaServiceServer) GetStorages(context.Context, *GetStoragesRequest) (*GetStoragesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStorages not implemented")
 }
 func (UnimplementedMetaServiceServer) GetShardRoutes(context.Context, *GetShardRoutesRequest) (*GetShardRoutesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetShardRoutes not implemented")
@@ -278,6 +293,24 @@ func _MetaService_ResizeStorage_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MetaServiceServer).ResizeStorage(ctx, req.(*ResizeStorageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MetaService_GetStorages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetStoragesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetaServiceServer).GetStorages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/messages.MetaService/GetStorages",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetaServiceServer).GetStorages(ctx, req.(*GetStoragesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -398,6 +431,10 @@ var MetaService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResizeStorage",
 			Handler:    _MetaService_ResizeStorage_Handler,
+		},
+		{
+			MethodName: "GetStorages",
+			Handler:    _MetaService_GetStorages_Handler,
 		},
 		{
 			MethodName: "GetShardRoutes",

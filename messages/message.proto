@@ -1,11 +1,11 @@
 syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
 option go_package = "sr.ht/moyanhao/bedrock-metaserver/messages";
 
 package messages;
-
-enum ErrorCode {
-    ErrOk = 0;
-}
 
 message DataServerAddr {
     uint32 ip = 1;
@@ -21,13 +21,11 @@ message Shard {
     uint64 id = 1;
 }
 
-message Replicate {
-    repeated DataServerAddr addr = 1;
+message DataServer {
 }
 
-message RouteRecord {
-    uint64 shard_id = 1;
-    repeated DataServerAddr = 2;
+message Replicate {
+    repeated DataServerAddr addrs = 1;
 }
 
 message HeartBeatRequest {
@@ -35,7 +33,6 @@ message HeartBeatRequest {
 }
 
 message HeartBeatResponse {
-    ErrorCode error = 255;
 }
 
 message CreateStorageRequest {
@@ -44,8 +41,6 @@ message CreateStorageRequest {
 
 message CreateStorageResponse {
     uint64 id = 1;
-
-    ErrorCode error = 255;
 }
 
 message DeleteStorageRequest {
@@ -53,7 +48,6 @@ message DeleteStorageRequest {
 }
 
 message DeleteStorageResponse {
-    ErrorCode error = 255;
 }
 
 message RenameStorageRequest {
@@ -62,7 +56,6 @@ message RenameStorageRequest {
 }
 
 message RenameStorageResponse {
-    ErrorCode error = 255;
 }
 
 message ResizeStorageRequest {
@@ -71,7 +64,6 @@ message ResizeStorageRequest {
 }
 
 message ResizeStorageResponse {
-    ErrorCode error = 255;
 }
 
 message GetStoragesRequest {
@@ -82,30 +74,44 @@ message GetStoragesRequest {
 message GetStoragesResponse {
     repeated Storage storages = 1;
 
-    ErrorCode error = 255;
+}
+
+message ShardRange {
+    uint64 start_shard_id = 1; 
+    uint64 offset = 2;
+
+}
+
+message RouteRecord {
+    uint64 shard_id = 1;
+    repeated DataServerAddr addrs = 2;
+}
+message ShardList {
+    repeated uint64 shard_ids = 1;
 }
 
 message GetShardRoutesRequest {
-    repeated uint64 shard_ids = 1;
+    oneof shards {
+        ShardList shards_list = 1;
+        ShardRange shard_range = 2;
+    }
+
+    google.protobuf.Timestamp timestamp = 3;
 }
 
 message GetShardRoutesResponse {
     repeated RouteRecord routes = 1;
-
-    ErrorCode error = 255;
 }
 
 message GetShardRoutesByStorageRequest {
     uint64 storage_id = 1;
-    uint64 timestamp = 2;
+    google.protobuf.Timestamp timestamp = 2;
 }
 
 message GetShardRoutesByStorageResponse {
     repeated RouteRecord routes = 1;
-    uint64 timestamp = 2;
+    google.protobuf.Timestamp timestamp = 2;
     bool is_full = 3;
-    
-    ErrorCode error = 255;
 }
 
 message AddDataServerRequest {
@@ -113,7 +119,6 @@ message AddDataServerRequest {
 }
 
 message AddDataServerResponse {
-    ErrorCode error = 255;
 }
 
 message RemoveDataServerRequest {
@@ -121,7 +126,6 @@ message RemoveDataServerRequest {
 }
 
 message RemoveDataServerResponse {
-    ErrorCode error = 255;
 }
 
 message ListDataServerRequest {
@@ -129,19 +133,16 @@ message ListDataServerRequest {
 
 message ListDataServerResponse {
     repeated DataServer data_servers = 1;
-
-    ErrorCode error = 255;
 }
 
 message UpdateDataServerRequest {
 }
 
 message UpdateDataServerResponse {
-    ErrorCode error = 255;
 }
 
 service MetaService {
-    rpc HeartBeat (HeartBeatRequest) returns (HeartBeatResponse);
+    rpc HeartBeat (HeartBeatRequest) returns (google.protobuf.Empty);
     
     rpc CreateStorage (CreateStorageRequest) returns (CreateStorageResponse);
     rpc DeleteStorage (DeleteStorageRequest) returns (DeleteStorageResponse);

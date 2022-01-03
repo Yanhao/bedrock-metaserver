@@ -1,5 +1,7 @@
 package metadata
 
+type StorageID uint64
+
 type Storage struct {
 }
 
@@ -7,7 +9,7 @@ func NewStorage() *Storage {
 	return &Storage{}
 }
 
-var StorageList []Storage
+var StorageList map[StorageID]*Storage
 
 func StorageCreate() {
 }

@@ -1,5 +1,9 @@
 package metadata
 
+import (
+	cache "github.com/hashicorp/golang-lru"
+)
+
 type Replicate interface {
 }
 
@@ -29,4 +33,29 @@ func (sd *Shard) MarkUndelete() {
 }
 
 func (sd *Shard) Repair() {
+}
+
+type ShardManager struct {
+	shardsCache *cache.Cache
+}
+
+func NewShardManager() *ShardManager {
+	c, err := cache.New(102400)
+	if err != nil {
+		panic("create cache failed")
+	}
+
+	return &ShardManager{
+		shardsCache: c,
+	}
+}
+
+func (sm *ShardManager) ClearCache() {
+	sm.shardsCache.Purge()
+}
+
+func (sm *ShardManager) GetShard() {
+}
+
+func (sm *ShardManager) PutShard() {
 }

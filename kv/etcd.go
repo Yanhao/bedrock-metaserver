@@ -3,6 +3,7 @@ package kv
 import (
 	"errors"
 	"net/url"
+	"sync"
 	"time"
 
 	client "go.etcd.io/etcd/client/v3"
@@ -18,7 +19,24 @@ type EtcdNode struct {
 	LeaderShip *LeaderShip
 }
 
-func NewEtcdNode() EtcdNode {
+var (
+	etcdNode     *EtcdNode
+	etcdNodeOnce sync.Once
+)
+
+func GetEtcdNode() *EtcdNode {
+	etcdNodeOnce.Do(func() {
+		etcdNode = NewEtcdNode()
+	})
+	return etcdNode
+}
+
+func GetEtcdClient() *client.Client {
+	// FIXME: check first
+	return GetEtcdNode().client
+}
+
+func NewEtcdNode() *EtcdNode {
 	cfg := embed.NewConfig()
 	cfg.Dir = config.MsConfig.EtcdDataDir
 	cfg.WalDir = config.MsConfig.EtcdWalDir
@@ -37,7 +55,7 @@ func NewEtcdNode() EtcdNode {
 
 	cfg.QuotaBackendBytes = 0
 
-	return EtcdNode{
+	return &EtcdNode{
 		config:     cfg,
 		etcdServer: nil,
 		client:     nil,

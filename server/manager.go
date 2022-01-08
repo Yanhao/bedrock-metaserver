@@ -8,16 +8,19 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
 	"sr.ht/moyanhao/bedrock-metaserver/messages"
+	"sr.ht/moyanhao/bedrock-metaserver/metadata"
 	"sr.ht/moyanhao/bedrock-metaserver/service"
 )
 
 func runAsFollower() {
 	GetHeartBeater().Stop()
 	log.Info("stop heartbeater ...")
+
 }
 
 func runAsLeader() {
@@ -26,6 +29,9 @@ func runAsLeader() {
 		log.Error("failed to start heartbeater, err: %v", err)
 	}
 	log.Info("start heartbeater ...")
+
+	metadata.GetShardManager().ClearCache()
+	log.Info("clear shard cache ...")
 }
 
 func StartGrpcServer() error {
@@ -73,7 +79,7 @@ func Start() {
 
 	defer log.Fini()
 
-	en := kv.NewEtcdNode()
+	en := kv.GetEtcdNode()
 	if err := en.Start(); err != nil {
 		fmt.Println("failed to start embed etcd server")
 		os.Exit(-1)

@@ -7,11 +7,6 @@ option go_package = "sr.ht/moyanhao/bedrock-metaserver/messages";
 
 package messages;
 
-message DataServerAddr {
-    uint32 ip = 1;
-    uint32 port = 2;
-}
-
 message Storage {
     uint64 id = 1;
     string name = 2;
@@ -25,11 +20,11 @@ message DataServer {
 }
 
 message Replicate {
-    repeated DataServerAddr addrs = 1;
+    repeated string addrs = 1;
 }
 
 message HeartBeatRequest {
-    DataServerAddr addr = 1;
+    string addr = 1;
 }
 
 message HeartBeatResponse {
@@ -84,7 +79,7 @@ message ShardRange {
 
 message RouteRecord {
     uint64 shard_id = 1;
-    repeated DataServerAddr addrs = 2;
+    repeated string addrs = 2;
 }
 message ShardList {
     repeated uint64 shard_ids = 1;
@@ -115,14 +110,14 @@ message GetShardRoutesByStorageResponse {
 }
 
 message AddDataServerRequest {
-    DataServerAddr addr = 1;
+    string addr = 1;
 }
 
 message AddDataServerResponse {
 }
 
 message RemoveDataServerRequest {
-    DataServerAddr addr = 1;
+    string addr = 1;
 }
 
 message RemoveDataServerResponse {

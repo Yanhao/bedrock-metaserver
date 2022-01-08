@@ -2,8 +2,7 @@ package service
 
 import (
 	"context"
-	"net"
-	"strconv"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -19,15 +18,10 @@ type MetaService struct {
 }
 
 func (m *MetaService) HeartBeat(ctx context.Context, req *messages.HeartBeatRequest) (resp *emptypb.Empty, err error) {
-
-	ipStr := strconv.FormatUint(uint64(req.Addr.Ip), 32)
-	portStr := strconv.FormatUint(uint64(req.Addr.Port), 32)
-
-	addr := net.JoinHostPort(ipStr, portStr)
-	server, ok := metadata.DataServers[addr]
+	server, ok := metadata.DataServers[req.Addr]
 	if !ok {
-		log.Warn("no such server in record: %s", addr)
-		return nil, status.Errorf(codes.NotFound, "no such server: %s", addr)
+		log.Warn("no such server in record: %s", req.Addr)
+		return nil, status.Errorf(codes.NotFound, "no such server: %s", req.Addr)
 	}
 
 	server.MarkActive(true)
@@ -35,8 +29,57 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *messages.HeartBeatRequ
 	return &emptypb.Empty{}, nil
 }
 
+func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*messages.RouteRecord, error) {
+	sm := metadata.GetShardManager()
+
+	shard, err := sm.GetShard(shardID)
+	if err != nil {
+		log.Error("get shard failed, shardID=%d", shard)
+		return nil, status.Errorf(codes.Internal, "get shard failed")
+	}
+
+	if shard.ReplicaUpdateTs.After(ts) {
+		route := &messages.RouteRecord{
+			ShardId: uint64(shardID),
+		}
+		for rep := range shard.Replicates {
+			route.Addrs = append(route.Addrs, rep)
+		}
+
+		return route, nil
+	}
+	return nil, nil
+}
+
 func (m *MetaService) GetShardRoutes(ctx context.Context, req *messages.GetShardRoutesRequest) (*messages.GetShardRoutesResponse, error) {
-	panic("")
+	ts := req.GetTimestamp().AsTime()
+
+	resp := &messages.GetShardRoutesResponse{}
+
+	if req.GetShardRange() != nil {
+		begin := req.GetShardRange().StartShardId
+		end := begin + req.GetShardRange().Offset
+
+		for shardID := begin; shardID <= end; shardID++ {
+			route, err := getUpdatedRoute(metadata.ShardID(shardID), ts)
+			if err != nil {
+				return nil, err
+			}
+
+			resp.Routes = append(resp.Routes, route)
+		}
+	} else if req.GetShardsList() != nil {
+		for _, shardID := range req.GetShardsList().GetShardIds() {
+			route, err := getUpdatedRoute(metadata.ShardID(shardID), ts)
+			if err != nil {
+				return nil, err
+			}
+
+			resp.Routes = append(resp.Routes, route)
+		}
+	}
+
+	return resp, nil
 }
 
 func (m *MetaService) CreateStorage(ctx context.Context, req *messages.CreateStorageRequest) (*messages.CreateStorageResponse, error) {

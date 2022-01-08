@@ -1,10 +1,18 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
 	"time"
+
+	client "go.etcd.io/etcd/client/v3"
+	"google.golang.org/protobuf/proto"
+
+	"sr.ht/moyanhao/bedrock-metaserver/common/log"
+	"sr.ht/moyanhao/bedrock-metaserver/kv"
+	"sr.ht/moyanhao/bedrock-metaserver/metadata/pbdata"
 )
 
 const (
@@ -46,12 +54,6 @@ func (d *DataServer) HeartBeat() error {
 	return nil
 }
 
-func DataServerAdd() {
-}
-
-func DataServerRemove() {
-}
-
 func (d *DataServer) MarkActive(isHeartBeat bool) {
 	d.status = LiveStatusActive
 	if isHeartBeat {
@@ -74,13 +76,88 @@ func (d *DataServer) Addr() string {
 	return net.JoinHostPort(ipStr, portStr)
 }
 
-func AddDataServer(dataServer *DataServer) error {
+func DataServerAdd(dataServer *DataServer) error {
 	_, ok := DataServers[dataServer.Addr()]
 	if ok {
 		return fmt.Errorf("%s already in the cluster", dataServer.Addr())
 	}
 
 	DataServers[dataServer.Addr()] = dataServer
+
+	return nil
+}
+
+func DataServerRemove(addr string) error {
+	delete(DataServers, addr)
+
+	return nil
+}
+
+func LoadDataServersFromEtcd() error {
+	ec := kv.GetEtcdClient()
+	resp, err := ec.Get(context.Background(), KvPrefixDataServer, client.WithPrefix())
+	if err != nil {
+		log.Warn("failed to get dataserver from etcd")
+		return err
+	}
+
+	for _, kv := range resp.Kvs {
+		pbDataServer := &pbdata.DataServer{}
+
+		err := proto.Unmarshal(kv.Value, pbDataServer)
+		if err != nil {
+			log.Warn("failed to decode dataserver from pb")
+			return err
+		}
+
+		dataserver := &DataServer{
+			Ip:   pbDataServer.Ip,
+			Port: pbDataServer.Port,
+		}
+
+		addr := net.JoinHostPort(
+			strconv.FormatInt(int64(pbDataServer.Ip), 10),
+			strconv.FormatInt(int64(pbDataServer.Port), 10))
+
+		DataServers[addr] = dataserver
+	}
+
+	return nil
+}
+
+func DataServerSave(dataServer *DataServer) error {
+	pbDataServer := &pbdata.DataServer{
+		Ip:   dataServer.Ip,
+		Port: dataServer.Port,
+	}
+
+	value, err := proto.Marshal(pbDataServer)
+	if err != nil {
+		log.Warn("failed to encode dataserver to pb, dataserver=%v", dataServer)
+		return err
+	}
+
+	addr := net.JoinHostPort(
+		strconv.FormatInt(int64(pbDataServer.Ip), 10),
+		strconv.FormatInt(int64(pbDataServer.Port), 10))
+
+	ec := kv.GetEtcdClient()
+	_, err = ec.Put(context.Background(), DataServerKey(addr), string(value))
+	if err != nil {
+		log.Warn("failed to save dataserver to etcd")
+		return err
+	}
+
+	return nil
+}
+
+func DataServerRemoveFromEtcd(addr string) error {
+	ec := kv.GetEtcdClient()
+	_, err := ec.Delete(context.Background(), DataServerKey(addr))
+	if err != nil {
+		log.Warn("failed to delete dataserver from etcd")
+		return err
+	}
 
 	return nil
 }

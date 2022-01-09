@@ -94,11 +94,11 @@ func (sa *ShardAllocator) AllocatorNewStorage() (*metadata.Storage, error) {
 	return storage, nil
 }
 
-func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID) ([]string, error) {
+func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, count int) ([]string, error) {
 	var selectedDataServers []string
 	conns := dataserver.GetDataServerConns()
 
-	for i := defaultReplicatesCount; i > 0; {
+	for i := count; i > 0; {
 		viableDataServers := generateViableDataServer(selectedDataServers)
 		if len(viableDataServers) < i {
 			return nil, errors.New("dataserver is not enough to allocate shard")
@@ -129,7 +129,7 @@ func (sa *ShardAllocator) ExpandStorage(storage *metadata.Storage, count uint32)
 	}
 
 	for i := count; i > 0; {
-		addrs, err := sa.AllocateShardReplicates(shard.ID)
+		addrs, err := sa.AllocateShardReplicates(shard.ID, defaultReplicatesCount)
 		if err != nil {
 			return err
 		}

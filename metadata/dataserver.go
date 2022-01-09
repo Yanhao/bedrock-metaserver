@@ -23,6 +23,10 @@ const (
 	LiveStatusOffline
 )
 
+var (
+	ErrNoSuchDataServer = errors.New("no such dataserver")
+)
+
 type LiveStatus int
 
 type DataServer struct {
@@ -203,4 +207,34 @@ func GetDataServerAddrs() []string {
 	}
 
 	return addrs
+}
+
+// func RemoveDataServer(addr string) error {
+// 	_, ok := DataServers[addr]
+// 	if !ok {
+// 		return ErrNoSuchDataServer
+// 	}
+
+// 	shardIDs, err := GetShardsInDataServer(addr)
+// 	if err != nil {
+// 		return errors.New("")
+// 	}
+
+// 	sm := GetShardManager()
+// 	for _, shardID := range shardIDs {
+// 		shard, err := sm.GetShard(shardID)
+// 		if err != nil {
+// 			return err
+// 		}
+
+// 		shard.RemoveReplicates(addrs []string)
+
+// 	}
+
+// 	return nil
+// }
+
+func IsDataServerActive(addr string) bool {
+	_, ok := DataServers[addr]
+	return ok
 }

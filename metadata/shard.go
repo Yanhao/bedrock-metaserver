@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"errors"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -232,7 +234,7 @@ func (sm *ShardManager) DeleteShard(shardID ShardID) error {
 	return nil
 }
 
-func (sm *ShardManager) ReSelectLeader(shardID ShardID, newLeader string) error {
+func (sm *ShardManager) ReSelectLeader(shardID ShardID, ops ...shardOpFunc) error {
 	shard, err := sm.GetShard(shardID)
 	if err != nil {
 		return err
@@ -242,10 +244,42 @@ func (sm *ShardManager) ReSelectLeader(shardID ShardID, newLeader string) error 
 	dataSerCli := conns.GetApiClient(shard.Leader)
 	// FIXME error handling
 
-	err = dataSerCli.TransferShardLeader(uint64(shard.ID), newLeader)
+	var opts shardOption
+	for _, opf := range ops {
+		opf(&opts)
+	}
+
+	nextLeader := opts.leaderAddr
+	if nextLeader == "" {
+		var candidates []string
+		for addr := range shard.Replicates {
+			if addr != shard.Leader {
+				candidates = append(candidates, addr)
+			}
+		}
+
+		if len(candidates) == 0 {
+			return errors.New("no enought candidates")
+		}
+
+		nextLeader = candidates[rand.Intn(len(candidates))]
+	}
+
+	err = dataSerCli.TransferShardLeader(uint64(shard.ID), nextLeader)
 	if err != nil {
 		return err
 	}
-
 	return nil
+}
+
+type shardOption struct {
+	leaderAddr string
+}
+
+type shardOpFunc func(*shardOption)
+
+func WithLeader(addr string) shardOpFunc {
+	return func(opt *shardOption) {
+		opt.leaderAddr = addr
+	}
 }

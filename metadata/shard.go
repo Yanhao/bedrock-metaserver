@@ -1,52 +1,51 @@
 package metadata
 
 import (
-	"context"
-	"strconv"
 	"sync"
 	"time"
 
 	cache "github.com/hashicorp/golang-lru"
+
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
-	"sr.ht/moyanhao/bedrock-metaserver/kv"
+	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
 )
 
-const (
-	KvLastShardIDkey = "/last_shard_id"
-)
+// const (
+// 	KvLastShardIDkey = "/last_shard_id"
+// )
 
-var lastShardID uint64
+// var lastShardID uint64
 
-func LoadLastShardID() error {
-	ec := kv.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), KvLastShardIDkey)
-	if err != nil {
-		log.Error("failed load last storage id from etcd, err: %v", err)
-		return err
-	}
+// func LoadLastShardID() error {
+// 	ec := kv.GetEtcdClient()
+// 	resp, err := ec.Get(context.Background(), KvLastShardIDkey)
+// 	if err != nil {
+// 		log.Error("failed load last storage id from etcd, err: %v", err)
+// 		return err
+// 	}
 
-	for _, kv := range resp.Kvs {
+// 	for _, kv := range resp.Kvs {
 
-		sID, err := strconv.ParseUint(string(kv.Value), 10, 64)
-		if err != nil {
-			return err
-		}
-		lastStorageID = sID
-		break
-	}
+// 		sID, err := strconv.ParseUint(string(kv.Value), 10, 64)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		lastStorageID = sID
+// 		break
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func SaveLastShardID() error {
-	ec := kv.GetEtcdClient()
-	_, err := ec.Put(context.Background(), KvLastShardIDkey, strconv.FormatUint(lastShardID, 10))
-	if err != nil {
-		return err
-	}
+// func SaveLastShardID() error {
+// 	ec := kv.GetEtcdClient()
+// 	_, err := ec.Put(context.Background(), KvLastShardIDkey, strconv.FormatUint(lastShardID, 10))
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 type ShardID uint64
 
@@ -58,6 +57,8 @@ type Shard struct {
 	IsDeleted       bool
 	DeleteDTs       time.Time
 	CreatedTs       time.Time
+	Leader          string
+	LeaderChangeTs  time.Time
 }
 
 func (sd *Shard) Info() {
@@ -169,22 +170,33 @@ func (sm *ShardManager) updateCache(shard *Shard) {
 	_ = sm.shardsCache.Add(shard.ID, shard)
 }
 
-func (sm *ShardManager) CreateNewShard(storageID StorageID, addrs []string) (*Shard, error) {
-	id := lastShardID + 1
-	lastShardID++
+func generateShardID(storageID StorageID, shardIndex uint32) ShardID {
+	shardID := (uint64(storageID) << 32) & (uint64(shardIndex))
+
+	return ShardID(shardID)
+}
+
+func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
+	shardIndex := storage.LastShardIndex + 1
+	storage.LastShardIndex++
+
+	err := PutStorage(storage)
+	if err != nil {
+		return nil, err
+	}
+
+	shardID := generateShardID(storage.ID, shardIndex)
 
 	shard := &Shard{
-		ID:              ShardID(id),
-		SID:             storageID,
+		ID:              shardID,
+		SID:             storage.ID,
 		CreatedTs:       time.Now(),
 		IsDeleted:       false,
 		ReplicaUpdateTs: time.Now(),
-	}
-	for _, addr := range addrs {
-		shard.Replicates[addr] = struct{}{}
+		Replicates:      map[string]struct{}{},
 	}
 
-	err := PutShard(shard)
+	err = PutShard(shard)
 	if err != nil {
 		return nil, err
 	}
@@ -198,12 +210,42 @@ func (sm *ShardManager) DeleteShard(shardID ShardID) error {
 		return err
 	}
 
+	conns := dataserver.GetDataServerConns()
+
+	for addr := range shard.Replicates {
+		dataServerCli := conns.GetApiClient(addr)
+
+		err := dataServerCli.DeleteShard(uint64(shardID))
+		if err != nil {
+			log.Warn("failed to delete shard from dataserver, err: %v", err)
+			return err
+		}
+	}
+
 	err = DeleteShard(shard)
 	if err != nil {
 		return err
 	}
 
 	sm.shardsCache.Remove(shardID)
+
+	return nil
+}
+
+func (sm *ShardManager) ReSelectLeader(shardID ShardID, newLeader string) error {
+	shard, err := sm.GetShard(shardID)
+	if err != nil {
+		return err
+	}
+
+	conns := dataserver.GetDataServerConns()
+	dataSerCli := conns.GetApiClient(shard.Leader)
+	// FIXME error handling
+
+	err = dataSerCli.TransferShardLeader(uint64(shard.ID), newLeader)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

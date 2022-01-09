@@ -11,13 +11,15 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
 )
 
-type StorageID uint64
+type StorageID uint32
 
 type Storage struct {
 	ID        StorageID
 	IsDeleted bool
 	DeleteTs  time.Time
 	createTs  time.Time
+
+	LastShardIndex uint32
 }
 
 func NewStorage() *Storage {
@@ -60,7 +62,7 @@ func LoadLastStroageId() error {
 
 func SaveLastStorageId() error {
 	ec := kv.GetEtcdClient()
-	_, err := ec.Put(context.Background(), KvLastShardIDkey, strconv.FormatUint(lastStorageID, 10))
+	_, err := ec.Put(context.Background(), KvLastStorageIDkey, strconv.FormatUint(lastStorageID, 10))
 	if err != nil {
 		return err
 	}
@@ -68,7 +70,7 @@ func SaveLastStorageId() error {
 	return nil
 }
 
-func StorageCreate() (*Storage, error) {
+func CreateNewStorage() (*Storage, error) {
 	id := lastStorageID + 1
 	lastStorageID++
 

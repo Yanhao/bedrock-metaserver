@@ -15,6 +15,7 @@ message Shard {
     google.protobuf.Timestamp deleted_ts = 6;
     google.protobuf.Timestamp create_ts = 7;
     string leader = 8;
+    google.protobuf.Timestamp leader_change_ts = 9;
 }
 
 message DataServer {
@@ -31,4 +32,6 @@ message Storage {
     bool is_deleted = 2;
     google.protobuf.Timestamp deleted_ts = 3;
     google.protobuf.Timestamp create_ts = 4;
+
+    uint32 last_shard_index = 5;
 }

@@ -47,7 +47,7 @@ func ClearDataserver(addr string) error {
 		shard.AddReplicates([]string{ds})
 
 		if shard.Leader == addr {
-			sm.ReSelectLeader(shardID)
+			// sm.ReSelectLeader(shardID)
 		}
 
 		dsTobeClearedCli := conns.GetApiClient(addr)

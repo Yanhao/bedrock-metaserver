@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"strconv"
+	"sync"
 	"time"
 
 	cache "github.com/hashicorp/golang-lru"
@@ -15,6 +16,7 @@ type StorageID uint32
 
 type Storage struct {
 	ID        StorageID
+	Name      string
 	IsDeleted bool
 	DeleteTs  time.Time
 	createTs  time.Time
@@ -31,6 +33,44 @@ var StorageCache *cache.Cache
 
 func InitStorageCache() {
 	StorageCache, _ = cache.New(10240)
+}
+
+type StorageManager struct {
+	storageCache *cache.Cache
+}
+
+func NewStorageManager() *StorageManager {
+	c, err := cache.New(10240)
+	if err != nil {
+		panic("create cache failed")
+
+	}
+	return &StorageManager{
+		storageCache: c,
+	}
+}
+
+var (
+	storageManager     *StorageManager
+	storageManagerOnce sync.Once
+)
+
+func GetStorageManager() *StorageManager {
+	storageManagerOnce.Do(func() {
+		storageManager = NewStorageManager()
+	})
+
+	return storageManager
+}
+
+func (sm *StorageManager) GetStorage(id StorageID) (*Storage, error) {
+	st, err := GetStorage(id)
+	if err != nil {
+		return nil, err
+	}
+
+	sm.storageCache.Add(id, st)
+	return st, nil
 }
 
 const (
@@ -168,5 +208,6 @@ func StorageUndelete(storageID StorageID) error {
 	return PutStorage(storage)
 }
 
-func StorageRename() {
+func StorageRename(storageID StorageID, name string) error {
+	return nil
 }

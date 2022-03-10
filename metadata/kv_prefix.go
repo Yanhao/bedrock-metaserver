@@ -1,13 +1,19 @@
 package metadata
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
-	KvPrefixDataServer         = "/dataservers/"
-	KvPrefixStorage            = "/storages/"
-	KvPrefixShard              = "/shards/"
-	KvPrefixShardsInDataServer = "/shards/dataservers/"
-	KvPrefixShardsInStorage    = "/shards/storages/"
+	KvPrefixIdc        = "/idcs/"
+	KvPrefixDataServer = "/dataservers/"
+	KvPrefixStorage    = "/storages/"
+	KvPrefixShard      = "/shards/"
+
+	KvPrefixDataServerInIdc    = "/dataservers_in_idc/"
+	KvPrefixShardsInDataServer = "/shards_in_dataserver/"
+	KvPrefixShardsInStorage    = "/shards_in_storage/"
 )
 
 // const (
@@ -15,8 +21,8 @@ const (
 // 	KvShardsInStorageTpl    = KvPrefixShardsInStorage + "%d/"
 // )
 
-func ShardKey(shardID ShardID) string {
-	return fmt.Sprintf("%s%d", KvPrefixShard, shardID)
+func IdcKey(idc string) string {
+	return fmt.Sprintf("%s%s", KvPrefixIdc, strings.TrimSpace(idc))
 }
 
 func StorageKey(storageID StorageID) string {
@@ -24,21 +30,37 @@ func StorageKey(storageID StorageID) string {
 }
 
 func DataServerKey(addr string) string {
-	return fmt.Sprintf("%s%s", KvPrefixDataServer, addr)
+	return fmt.Sprintf("%s%s", KvPrefixDataServer, strings.TrimSpace(addr))
 }
 
-func DataServerPrefixKey(addr string) string {
+func ShardKey(shardID ShardID) string {
+	return fmt.Sprintf("%s%d", KvPrefixShard, shardID)
+}
+
+// ---------------------------------------------------------------------
+
+func DataServerInIdcPrefixKey(idc string) string {
+	return fmt.Sprintf("%s%s/", KvPrefixDataServerInIdc, idc)
+}
+
+func ShardInDataServerPrefixKey(addr string) string {
 	return fmt.Sprintf("%s%s/", KvPrefixShardsInDataServer, addr)
 }
 
-func StoragePrefixKey(strageID StorageID) string {
-	return fmt.Sprintf("%s%d/", KvPrefixShardsInStorage, strageID)
+func ShardInStoragePrefixKey(storageID StorageID) string {
+	return fmt.Sprintf("%s%d/", KvPrefixShardsInStorage, storageID)
+}
+
+// ---------------------------------------------------------------------
+
+func DataServerInIdcKey(idc, addr string) string {
+	return fmt.Sprintf("%s%s", DataServerInIdcPrefixKey(idc), addr)
 }
 
 func ShardInDataServerKey(addr string, shardID ShardID) string {
-	return fmt.Sprintf("%s%d", DataServerPrefixKey(addr), shardID)
+	return fmt.Sprintf("%s%s", ShardInDataServerPrefixKey(addr), shardID)
 }
 
 func ShardInStorageKey(storageID StorageID, shardID ShardID) string {
-	return fmt.Sprintf("%s%d", StoragePrefixKey(storageID), shardID)
+	return fmt.Sprintf("%s%d", ShardInStoragePrefixKey(storageID), shardID)
 }

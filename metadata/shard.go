@@ -57,8 +57,8 @@ type Shard struct {
 	Replicates      map[string]struct{}
 	ReplicaUpdateTs time.Time
 	IsDeleted       bool
-	DeleteDTs       time.Time
-	CreatedTs       time.Time
+	DeleteTs        time.Time
+	CreateTs        time.Time
 	Leader          string
 	LeaderChangeTs  time.Time
 }
@@ -82,17 +82,63 @@ func (sd *Shard) AddReplicates(addrs []string) {
 	}
 }
 
-func (sd *Shard) MarkDelete() {
+func (sd *Shard) markDelete() {
 	sd.IsDeleted = true
-	sd.DeleteDTs = time.Now()
+	sd.DeleteTs = time.Now()
 }
 
-func (sd *Shard) MarkUndelete() {
+func (sd *Shard) markUndelete() {
 	sd.IsDeleted = false
-	sd.DeleteDTs = time.Time{}
+	sd.DeleteTs = time.Time{}
 }
 
 func (sd *Shard) Repair() {
+}
+
+type shardOption struct {
+	leaderAddr string
+}
+
+type shardOpFunc func(*shardOption)
+
+func WithLeader(addr string) shardOpFunc {
+	return func(opt *shardOption) {
+		opt.leaderAddr = addr
+	}
+}
+
+func (sd *Shard) ReSelectLeader(ops ...shardOpFunc) error {
+	conns := dataserver.GetDataServerConns()
+	dataSerCli := conns.GetApiClient(sd.Leader)
+	// FIXME error handling
+
+	var opts shardOption
+	for _, opf := range ops {
+		opf(&opts)
+	}
+
+	nextLeader := opts.leaderAddr
+	if nextLeader == "" {
+		var candidates []string
+		for addr := range sd.Replicates {
+			if addr != sd.Leader {
+				candidates = append(candidates, addr)
+			}
+		}
+
+		if len(candidates) == 0 {
+			return errors.New("no enought candidates")
+		}
+
+		nextLeader = candidates[rand.Intn(len(candidates))]
+	}
+
+	err := dataSerCli.TransferShardLeader(uint64(sd.ID), nextLeader)
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
 
 type ShardManager struct {
@@ -133,7 +179,7 @@ func (sm *ShardManager) GetShard(shardID ShardID) (*Shard, error) {
 		return v.(*Shard), nil
 	}
 
-	shard, err := GetShard(shardID)
+	shard, err := GetShardFromKv(shardID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,25 +190,25 @@ func (sm *ShardManager) GetShard(shardID ShardID) (*Shard, error) {
 }
 
 func (sm *ShardManager) PutShard(shard *Shard) error {
-	err := PutShard(shard)
+	err := PutShardToKv(shard)
 	if err != nil {
 		return err
 	}
 
-	_ = sm.shardsCache.Add(shard.ID, shard)
+	sm.updateCache(shard)
 
 	return nil
 }
 
 func (sm *ShardManager) MarkDelete(shard *Shard) error {
-	shard.MarkDelete()
+	shard.markDelete()
 	sm.updateCache(shard)
 
 	return sm.PutShard(shard)
 }
 
 func (sm *ShardManager) MarkUndelete(shard *Shard) error {
-	shard.MarkUndelete()
+	shard.markUndelete()
 	sm.updateCache(shard)
 
 	return sm.PutShard(shard)
@@ -192,13 +238,13 @@ func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
 	shard := &Shard{
 		ID:              shardID,
 		SID:             storage.ID,
-		CreatedTs:       time.Now(),
+		CreateTs:        time.Now(),
 		IsDeleted:       false,
 		ReplicaUpdateTs: time.Now(),
 		Replicates:      map[string]struct{}{},
 	}
 
-	err = PutShard(shard)
+	err = PutShardToKv(shard)
 	if err != nil {
 		return nil, err
 	}
@@ -232,54 +278,4 @@ func (sm *ShardManager) DeleteShard(shardID ShardID) error {
 	sm.shardsCache.Remove(shardID)
 
 	return nil
-}
-
-func (sm *ShardManager) ReSelectLeader(shardID ShardID, ops ...shardOpFunc) error {
-	shard, err := sm.GetShard(shardID)
-	if err != nil {
-		return err
-	}
-
-	conns := dataserver.GetDataServerConns()
-	dataSerCli := conns.GetApiClient(shard.Leader)
-	// FIXME error handling
-
-	var opts shardOption
-	for _, opf := range ops {
-		opf(&opts)
-	}
-
-	nextLeader := opts.leaderAddr
-	if nextLeader == "" {
-		var candidates []string
-		for addr := range shard.Replicates {
-			if addr != shard.Leader {
-				candidates = append(candidates, addr)
-			}
-		}
-
-		if len(candidates) == 0 {
-			return errors.New("no enought candidates")
-		}
-
-		nextLeader = candidates[rand.Intn(len(candidates))]
-	}
-
-	err = dataSerCli.TransferShardLeader(uint64(shard.ID), nextLeader)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type shardOption struct {
-	leaderAddr string
-}
-
-type shardOpFunc func(*shardOption)
-
-func WithLeader(addr string) shardOpFunc {
-	return func(opt *shardOption) {
-		opt.leaderAddr = addr
-	}
 }

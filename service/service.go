@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"net"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -83,15 +84,43 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *messages.GetShard
 }
 
 func (m *MetaService) CreateStorage(ctx context.Context, req *messages.CreateStorageRequest) (*messages.CreateStorageResponse, error) {
-	panic("")
+	resp := &messages.CreateStorageResponse{}
+
+	storage, err := metadata.CreateNewStorage()
+	if err != nil {
+		log.Error("create storage failed, err: %v", err)
+		return resp, status.Errorf(codes.Internal, "create storage failed")
+	}
+
+	resp.Id = uint64(storage.ID)
+
+	return resp, nil
 }
 
 func (m *MetaService) DeleteStorage(ctx context.Context, req *messages.DeleteStorageRequest) (*messages.DeleteStorageResponse, error) {
-	panic("")
+	resp := &messages.DeleteStorageResponse{}
+
+	for _, id := range req.Ids {
+		err := metadata.StorageDelete(metadata.StorageID(id))
+		if err != nil {
+			log.Error("create storage failed, err: %v", err)
+			return resp, status.Errorf(codes.Internal, "create storage failed")
+		}
+	}
+
+	return resp, nil
 }
 
 func (m *MetaService) RenameStorage(ctx context.Context, req *messages.RenameStorageRequest) (*messages.RenameStorageResponse, error) {
-	panic("")
+	resp := &messages.RenameStorageResponse{}
+
+	err := metadata.StorageRename(metadata.StorageID(req.Id), req.NewName)
+	if err != nil {
+		log.Error("create storage failed, err: %v", err)
+		return resp, status.Errorf(codes.Internal, "create storage failed")
+	}
+
+	return resp, nil
 }
 
 func (m *MetaService) ResizeStorage(ctx context.Context, req *messages.ResizeStorageRequest) (*messages.ResizeStorageResponse, error) {
@@ -99,11 +128,40 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *messages.ResizeSto
 }
 
 func (m *MetaService) GetStorages(ctx context.Context, req *messages.GetStoragesRequest) (*messages.GetStoragesResponse, error) {
-	panic("")
+	resp := &messages.GetStoragesResponse{}
+
+	for _, id := range req.Ids {
+		st, err := metadata.GetStorageManager().GetStorage(metadata.StorageID(id))
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "")
+		}
+
+		resp.Storages = append(resp.Storages, &messages.Storage{
+			Id:   uint64(st.ID),
+			Name: st.Name,
+		})
+	}
+
+	for _, name := range req.Names {
+		_ = name
+	}
+
+	return resp, nil
 }
 
 func (m *MetaService) AddDataServer(ctx context.Context, req *messages.AddDataServerRequest) (*messages.AddDataServerResponse, error) {
-	panic("")
+	resp := &messages.AddDataServerResponse{}
+
+	ip, port, err := net.SplitHostPort(req.Addr)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "")
+	}
+	err = metadata.DataServerAdd(ip, port)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "")
+	}
+
+	return resp, nil
 }
 
 func (m *MetaService) RemoveDataServer(ctx context.Context, req *messages.RemoveDataServerRequest) (*messages.RemoveDataServerResponse, error) {
@@ -111,7 +169,14 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *messages.Remove
 }
 
 func (m *MetaService) ListDataServer(ctx context.Context, req *messages.ListDataServerRequest) (*messages.ListDataServerResponse, error) {
-	panic("")
+	resp := &messages.ListDataServerResponse{}
+
+	for _, ds := range metadata.DataServers {
+		_ = ds
+		resp.DataServers = append(resp.DataServers, &messages.DataServer{})
+	}
+
+	return resp, nil
 }
 
 func (m *MetaService) UpdateDataServer(ctx context.Context, req *messages.UpdateDataServerRequest) (*messages.UpdateDataServerResponse, error) {

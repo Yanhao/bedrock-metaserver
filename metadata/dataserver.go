@@ -86,13 +86,23 @@ func (d *DataServer) Addr() string {
 	return net.JoinHostPort(ipStr, portStr)
 }
 
-func DataServerAdd(dataServer *DataServer) error {
-	_, ok := DataServers[dataServer.Addr()]
+// func DataServerAdd(dataServer *DataServer) error {
+func DataServerAdd(ip, port string) error {
+	addr := net.JoinHostPort(ip, port)
+	_, ok := DataServers[addr]
 	if ok {
-		return fmt.Errorf("%s already in the cluster", dataServer.Addr())
+		return fmt.Errorf("%s already in the cluster", addr)
+
+	}
+	ipInt, _ := strconv.ParseUint(ip, 10, 32)
+	portInt, _ := strconv.ParseUint(port, 10, 32)
+
+	dataserver := &DataServer{
+		Ip:   uint32(ipInt),
+		Port: uint32(portInt),
 	}
 
-	DataServers[dataServer.Addr()] = dataServer
+	DataServers[addr] = dataserver
 
 	return nil
 }

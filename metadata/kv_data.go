@@ -21,7 +21,7 @@ var (
 	ErrNoSuchShard = errors.New("no such shard")
 )
 
-func GetShard(shardID ShardID) (*Shard, error) {
+func GetShardFromKv(shardID ShardID) (*Shard, error) {
 	ec := kv.GetEtcdClient()
 
 	resp, err := ec.KV.Get(context.Background(), ShardKey(shardID))
@@ -52,7 +52,7 @@ func GetShard(shardID ShardID) (*Shard, error) {
 
 }
 
-func PutShard(shard *Shard) error {
+func PutShardToKv(shard *Shard) error {
 	pbShard := &pbdata.Shard{
 		Id:              uint64(shard.ID),
 		ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),
@@ -183,7 +183,7 @@ func DeleteDataServer(addr string) error {
 func GetShardsInDataServer(addr string) ([]ShardID, error) {
 	ec := kv.GetEtcdClient()
 
-	resp, err := ec.Get(context.Background(), DataServerPrefixKey(addr), client.WithPrefix())
+	resp, err := ec.Get(context.Background(), ShardInDataServerPrefixKey(addr), client.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func GetShardsInDataServer(addr string) ([]ShardID, error) {
 func GetShardsInStorage(storageID StorageID) ([]ShardID, error) {
 	ec := kv.GetEtcdClient()
 
-	resp, err := ec.Get(context.Background(), StoragePrefixKey(storageID), client.WithPrefix())
+	resp, err := ec.Get(context.Background(), ShardInStoragePrefixKey(storageID), client.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +322,7 @@ func GetStorage(storageID StorageID) (*Storage, error) {
 func DeleteStorage(storageID StorageID) error {
 	keys := []string{
 		StorageKey(storageID),
-		StoragePrefixKey(storageID),
+		ShardInStoragePrefixKey(storageID),
 	}
 
 	var ops []client.Op

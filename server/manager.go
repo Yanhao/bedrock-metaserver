@@ -55,7 +55,10 @@ func StartGrpcServer() error {
 }
 
 func Start() {
-	fmt.Println("starting ...")
+	fmt.Println("metaserver starting ...")
+
+	SetupStackTrap()
+	fmt.Println("setup stack trap routine ...")
 
 	configFile := flag.String("config", "", "specify the configuration file")
 	logFile := flag.String("log", "", "specify the log file")

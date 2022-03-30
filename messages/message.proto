@@ -72,7 +72,7 @@ message GetStoragesResponse {
 }
 
 message ShardRange {
-    uint64 start_shard_id = 1; 
+    uint64 start_shard_id = 1;
     uint64 offset = 2;
 
 }
@@ -138,7 +138,7 @@ message UpdateDataServerResponse {
 
 service MetaService {
     rpc HeartBeat (HeartBeatRequest) returns (google.protobuf.Empty);
-    
+
     rpc CreateStorage (CreateStorageRequest) returns (CreateStorageResponse);
     rpc DeleteStorage (DeleteStorageRequest) returns (DeleteStorageResponse);
     rpc RenameStorage (RenameStorageRequest) returns (RenameStorageResponse);

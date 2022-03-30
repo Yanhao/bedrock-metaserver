@@ -26,8 +26,9 @@ type LeaderShip struct {
 	lease   *atomic.Value
 	leaseID clientv3.LeaseID
 
-	notifier    chan NewRole
-	stop        chan struct{}
+	notifier chan NewRole
+	stop     chan struct{}
+
 	leaderKey   string
 	leaderValue string
 }
@@ -86,11 +87,12 @@ func (l *LeaderShip) Campaign() bool {
 	}
 
 	l.notifier <- NewRole{Role: BecameLeader}
+
 	return true
 }
 
 func (l *LeaderShip) keepLeader() {
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 
 	for {
@@ -99,6 +101,7 @@ func (l *LeaderShip) keepLeader() {
 		if err != nil {
 			log.Info("failed to keep alive leadership lease")
 			l.notifier <- NewRole{Role: BecameFollower}
+
 			return
 		}
 		select {
@@ -110,32 +113,26 @@ func (l *LeaderShip) keepLeader() {
 }
 
 func (l *LeaderShip) Start() {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
+	go func() {
+		ticker := time.NewTicker(time.Second * 5)
+		defer ticker.Stop()
+		for {
+			success := l.Campaign()
+			if success {
+				l.keepLeader()
+			}
 
-	for {
-		success := l.Campaign()
-		if success {
-			l.keepLeader()
+			select {
+			case <-ticker.C:
+				continue
+			case <-l.stop:
+				return
+			}
 		}
-
-		ticker.Reset(time.Second)
-		select {
-		case <-ticker.C:
-			continue
-		case <-l.stop:
-			return
-		}
-	}
+	}()
 }
 
 func (l *LeaderShip) Stop() error {
 	close(l.stop)
 	return nil
-}
-
-func (l *LeaderShip) LeaderTxn(cs ...clientv3.Cmp) (error, clientv3.Txn) {
-	ctx, _ := context.WithTimeout(l.client.Ctx(), 10*time.Second)
-	txn := l.client.Txn(ctx)
-	return nil, txn
 }

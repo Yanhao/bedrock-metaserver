@@ -34,11 +34,11 @@ func runAsLeader() {
 	log.Info("clear shard cache ...")
 }
 
-func StartGrpcServer() error {
+func StartGrpcServer() {
 	lis, err := net.Listen("tcp", config.MsConfig.ServerAddr)
 	if err != nil {
-		fmt.Printf("failed to listen on %v\n", config.MsConfig.ServerAddr)
-		return err
+		log.Info("failed to listen on %v\n", config.MsConfig.ServerAddr)
+		os.Exit(-1)
 	}
 
 	opts := []grpc.ServerOption{}
@@ -48,10 +48,8 @@ func StartGrpcServer() error {
 
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Error("failed to start grpc server")
-		return err
+		os.Exit(-1)
 	}
-
-	return nil
 }
 
 func Start() {

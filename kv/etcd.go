@@ -76,7 +76,7 @@ func (en *EtcdNode) Start() error {
 	case <-time.After(time.Minute):
 		e.Server.Stop()
 		log.Error("failed to start embed etcd")
-		return errors.New("timeout")
+		return errors.New("start etcd timeout")
 	}
 
 	en.client, err = client.New(client.Config{
@@ -91,7 +91,7 @@ func (en *EtcdNode) Start() error {
 	}
 
 	en.LeaderShip, err = NewLeaderShip(e, en.client, "metaserver-leader", en.config.Name)
-	go en.LeaderShip.Start()
+	en.LeaderShip.Start()
 
 	return nil
 }

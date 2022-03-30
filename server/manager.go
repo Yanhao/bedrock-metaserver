@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fatih/color"
 	"google.golang.org/grpc"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
@@ -18,12 +19,16 @@ import (
 )
 
 func runAsFollower() {
+	log.Info(color.GreenString("start runAsFollower."))
+
 	GetHeartBeater().Stop()
 	log.Info("stop heartbeater ...")
 
 }
 
 func runAsLeader() {
+	log.Info(color.GreenString("start runAsLeader."))
+
 	err := GetHeartBeater().Run()
 	if err != nil {
 		log.Error("failed to start heartbeater, err: %v", err)
@@ -53,11 +58,6 @@ func StartGrpcServer() {
 }
 
 func Start() {
-	fmt.Println("metaserver starting ...")
-
-	SetupStackTrap()
-	fmt.Println("setup stack trap routine ...")
-
 	configFile := flag.String("config", "", "specify the configuration file")
 	logFile := flag.String("log", "", "specify the log file")
 	help := flag.Bool("help", false, "display this help infomation")
@@ -67,6 +67,11 @@ func Start() {
 		flag.Usage()
 		os.Exit(-1)
 	}
+
+	fmt.Println("metaserver starting ...")
+
+	SetupStackTrap()
+	fmt.Println("setup stack trap routine ...")
 
 	if _, err := config.LoadConfigFromFile(*configFile); err != nil {
 		fmt.Println("failed to load configuration file")

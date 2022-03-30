@@ -7,6 +7,6 @@ import (
 )
 
 func main() {
-	fmt.Println("Hello MGR")
+	fmt.Print("Hello metaserver!\n\n")
 	server.Start()
 }

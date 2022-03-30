@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/fatih/color"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 
@@ -104,6 +105,7 @@ func (l *LeaderShip) keepLeader() {
 
 			return
 		}
+		log.Info(color.GreenString("keep leader successfully."))
 		select {
 		case <-ticker.C:
 		case <-l.stop:

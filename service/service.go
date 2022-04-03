@@ -125,7 +125,7 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *messages.RenameSto
 }
 
 func (m *MetaService) ResizeStorage(ctx context.Context, req *messages.ResizeStorageRequest) (*messages.ResizeStorageResponse, error) {
-	panic("")
+	panic("impletment me!")
 }
 
 func (m *MetaService) GetStorages(ctx context.Context, req *messages.GetStoragesRequest) (*messages.GetStoragesResponse, error) {

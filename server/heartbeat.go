@@ -45,7 +45,7 @@ func GetHeartBeater() *HeartBeater {
 	return heartBeater
 }
 
-func (hb *HeartBeater) Run() error {
+func (hb *HeartBeater) Start() error {
 	go func() {
 		ticker := time.NewTicker(time.Second * 10)
 

@@ -75,6 +75,8 @@ func (d *DataServer) MarkActive(isHeartBeat bool) {
 	if isHeartBeat {
 		d.LastHeartBeatTs = time.Now()
 	}
+
+	putDataServerToKv(d)
 }
 
 func (d *DataServer) MarkInactive() {
@@ -90,10 +92,6 @@ func (d *DataServer) Addr() string {
 	portStr := strconv.FormatUint(uint64(d.Port), 10)
 
 	return net.JoinHostPort(ipStr, portStr)
-}
-
-func DataServerSave(dataserver *DataServer) error {
-	return putDataServerToKv(dataserver)
 }
 
 func DataServerAdd(ip, port string) error {
@@ -113,7 +111,7 @@ func DataServerAdd(ip, port string) error {
 
 	DataServers[addr] = dataserver
 
-	err := DataServerSave(dataserver)
+	err := putDataServerToKv(dataserver)
 	if err != nil {
 		// TODO: remove DataServers In memory
 		return err

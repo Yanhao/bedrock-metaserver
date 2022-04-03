@@ -15,25 +15,43 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
 	"sr.ht/moyanhao/bedrock-metaserver/messages"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata"
+	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 	"sr.ht/moyanhao/bedrock-metaserver/service"
 )
 
 func runAsFollower() {
 	log.Info(color.GreenString("start runAsFollower."))
 
+	scheduler.GetChecker().Stop()
+	log.Info("stop checker ...")
+
+	scheduler.GetRebalance().Stop()
+	log.Info("stop rebalace ...")
+
 	GetHeartBeater().Stop()
 	log.Info("stop heartbeater ...")
-
 }
 
 func runAsLeader() {
 	log.Info(color.GreenString("start runAsLeader."))
 
-	err := GetHeartBeater().Run()
+	err := GetHeartBeater().Start()
 	if err != nil {
 		log.Error("failed to start heartbeater, err: %v", err)
 	}
 	log.Info("start heartbeater ...")
+
+	err = scheduler.GetRebalance().Start()
+	if err != nil {
+		log.Error("failed to start rebalance, err: %v", err)
+	}
+	log.Info("start rebalance ...")
+
+	err = scheduler.GetChecker().Start()
+	if err != nil {
+		log.Error("failed to start checker, err: %v", err)
+	}
+	log.Info("start checker ...")
 
 	metadata.GetShardManager().ClearCache()
 	log.Info("clear shard cache ...")

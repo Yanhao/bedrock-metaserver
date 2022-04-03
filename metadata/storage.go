@@ -209,5 +209,5 @@ func StorageUndelete(storageID StorageID) error {
 }
 
 func StorageRename(storageID StorageID, name string) error {
-	return nil
+	panic("impletment me!")
 }

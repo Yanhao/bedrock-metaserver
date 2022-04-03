@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	client "go.etcd.io/etcd/client/v3"
@@ -43,6 +44,11 @@ type DataServer struct {
 }
 
 var DataServers map[string]*DataServer
+var DataServersLock *sync.RWMutex
+
+func init() {
+	DataServersLock = &sync.RWMutex{}
+}
 
 func (d *DataServer) Used() uint64 {
 	return d.Capacity - d.Free
@@ -80,13 +86,16 @@ func (d *DataServer) MarkOffline() {
 }
 
 func (d *DataServer) Addr() string {
-	ipStr := strconv.FormatUint(uint64(d.Ip), 32)
-	portStr := strconv.FormatUint(uint64(d.Port), 32)
+	ipStr := strconv.FormatUint(uint64(d.Ip), 10)
+	portStr := strconv.FormatUint(uint64(d.Port), 10)
 
 	return net.JoinHostPort(ipStr, portStr)
 }
 
-// func DataServerAdd(dataServer *DataServer) error {
+func DataServerSave(dataserver *DataServer) error {
+	return putDataServerToKv(dataserver)
+}
+
 func DataServerAdd(ip, port string) error {
 	addr := net.JoinHostPort(ip, port)
 	_, ok := DataServers[addr]
@@ -104,13 +113,19 @@ func DataServerAdd(ip, port string) error {
 
 	DataServers[addr] = dataserver
 
+	err := DataServerSave(dataserver)
+	if err != nil {
+		// TODO: remove DataServers In memory
+		return err
+	}
+
 	return nil
 }
 
 func DataServerRemove(addr string) error {
 	delete(DataServers, addr)
 
-	return nil
+	return deleteDataServerFromKv(addr)
 }
 
 func LoadDataServersFromEtcd() error {
@@ -140,43 +155,6 @@ func LoadDataServersFromEtcd() error {
 			strconv.FormatInt(int64(pbDataServer.Port), 10))
 
 		DataServers[addr] = dataserver
-	}
-
-	return nil
-}
-
-func DataServerSave(dataServer *DataServer) error {
-	pbDataServer := &pbdata.DataServer{
-		Ip:   dataServer.Ip,
-		Port: dataServer.Port,
-	}
-
-	value, err := proto.Marshal(pbDataServer)
-	if err != nil {
-		log.Warn("failed to encode dataserver to pb, dataserver=%v", dataServer)
-		return err
-	}
-
-	addr := net.JoinHostPort(
-		strconv.FormatInt(int64(pbDataServer.Ip), 10),
-		strconv.FormatInt(int64(pbDataServer.Port), 10))
-
-	ec := kv.GetEtcdClient()
-	_, err = ec.Put(context.Background(), DataServerKey(addr), string(value))
-	if err != nil {
-		log.Warn("failed to save dataserver to etcd")
-		return err
-	}
-
-	return nil
-}
-
-func DataServerRemoveFromEtcd(addr string) error {
-	ec := kv.GetEtcdClient()
-	_, err := ec.Delete(context.Background(), DataServerKey(addr))
-	if err != nil {
-		log.Warn("failed to delete dataserver from etcd")
-		return err
 	}
 
 	return nil
@@ -219,32 +197,7 @@ func GetDataServerAddrs() []string {
 	return addrs
 }
 
-// func RemoveDataServer(addr string) error {
-// 	_, ok := DataServers[addr]
-// 	if !ok {
-// 		return ErrNoSuchDataServer
-// 	}
-
-// 	shardIDs, err := GetShardsInDataServer(addr)
-// 	if err != nil {
-// 		return errors.New("")
-// 	}
-
-// 	sm := GetShardManager()
-// 	for _, shardID := range shardIDs {
-// 		shard, err := sm.GetShard(shardID)
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		shard.RemoveReplicates(addrs []string)
-
-// 	}
-
-// 	return nil
-// }
-
-func IsDataServerActive(addr string) bool {
+func IsDataServerExists(addr string) bool {
 	_, ok := DataServers[addr]
 	return ok
 }

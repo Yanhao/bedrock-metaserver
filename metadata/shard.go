@@ -66,9 +66,6 @@ type Shard struct {
 func (sd *Shard) Info() {
 }
 
-func (sd *Shard) Transfer() {
-}
-
 func (sd *Shard) RemoveReplicates(addrs []string) {
 	for _, addr := range addrs {
 		delete(sd.Replicates, addr)
@@ -179,7 +176,7 @@ func (sm *ShardManager) GetShard(shardID ShardID) (*Shard, error) {
 		return v.(*Shard), nil
 	}
 
-	shard, err := GetShardFromKv(shardID)
+	shard, err := getShardFromKv(shardID)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +187,7 @@ func (sm *ShardManager) GetShard(shardID ShardID) (*Shard, error) {
 }
 
 func (sm *ShardManager) PutShard(shard *Shard) error {
-	err := PutShardToKv(shard)
+	err := putShardToKv(shard)
 	if err != nil {
 		return err
 	}
@@ -228,7 +225,7 @@ func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
 	shardIndex := storage.LastShardIndex + 1
 	storage.LastShardIndex++
 
-	err := PutStorage(storage)
+	err := putStorageToKv(storage)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +241,7 @@ func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
 		Replicates:      map[string]struct{}{},
 	}
 
-	err = PutShardToKv(shard)
+	err = putShardToKv(shard)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +267,7 @@ func (sm *ShardManager) DeleteShard(shardID ShardID) error {
 		}
 	}
 
-	err = DeleteShard(shard)
+	err = deleteShardFromKv(shard)
 	if err != nil {
 		return err
 	}

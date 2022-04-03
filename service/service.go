@@ -12,6 +12,7 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/messages"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata"
+	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
 type MetaService struct {
@@ -165,7 +166,19 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *messages.AddDataSe
 }
 
 func (m *MetaService) RemoveDataServer(ctx context.Context, req *messages.RemoveDataServerRequest) (*messages.RemoveDataServerResponse, error) {
-	panic("")
+	resp := &messages.RemoveDataServerResponse{}
+	_, _, err := net.SplitHostPort(req.Addr)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "")
+	}
+
+	err = scheduler.ClearDataserver(req.Addr)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "")
+	}
+	metadata.DataServerRemove(req.Addr)
+
+	return resp, nil
 }
 
 func (m *MetaService) ListDataServer(ctx context.Context, req *messages.ListDataServerRequest) (*messages.ListDataServerResponse, error) {

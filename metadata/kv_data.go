@@ -21,7 +21,7 @@ var (
 	ErrNoSuchShard = errors.New("no such shard")
 )
 
-func GetShardFromKv(shardID ShardID) (*Shard, error) {
+func getShardFromKv(shardID ShardID) (*Shard, error) {
 	ec := kv.GetEtcdClient()
 
 	resp, err := ec.KV.Get(context.Background(), ShardKey(shardID))
@@ -52,7 +52,7 @@ func GetShardFromKv(shardID ShardID) (*Shard, error) {
 
 }
 
-func PutShardToKv(shard *Shard) error {
+func putShardToKv(shard *Shard) error {
 	pbShard := &pbdata.Shard{
 		Id:              uint64(shard.ID),
 		ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),
@@ -90,7 +90,7 @@ func PutShardToKv(shard *Shard) error {
 	return nil
 }
 
-func DeleteShard(shard *Shard) error {
+func deleteShardFromKv(shard *Shard) error {
 	keys := []string{ShardKey(shard.ID)}
 
 	for addr := range shard.Replicates {
@@ -111,7 +111,7 @@ func DeleteShard(shard *Shard) error {
 	return nil
 }
 
-func GetDataServer(addr string) (*DataServer, error) {
+func getDataServerFromKv(addr string) (*DataServer, error) {
 	ec := kv.GetEtcdClient()
 
 	resp, err := ec.KV.Get(context.Background(), DataServerKey(addr))
@@ -151,12 +151,15 @@ func GetDataServer(addr string) (*DataServer, error) {
 	return dataServer, nil
 }
 
-func PutDataServer(dataserver *DataServer) error {
-	pbDataServer := &pbdata.DataServer{}
+func putDataServerToKv(dataserver *DataServer) error {
+	pbDataServer := &pbdata.DataServer{
+		Ip:   dataserver.Ip,
+		Port: dataserver.Port,
+	}
 
 	value, err := proto.Marshal(pbDataServer)
 	if err != nil {
-		log.Warn("failed to encode dataserver to pb, dataserver=%v", *dataserver)
+		log.Warn("failed to encode dataserver to pb, dataserver=%v", dataserver)
 		return err
 	}
 
@@ -170,17 +173,18 @@ func PutDataServer(dataserver *DataServer) error {
 	return nil
 }
 
-func DeleteDataServer(addr string) error {
+func deleteDataServerFromKv(addr string) error {
 	ec := kv.GetEtcdClient()
 	_, err := ec.Delete(context.Background(), DataServerKey(addr))
 	if err != nil {
+		log.Warn("failed to delete dataserver from kv")
 		return err
 	}
 
 	return nil
 }
 
-func GetShardsInDataServer(addr string) ([]ShardID, error) {
+func GetShardsInDataServerInKv(addr string) ([]ShardID, error) {
 	ec := kv.GetEtcdClient()
 
 	resp, err := ec.Get(context.Background(), ShardInDataServerPrefixKey(addr), client.WithPrefix())
@@ -201,7 +205,7 @@ func GetShardsInDataServer(addr string) ([]ShardID, error) {
 	return shardIDs, nil
 }
 
-func GetShardsInStorage(storageID StorageID) ([]ShardID, error) {
+func getShardsInStorageInKv(storageID StorageID) ([]ShardID, error) {
 	ec := kv.GetEtcdClient()
 
 	resp, err := ec.Get(context.Background(), ShardInStoragePrefixKey(storageID), client.WithPrefix())
@@ -222,7 +226,7 @@ func GetShardsInStorage(storageID StorageID) ([]ShardID, error) {
 	return shardIDs, nil
 }
 
-func IsShardInDataServer(addr string, shardID ShardID) (bool, error) {
+func isShardInDataServerInKv(addr string, shardID ShardID) (bool, error) {
 	ec := kv.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), ShardInDataServerKey(addr, shardID), client.WithPrefix())
 	if err != nil {
@@ -236,7 +240,7 @@ func IsShardInDataServer(addr string, shardID ShardID) (bool, error) {
 	return false, nil
 }
 
-func HasDataServer(addr string) (bool, error) {
+func hasDataServerInKv(addr string) (bool, error) {
 	ec := kv.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), DataServerKey(addr))
 	if err != nil {
@@ -250,7 +254,7 @@ func HasDataServer(addr string) (bool, error) {
 	return false, nil
 }
 
-func HasStorage(storageID StorageID) (bool, error) {
+func hasStorageInKv(storageID StorageID) (bool, error) {
 	ec := kv.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), StorageKey(storageID))
 	if err != nil {
@@ -264,7 +268,7 @@ func HasStorage(storageID StorageID) (bool, error) {
 	return false, nil
 }
 
-func PutStorage(storage *Storage) error {
+func putStorageToKv(storage *Storage) error {
 	pbStorage := &pbdata.Storage{
 		Id:        uint64(storage.ID),
 		IsDeleted: storage.IsDeleted,
@@ -288,7 +292,7 @@ func PutStorage(storage *Storage) error {
 	return nil
 }
 
-func GetStorage(storageID StorageID) (*Storage, error) {
+func getStorageFromKv(storageID StorageID) (*Storage, error) {
 	ec := kv.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), StorageKey(storageID))
 	if err != nil {
@@ -319,7 +323,7 @@ func GetStorage(storageID StorageID) (*Storage, error) {
 	}, nil
 }
 
-func DeleteStorage(storageID StorageID) error {
+func deleteStorageFromKv(storageID StorageID) error {
 	keys := []string{
 		StorageKey(storageID),
 		ShardInStoragePrefixKey(storageID),

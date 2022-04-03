@@ -64,7 +64,7 @@ func GetStorageManager() *StorageManager {
 }
 
 func (sm *StorageManager) GetStorage(id StorageID) (*Storage, error) {
-	st, err := GetStorage(id)
+	st, err := getStorageFromKv(id)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func CreateNewStorage() (*Storage, error) {
 		IsDeleted: false,
 	}
 
-	err := PutStorage(storage)
+	err := putStorageToKv(storage)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func StorageDelete(storageID StorageID) error {
 	value, ok := StorageCache.Get(storageID)
 	if !ok {
 		var err error
-		storage, err = GetStorage(storageID)
+		storage, err = getStorageFromKv(storageID)
 		if err != nil {
 			return err
 		}
@@ -155,14 +155,14 @@ func StorageDelete(storageID StorageID) error {
 	storage.IsDeleted = true
 	storage.DeleteTs = time.Now()
 
-	return PutStorage(storage)
+	return putStorageToKv(storage)
 }
 
 func StorageInfo() {
 }
 
 func StorageRealDelete(storageID StorageID) error {
-	shardIDs, err := GetShardsInStorage(storageID)
+	shardIDs, err := getShardsInStorageInKv(storageID)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func StorageRealDelete(storageID StorageID) error {
 		}
 	}
 
-	err = DeleteStorage(storageID)
+	err = deleteStorageFromKv(storageID)
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func StorageUndelete(storageID StorageID) error {
 	value, ok := StorageCache.Get(storageID)
 	if !ok {
 		var err error
-		storage, err = GetStorage(storageID)
+		storage, err = getStorageFromKv(storageID)
 		if err != nil {
 			return err
 		}
@@ -205,7 +205,7 @@ func StorageUndelete(storageID StorageID) error {
 	storage.IsDeleted = false
 	storage.DeleteTs = time.Time{}
 
-	return PutStorage(storage)
+	return putStorageToKv(storage)
 }
 
 func StorageRename(storageID StorageID, name string) error {

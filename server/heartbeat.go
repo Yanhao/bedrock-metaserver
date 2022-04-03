@@ -4,14 +4,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jinzhu/copier"
+
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata"
+	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
-type HeartBeater struct {
-	stop chan struct{}
-}
-
+// make sure the following data no need to be locked
 var (
 	ActiveDataServers   map[string]*metadata.DataServer
 	InactiveDataServers map[string]*metadata.DataServer
@@ -22,6 +22,10 @@ const (
 	InactivePeriod = time.Second * 30
 	Offlineperiod  = time.Minute * 30
 )
+
+type HeartBeater struct {
+	stop chan struct{}
+}
 
 func NewHeartBeater() *HeartBeater {
 	return &HeartBeater{
@@ -66,21 +70,35 @@ func (hb *HeartBeater) Stop() {
 }
 
 func (hb *HeartBeater) doHeartBeat() {
-	for _, s := range metadata.DataServers {
-		if s.LastHeartBeatTs.Before(time.Now().Add(-InactivePeriod)) {
-			s.MarkInactive()
-			InactiveDataServers[s.Addr()] = s
-			delete(ActiveDataServers, s.Addr())
-			delete(OfflineDataServers, s.Addr())
-		}
+	metadata.DataServersLock.Lock()
+	defer metadata.DataServersLock.Unlock()
 
+	for _, s := range metadata.DataServers {
 		if s.LastHeartBeatTs.Before(time.Now().Add(-Offlineperiod)) {
 			s.MarkOffline()
+
 			OfflineDataServers[s.Addr()] = s
 			delete(ActiveDataServers, s.Addr())
 			delete(InactiveDataServers, s.Addr())
 
-			go repairDataInServer(s)
+			var ds *metadata.DataServer
+			err := copier.Copy(ds, s)
+			if err != nil {
+				log.Error("copy metadata.DataServer failed, err: %v", err)
+			}
+			go repairDataInServer(ds)
+
+			continue
+		}
+
+		if s.LastHeartBeatTs.Before(time.Now().Add(-InactivePeriod)) {
+			s.MarkInactive()
+
+			InactiveDataServers[s.Addr()] = s
+			delete(ActiveDataServers, s.Addr())
+			delete(OfflineDataServers, s.Addr())
+
+			continue
 		}
 
 		s.MarkActive(true)
@@ -93,6 +111,15 @@ func (hb *HeartBeater) doHeartBeat() {
 func repairDataInServer(server *metadata.DataServer) {
 	log.Info("start repair data in dataserver: %s", server.Addr())
 
+	err := scheduler.ClearDataserver(server.Addr())
+	if err != nil {
+		log.Error("failed to clear data in dataserver %v, err: %v", server.Addr(), err)
+
+		return
+	}
+
+	metadata.DataServerRemove(server.Addr())
 	delete(OfflineDataServers, server.Addr())
+
 	log.Info("successfully repair data in dataserver: %s", server.Addr())
 }

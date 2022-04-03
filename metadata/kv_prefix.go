@@ -58,7 +58,7 @@ func DataServerInIdcKey(idc, addr string) string {
 }
 
 func ShardInDataServerKey(addr string, shardID ShardID) string {
-	return fmt.Sprintf("%s%s", ShardInDataServerPrefixKey(addr), shardID)
+	return fmt.Sprintf("%s%d", ShardInDataServerPrefixKey(addr), shardID)
 }
 
 func ShardInStorageKey(storageID StorageID, shardID ShardID) string {

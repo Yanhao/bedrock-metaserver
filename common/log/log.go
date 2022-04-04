@@ -22,7 +22,7 @@ var (
 
 func Init(file string) error {
 	if file == "" {
-		logger = log.New(os.Stdout, "", log.LstdFlags)
+		logger = log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)
 		return nil
 	}
 

@@ -104,6 +104,10 @@ func Start() {
 		fmt.Println("failed to load configuration file")
 		os.Exit(-1)
 	}
+	config.ValidateConfig()
+
+	SetupHttpPprof()
+	fmt.Println("setup http pprof ...")
 
 	if err := log.Init(*logFile); err != nil {
 		fmt.Println("failed to initialize logging")

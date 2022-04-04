@@ -20,18 +20,27 @@ type Configuration struct {
 	EtcdClientTimeout time.Duration
 	EtcdClusterPeers  string
 
-	ServerAddr string
-	LogFile    string
+	ServerAddr      string
+	PprofListenAddr string
+	LogFile         string
 }
 
 var MsConfig *Configuration
 
+func NewConfiguration() *Configuration {
+	return &Configuration{}
+}
+
+func GetConfiguration() *Configuration {
+	return MsConfig
+}
+
 func LoadConfigFromFile(filePath string) (*Configuration, error) {
-	ret := Configuration{}
+	ret := NewConfiguration()
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return &ret, errors.New("failed to open configuration file")
+		return ret, errors.New("failed to open configuration file")
 	}
 	defer f.Close()
 
@@ -39,13 +48,13 @@ func LoadConfigFromFile(filePath string) (*Configuration, error) {
 
 	count, err := f.Read(buf)
 	if err != nil {
-		return &ret, errors.New("failed to read configuration file")
+		return ret, errors.New("failed to read configuration file")
 	}
 	_ = f.Close()
 
 	c, err := toml.Load(string(buf[:count]))
 	if err != nil {
-		return &ret, errors.New("failed to parse toml file")
+		return ret, errors.New("failed to parse toml file")
 	}
 
 	ret.EtcdName = c.Get("etcd.name").(string)
@@ -65,12 +74,13 @@ func LoadConfigFromFile(filePath string) (*Configuration, error) {
 
 	ret.LogFile = c.Get("log_file").(string)
 	ret.ServerAddr = c.Get("server.addr").(string)
+	ret.PprofListenAddr = c.Get("server.pprof_addr").(string)
 
-	MsConfig = &ret
-	return &ret, nil
+	MsConfig = ret
+	return MsConfig, nil
 }
 
 // just panic if there are something wrong
-func ValidateConfig(config *Configuration) {
+func ValidateConfig() {
 
 }

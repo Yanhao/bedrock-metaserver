@@ -1,16 +1,17 @@
 package server
 
 import (
+	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
-)
 
-// usage:
-// kill -USR1 $pid
-// less stack.log
+	"sr.ht/moyanhao/bedrock-metaserver/config"
+)
 
 const (
 	timeFormat = "2006-01-02 15:04:05"
@@ -20,6 +21,9 @@ var (
 	stackFile = "./debug_stack.log"
 )
 
+// usage:
+// kill -USR1 $pid
+// less stack.log
 func SetupStackTrap(args ...string) {
 	if len(args) > 0 {
 		stackFile = args[0]
@@ -49,4 +53,17 @@ func writeStack(buf []byte) {
 	fd.WriteString("\n\n\n\n\n")
 	fd.WriteString(now + " stdout:" + "\n\n")
 	fd.Write(buf)
+}
+
+// need to be called after configuration initialized
+func SetupHttpPprof() {
+	addr := config.MsConfig.PprofListenAddr
+
+	go func() {
+		err := http.ListenAndServe(addr, nil)
+		if err != nil {
+			fmt.Printf("SetupHttpPprof failed, err: %v", err)
+			os.Exit(-1)
+		}
+	}()
 }

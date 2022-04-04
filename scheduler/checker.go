@@ -17,7 +17,7 @@ func NewChecker() *Checker {
 
 var (
 	checker     *Checker
-	checkerOnce *sync.Once
+	checkerOnce sync.Once
 )
 
 func GetChecker() *Checker {

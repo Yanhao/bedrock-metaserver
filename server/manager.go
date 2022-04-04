@@ -22,6 +22,9 @@ import (
 func runAsFollower() {
 	log.Info(color.GreenString("start runAsFollower."))
 
+	GetGarbageCleaner().Stop()
+	log.Info("stop garbage cleaner ...")
+
 	scheduler.GetChecker().Stop()
 	log.Info("stop checker ...")
 
@@ -52,6 +55,12 @@ func runAsLeader() {
 		log.Error("failed to start checker, err: %v", err)
 	}
 	log.Info("start checker ...")
+
+	err = GetGarbageCleaner().Start()
+	if err != nil {
+		log.Error("failed to start garbage cleaner, err: %v")
+	}
+	log.Info("start garbage cleaner ...")
 
 	metadata.GetShardManager().ClearCache()
 	log.Info("clear shard cache ...")

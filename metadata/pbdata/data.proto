@@ -24,7 +24,15 @@ message DataServer {
     uint64 capacity = 3;
     uint64 free = 4;
 
+    google.protobuf.Timestamp last_heartbeat_ts = 5;
     // repeated  Shard shards = 5;
+
+    enum LiveStatus {
+        ACTIVE = 0;
+        INACTIVE = 1;
+        OFFLINE = 2;
+    }
+    LiveStatus status = 6;
 }
 
 message Storage {

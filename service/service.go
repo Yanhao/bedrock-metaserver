@@ -195,3 +195,7 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *messages.ListData
 func (m *MetaService) UpdateDataServer(ctx context.Context, req *messages.UpdateDataServerRequest) (*messages.UpdateDataServerResponse, error) {
 	panic("")
 }
+
+func (m *MetaService) ShardInfo(ctx context.Context, req *messages.ShardInfoRequest) (*messages.ShardInfoResponse, error) {
+	panic("")
+}

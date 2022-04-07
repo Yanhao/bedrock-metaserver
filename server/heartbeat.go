@@ -41,6 +41,7 @@ var (
 func GetHeartBeater() *HeartBeater {
 	heartBeaterOnce.Do(func() {
 		heartBeater = NewHeartBeater()
+		heartBeater.InitDataServers()
 	})
 	return heartBeater
 }
@@ -53,7 +54,7 @@ func (hb *HeartBeater) Start() error {
 		for {
 			select {
 			case <-ticker.C:
-				hb.doHeartBeat()
+				hb.doHandleHeartBeat()
 			case <-hb.stop:
 				break out
 			}
@@ -69,7 +70,27 @@ func (hb *HeartBeater) Stop() {
 	close(hb.stop)
 }
 
-func (hb *HeartBeater) doHeartBeat() {
+func (hb *HeartBeater) InitDataServers() {
+	log.Info("init dataservers ...")
+
+	metadata.DataServersLock.Lock()
+	defer metadata.DataServersLock.Unlock()
+
+	for _, d := range metadata.DataServers {
+		switch d.Status {
+		case metadata.LiveStatusActive:
+			ActiveDataServers[d.Addr()] = d
+		case metadata.LiveStatusInactive:
+			InactiveDataServers[d.Addr()] = d
+		case metadata.LiveStatusOffline:
+			OfflineDataServers[d.Addr()] = d
+		}
+	}
+}
+
+func (hb *HeartBeater) doHandleHeartBeat() {
+	log.Info("handle heartbeat ...")
+
 	metadata.DataServersLock.Lock()
 	defer metadata.DataServersLock.Unlock()
 

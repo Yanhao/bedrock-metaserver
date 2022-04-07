@@ -30,6 +30,7 @@ type MetaServiceClient interface {
 	RemoveDataServer(ctx context.Context, in *RemoveDataServerRequest, opts ...grpc.CallOption) (*RemoveDataServerResponse, error)
 	ListDataServer(ctx context.Context, in *ListDataServerRequest, opts ...grpc.CallOption) (*ListDataServerResponse, error)
 	UpdateDataServer(ctx context.Context, in *UpdateDataServerRequest, opts ...grpc.CallOption) (*UpdateDataServerResponse, error)
+	ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error)
 }
 
 type metaServiceClient struct {
@@ -139,6 +140,15 @@ func (c *metaServiceClient) UpdateDataServer(ctx context.Context, in *UpdateData
 	return out, nil
 }
 
+func (c *metaServiceClient) ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error) {
+	out := new(ShardInfoResponse)
+	err := c.cc.Invoke(ctx, "/messages.MetaService/ShardInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MetaServiceServer is the server API for MetaService service.
 // All implementations must embed UnimplementedMetaServiceServer
 // for forward compatibility
@@ -154,6 +164,7 @@ type MetaServiceServer interface {
 	RemoveDataServer(context.Context, *RemoveDataServerRequest) (*RemoveDataServerResponse, error)
 	ListDataServer(context.Context, *ListDataServerRequest) (*ListDataServerResponse, error)
 	UpdateDataServer(context.Context, *UpdateDataServerRequest) (*UpdateDataServerResponse, error)
+	ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error)
 	mustEmbedUnimplementedMetaServiceServer()
 }
 
@@ -193,6 +204,9 @@ func (UnimplementedMetaServiceServer) ListDataServer(context.Context, *ListDataS
 }
 func (UnimplementedMetaServiceServer) UpdateDataServer(context.Context, *UpdateDataServerRequest) (*UpdateDataServerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateDataServer not implemented")
+}
+func (UnimplementedMetaServiceServer) ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ShardInfo not implemented")
 }
 func (UnimplementedMetaServiceServer) mustEmbedUnimplementedMetaServiceServer() {}
 
@@ -405,6 +419,24 @@ func _MetaService_UpdateDataServer_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetaService_ShardInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ShardInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetaServiceServer).ShardInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/messages.MetaService/ShardInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetaServiceServer).ShardInfo(ctx, req.(*ShardInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MetaService_ServiceDesc is the grpc.ServiceDesc for MetaService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -455,6 +487,10 @@ var MetaService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateDataServer",
 			Handler:    _MetaService_UpdateDataServer_Handler,
+		},
+		{
+			MethodName: "ShardInfo",
+			Handler:    _MetaService_ShardInfo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -136,6 +136,13 @@ message UpdateDataServerRequest {
 message UpdateDataServerResponse {
 }
 
+message ShardInfoRequest {
+    uint64 id = 1;
+}
+
+message ShardInfoResponse {
+}
+
 service MetaService {
     rpc HeartBeat (HeartBeatRequest) returns (google.protobuf.Empty);
 
@@ -151,4 +158,6 @@ service MetaService {
     rpc RemoveDataServer (RemoveDataServerRequest) returns (RemoveDataServerResponse);
     rpc ListDataServer (ListDataServerRequest) returns (ListDataServerResponse);
     rpc UpdateDataServer (UpdateDataServerRequest) returns (UpdateDataServerResponse);
+
+    rpc ShardInfo(ShardInfoRequest) returns (ShardInfoResponse);
 }

@@ -40,7 +40,7 @@ type DataServer struct {
 	Shards []*Shard
 
 	LastHeartBeatTs time.Time
-	status          LiveStatus
+	Status          LiveStatus
 }
 
 var DataServers map[string]*DataServer
@@ -71,7 +71,7 @@ func (d *DataServer) HeartBeat() error {
 }
 
 func (d *DataServer) MarkActive(isHeartBeat bool) {
-	d.status = LiveStatusActive
+	d.Status = LiveStatusActive
 	if isHeartBeat {
 		d.LastHeartBeatTs = time.Now()
 	}
@@ -80,11 +80,15 @@ func (d *DataServer) MarkActive(isHeartBeat bool) {
 }
 
 func (d *DataServer) MarkInactive() {
-	d.status = LiveStatusInactive
+	d.Status = LiveStatusInactive
+
+	putDataServerToKv(d)
 }
 
 func (d *DataServer) MarkOffline() {
-	d.status = LiveStatusOffline
+	d.Status = LiveStatusOffline
+
+	putDataServerToKv(d)
 }
 
 func (d *DataServer) Addr() string {

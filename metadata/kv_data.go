@@ -144,7 +144,7 @@ func getDataServerFromKv(addr string) (*DataServer, error) {
 		Port:            uint32(port),
 		Free:            pbDataServer.GetFree(),
 		Capacity:        pbDataServer.GetCapacity(),
-		status:          LiveStatusActive,
+		Status:          LiveStatusActive,
 		LastHeartBeatTs: time.Time{},
 	}
 
@@ -152,9 +152,24 @@ func getDataServerFromKv(addr string) (*DataServer, error) {
 }
 
 func putDataServerToKv(dataserver *DataServer) error {
+	var status pbdata.DataServer_LiveStatus
+	if dataserver.Status == LiveStatusActive {
+		status = pbdata.DataServer_ACTIVE
+	} else if dataserver.Status == LiveStatusInactive {
+		status = pbdata.DataServer_INACTIVE
+	} else if dataserver.Status == LiveStatusOffline {
+		status = pbdata.DataServer_OFFLINE
+	}
+
 	pbDataServer := &pbdata.DataServer{
-		Ip:   dataserver.Ip,
-		Port: dataserver.Port,
+		Ip:       dataserver.Ip,
+		Port:     dataserver.Port,
+		Free:     dataserver.Free,
+		Capacity: dataserver.Capacity,
+
+		LastHeartbeatTs: timestamppb.New(dataserver.LastHeartBeatTs),
+
+		Status: status,
 	}
 
 	value, err := proto.Marshal(pbDataServer)

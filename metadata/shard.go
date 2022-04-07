@@ -106,7 +106,7 @@ func WithLeader(addr string) shardOpFunc {
 
 func (sd *Shard) ReSelectLeader(ops ...shardOpFunc) error {
 	conns := dataserver.GetDataServerConns()
-	dataSerCli := conns.GetApiClient(sd.Leader)
+	dataSerCli, _ := conns.GetApiClient(sd.Leader)
 	// FIXME error handling
 
 	var opts shardOption
@@ -258,7 +258,7 @@ func (sm *ShardManager) DeleteShard(shardID ShardID) error {
 	conns := dataserver.GetDataServerConns()
 
 	for addr := range shard.Replicates {
-		dataServerCli := conns.GetApiClient(addr)
+		dataServerCli, _ := conns.GetApiClient(addr)
 
 		err := dataServerCli.DeleteShard(uint64(shardID))
 		if err != nil {

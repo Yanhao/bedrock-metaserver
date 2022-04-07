@@ -106,7 +106,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 
 		server := randomSelect(viableDataServers)
 
-		dataServerCli := conns.GetApiClient(server)
+		dataServerCli, _ := conns.GetApiClient(server)
 
 		err := dataServerCli.CreateShard(uint64(shardID))
 		if err != nil {

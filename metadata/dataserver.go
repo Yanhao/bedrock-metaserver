@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
-	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
+	// "sr.ht/moyanhao/bedrock-metaserver/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata/pbdata"
 )
@@ -158,32 +158,32 @@ func LoadDataServersFromEtcd() error {
 	return nil
 }
 
-func TransferShard(shardID ShardID, fromAddr, toAddr string) error {
-	sm := GetShardManager()
-	shard, err := sm.GetShard(shardID)
-	if err != nil {
-		return err
-	}
+// func TransferShard(shardID ShardID, fromAddr, toAddr string) error {
+// 	sm := GetShardManager()
+// 	shard, err := sm.GetShard(shardID)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	if _, ok := shard.Replicates[fromAddr]; !ok {
-		return errors.New("shard not found in dataserver")
-	}
+// 	if _, ok := shard.Replicates[fromAddr]; !ok {
+// 		return errors.New("shard not found in dataserver")
+// 	}
 
-	if _, ok := shard.Replicates[toAddr]; ok {
-		return errors.New("shard already in dataserver")
-	}
+// 	if _, ok := shard.Replicates[toAddr]; ok {
+// 		return errors.New("shard already in dataserver")
+// 	}
 
-	fromCli := dataserver.GetDataServerConns().GetApiClient(toAddr)
-	err = fromCli.TransferShard(uint64(shardID), toAddr)
-	if err != nil {
-		return err
-	}
+// 	fromCli := dataserver.GetDataServerConns().GetApiClient(toAddr)
+// 	err = fromCli.TransferShard(uint64(shardID), toAddr)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	shard.RemoveReplicates([]string{fromAddr})
-	shard.AddReplicates([]string{toAddr})
+// 	shard.RemoveReplicates([]string{fromAddr})
+// 	shard.AddReplicates([]string{toAddr})
 
-	return sm.PutShard(shard)
-}
+// 	return sm.PutShard(shard)
+// }
 
 func GetDataServerAddrs() []string {
 	var addrs []string

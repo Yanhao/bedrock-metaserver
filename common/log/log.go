@@ -4,6 +4,8 @@ import (
 	"errors"
 	"log"
 	"os"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -15,14 +17,17 @@ const (
 )
 
 var (
-	logLevel int = LOG_INFO
-	logFile  *os.File
-	logger   *log.Logger
+	logLevel    int = LOG_INFO
+	logFile     *os.File
+	logger      *log.Logger
+	sugarLogger *zap.SugaredLogger
 )
 
-func Init(file string) error {
+func InitLogFile(file string) error {
 	if file == "" {
 		logger = log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)
+		logFile = os.Stdout
+
 		return nil
 	}
 
@@ -31,44 +36,90 @@ func Init(file string) error {
 		return errors.New("failed to open log file")
 	}
 	logFile = logfile
-
 	logger = log.New(logFile, "", log.LstdFlags)
+
+	return nil
+}
+
+func InitLogZap() error {
+	l, err := zap.NewProduction()
+	if err != nil {
+		return err
+	}
+
+	sugarLogger = l.Sugar()
 	return nil
 }
 
 func Fini() {
-	_ = logFile.Close()
+	if logFile != nil {
+		_ = logFile.Close()
+	}
+
+	if sugarLogger != nil {
+		sugarLogger.Sync()
+	}
 }
 
 func SetLogLevel(level int) {
 	logLevel = level
 }
 
-func Debug(format string, a ...interface{}) {
-	if logLevel > LOG_DEBUG {
+func Debug(a ...interface{}) {
+	if logFile != nil {
+		if logLevel > LOG_DEBUG {
+			return
+		}
+		logger.Printf("DEBUG: "+a[0].(string)+"\n", a[1:]...)
+
 		return
 	}
-	logger.Println("DEBUG: "+format, a)
+
+	sugarLogger.Debug(a)
 }
 
-func Info(format string, a ...interface{}) {
-	if logLevel > LOG_INFO {
+func Info(a ...interface{}) {
+	if logFile != nil {
+		if logLevel > LOG_INFO {
+			return
+		}
+		logger.Printf("INFO: "+a[0].(string)+"\n", a[1:]...)
+
 		return
 	}
-	logger.Println("INFO: "+format, a)
+
+	sugarLogger.Info(a)
 }
 
-func Warn(format string, a ...interface{}) {
-	if logLevel > LOG_WARN {
+func Warn(a ...interface{}) {
+	if logFile != nil {
+		if logLevel > LOG_WARN {
+			return
+		}
+		logger.Printf("WARN: "+a[0].(string)+"\n", a[1:]...)
+
 		return
 	}
-	logger.Println("WARN: "+format, a)
+
+	sugarLogger.Warn(a)
 }
 
-func Error(format string, a ...interface{}) {
-	logger.Println("ERROR: "+format, a)
+func Error(a ...interface{}) {
+	if logFile != nil {
+		logger.Printf("ERROR: "+a[0].(string)+"\n", a[1:]...)
+
+		return
+	}
+
+	sugarLogger.Error(a)
 }
 
-func Fatal(format string, a ...interface{}) {
-	logger.Println("FATAL: "+format, a)
+func Fatal(a ...interface{}) {
+	if logFile != nil {
+		logger.Printf("FATAL: "+a[0].(string)+"\n", a[1:]...)
+
+		return
+	}
+
+	sugarLogger.Fatal(a)
 }

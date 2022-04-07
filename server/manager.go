@@ -109,7 +109,9 @@ func Start() {
 	SetupHttpPprof()
 	fmt.Println("setup http pprof ...")
 
-	if err := log.Init(*logFile); err != nil {
+	// _ = logFile
+	if err := log.InitLogFile(*logFile); err != nil {
+		// if err := log.InitLogZap(); err != nil {
 		fmt.Println("failed to initialize logging")
 		os.Exit(-1)
 	}

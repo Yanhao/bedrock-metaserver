@@ -26,7 +26,7 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *messages.HeartBeatRequ
 		return nil, status.Errorf(codes.NotFound, "no such server: %s", req.Addr)
 	}
 
-	server.MarkActive(true)
+	server.HeartBeat()
 
 	return &emptypb.Empty{}, nil
 }
@@ -87,7 +87,7 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *messages.GetShard
 func (m *MetaService) CreateStorage(ctx context.Context, req *messages.CreateStorageRequest) (*messages.CreateStorageResponse, error) {
 	resp := &messages.CreateStorageResponse{}
 
-	storage, err := metadata.CreateNewStorage()
+	storage, err := scheduler.GetShardAllocator().AllocatorNewStorage()
 	if err != nil {
 		log.Error("create storage failed, err: %v", err)
 		return resp, status.Errorf(codes.Internal, "create storage failed")

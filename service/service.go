@@ -102,7 +102,7 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *messages.DeleteSto
 	resp := &messages.DeleteStorageResponse{}
 
 	for _, id := range req.Ids {
-		err := metadata.StorageDelete(metadata.StorageID(id))
+		err := metadata.GetStorageManager().StorageDelete(metadata.StorageID(id))
 		if err != nil {
 			log.Error("create storage failed, err: %v", err)
 			return resp, status.Errorf(codes.Internal, "create storage failed")
@@ -115,7 +115,7 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *messages.DeleteSto
 func (m *MetaService) RenameStorage(ctx context.Context, req *messages.RenameStorageRequest) (*messages.RenameStorageResponse, error) {
 	resp := &messages.RenameStorageResponse{}
 
-	err := metadata.StorageRename(metadata.StorageID(req.Id), req.NewName)
+	err := metadata.GetStorageManager().StorageRename(metadata.StorageID(req.Id), req.NewName)
 	if err != nil {
 		log.Error("create storage failed, err: %v", err)
 		return resp, status.Errorf(codes.Internal, "create storage failed")

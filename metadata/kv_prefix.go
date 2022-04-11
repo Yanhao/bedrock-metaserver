@@ -14,6 +14,8 @@ const (
 	KvPrefixDataServerInIdc    = "/dataservers_in_idc/"
 	KvPrefixShardsInDataServer = "/shards_in_dataserver/"
 	KvPrefixShardsInStorage    = "/shards_in_storage/"
+
+	KvPrefixMarkDeletedStorageID = "/deleted_storages/"
 )
 
 // const (
@@ -27,6 +29,10 @@ func IdcKey(idc string) string {
 
 func StorageKey(storageID StorageID) string {
 	return fmt.Sprintf("%s%d", KvPrefixStorage, storageID)
+}
+
+func DeletedStorageKey(storageID StorageID) string {
+	return fmt.Sprintf("%s%d", KvPrefixMarkDeletedStorageID, storageID)
 }
 
 func DataServerKey(addr string) string {

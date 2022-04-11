@@ -2,11 +2,13 @@ package metadata
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
 
 	cache "github.com/hashicorp/golang-lru"
+	"go.uber.org/atomic"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
@@ -20,19 +22,78 @@ type Storage struct {
 	IsDeleted bool
 	DeleteTs  time.Time
 	createTs  time.Time
+	Owner     string
 
 	LastShardIndex uint32
+}
+
+func (s *Storage) String() string {
+	return fmt.Sprintf("%+v", s)
 }
 
 func NewStorage() *Storage {
 	return &Storage{}
 }
 
-// var StorageList map[StorageID]*Storage
-var StorageCache *cache.Cache
+const (
+	KvLastStorageIDkey = "/last_storage_id"
+)
 
-func InitStorageCache() {
-	StorageCache, _ = cache.New(10240)
+var lastStorageID atomic.Uint64
+
+func LoadLastStroageId() error {
+	ec := kv.GetEtcdClient()
+	resp, err := ec.Get(context.Background(), KvLastStorageIDkey)
+	if err != nil {
+		log.Error("failed load last storage id from etcd, err: %v", err)
+		return err
+	}
+
+	for _, kv := range resp.Kvs {
+
+		sID, err := strconv.ParseUint(string(kv.Value), 10, 64)
+		if err != nil {
+			return err
+		}
+		lastStorageID.Store(sID)
+		break
+	}
+
+	return nil
+}
+
+func SaveLastStorageId() error {
+	sID := lastStorageID.Load()
+	ec := kv.GetEtcdClient()
+	_, err := ec.Put(context.Background(), KvLastStorageIDkey, strconv.FormatUint(sID, 10))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateNewStorage() (*Storage, error) {
+	id := lastStorageID.Inc()
+
+	storage := &Storage{
+		ID:        StorageID(id),
+		createTs:  time.Now(),
+		DeleteTs:  time.Time{},
+		IsDeleted: false,
+	}
+
+	err := putStorageToKv(storage)
+	if err != nil {
+		return nil, err
+	}
+
+	err = SaveLastStorageId()
+	if err != nil {
+		return nil, err
+	}
+
+	return storage, nil
 }
 
 type StorageManager struct {
@@ -73,77 +134,20 @@ func (sm *StorageManager) GetStorage(id StorageID) (*Storage, error) {
 	return st, nil
 }
 
-const (
-	KvLastStorageIDkey = "/last_storage_id"
-)
-
-var lastStorageID uint64
-
-func LoadLastStroageId() error {
-	ec := kv.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), KvLastStorageIDkey)
-	if err != nil {
-		log.Error("failed load last storage id from etcd, err: %v", err)
-		return err
-	}
-
-	for _, kv := range resp.Kvs {
-
-		sID, err := strconv.ParseUint(string(kv.Value), 10, 64)
-		if err != nil {
-			return err
-		}
-		lastStorageID = sID
-		break
-	}
-
-	return nil
+func (sm *StorageManager) ClearCache() {
+	sm.storageCache.Purge()
 }
 
-func SaveLastStorageId() error {
-	ec := kv.GetEtcdClient()
-	_, err := ec.Put(context.Background(), KvLastStorageIDkey, strconv.FormatUint(lastStorageID, 10))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func CreateNewStorage() (*Storage, error) {
-	id := lastStorageID + 1
-	lastStorageID++
-
-	storage := &Storage{
-		ID:        StorageID(id),
-		createTs:  time.Now(),
-		DeleteTs:  time.Time{},
-		IsDeleted: false,
-	}
-
-	err := putStorageToKv(storage)
-	if err != nil {
-		return nil, err
-	}
-
-	err = SaveLastStorageId()
-	if err != nil {
-		return nil, err
-	}
-
-	return storage, nil
-}
-
-func StorageDelete(storageID StorageID) error {
+func (sm *StorageManager) StorageDelete(storageID StorageID) error {
 	var storage *Storage
-	value, ok := StorageCache.Get(storageID)
+	value, ok := sm.storageCache.Get(storageID)
 	if !ok {
 		var err error
 		storage, err = getStorageFromKv(storageID)
 		if err != nil {
 			return err
 		}
-		_ = StorageCache.Add(storageID, storage)
+		_ = sm.storageCache.Add(storageID, storage)
 
 	} else {
 		storage, _ = value.(*Storage)
@@ -155,22 +159,24 @@ func StorageDelete(storageID StorageID) error {
 	storage.IsDeleted = true
 	storage.DeleteTs = time.Now()
 
-	return putStorageToKv(storage)
+	err := putStorageToKv(storage)
+	if err != nil {
+		return err
+	}
+
+	return putDeletedStorageID(storageID)
 }
 
-func StorageInfo() {
-}
-
-func StorageRealDelete(storageID StorageID) error {
+func (sm *StorageManager) StorageRealDelete(storageID StorageID) error {
 	shardIDs, err := getShardsInStorageInKv(storageID)
 	if err != nil {
 		return err
 	}
 
-	sm := GetShardManager()
+	shm := GetShardManager()
 
 	for _, shardID := range shardIDs {
-		err := sm.DeleteShard(shardID)
+		err := shm.ShardDelete(shardID)
 		if err != nil {
 			return err
 		}
@@ -184,16 +190,16 @@ func StorageRealDelete(storageID StorageID) error {
 	return nil
 }
 
-func StorageUndelete(storageID StorageID) error {
+func (sm *StorageManager) StorageUndelete(storageID StorageID) error {
 	var storage *Storage
-	value, ok := StorageCache.Get(storageID)
+	value, ok := sm.storageCache.Get(storageID)
 	if !ok {
 		var err error
 		storage, err = getStorageFromKv(storageID)
 		if err != nil {
 			return err
 		}
-		_ = StorageCache.Add(storageID, storage)
+		_ = sm.storageCache.Add(storageID, storage)
 
 	} else {
 		storage, _ = value.(*Storage)
@@ -205,9 +211,14 @@ func StorageUndelete(storageID StorageID) error {
 	storage.IsDeleted = false
 	storage.DeleteTs = time.Time{}
 
-	return putStorageToKv(storage)
+	err := putStorageToKv(storage)
+	if err != nil {
+		return err
+	}
+
+	return delDeletedStorageID(storageID)
 }
 
-func StorageRename(storageID StorageID, name string) error {
+func (sm *StorageManager) StorageRename(storageID StorageID, name string) error {
 	panic("impletment me!")
 }

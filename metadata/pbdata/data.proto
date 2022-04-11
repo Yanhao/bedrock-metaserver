@@ -33,6 +33,8 @@ message DataServer {
         OFFLINE = 2;
     }
     LiveStatus status = 6;
+
+    string idc = 7;
 }
 
 message Storage {
@@ -41,5 +43,6 @@ message Storage {
     google.protobuf.Timestamp deleted_ts = 3;
     google.protobuf.Timestamp create_ts = 4;
 
-    uint32 last_shard_index = 5;
+    string owner = 5;
+    uint32 last_shard_index = 6;
 }

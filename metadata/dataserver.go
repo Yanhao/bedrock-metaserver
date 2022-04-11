@@ -24,6 +24,8 @@ const (
 	LiveStatusOffline
 )
 
+const DATASERVER_OVERLOAD_PERCENT = 0.9
+
 var (
 	ErrNoSuchDataServer = errors.New("no such dataserver")
 )
@@ -37,10 +39,13 @@ type DataServer struct {
 	Capacity uint64
 	Free     uint64
 
-	Shards []*Shard
+	// Shards []*Shard
 
 	LastHeartBeatTs time.Time
-	Status          LiveStatus
+	CreatedTs       time.Time
+	DeletedTs       time.Time
+
+	Status LiveStatus
 }
 
 var DataServers map[string]*DataServer
@@ -59,7 +64,7 @@ func (d *DataServer) UsedPercent() float64 {
 }
 
 func (d *DataServer) IsOverLoaded() bool {
-	return d.UsedPercent() > 0.9
+	return d.UsedPercent() > DATASERVER_OVERLOAD_PERCENT
 }
 
 func (d *DataServer) String() string {
@@ -67,28 +72,28 @@ func (d *DataServer) String() string {
 }
 
 func (d *DataServer) HeartBeat() error {
-	return nil
+	return d.MarkActive(true)
 }
 
-func (d *DataServer) MarkActive(isHeartBeat bool) {
+func (d *DataServer) MarkActive(isHeartBeat bool) error {
 	d.Status = LiveStatusActive
 	if isHeartBeat {
 		d.LastHeartBeatTs = time.Now()
 	}
 
-	putDataServerToKv(d)
+	return putDataServerToKv(d)
 }
 
-func (d *DataServer) MarkInactive() {
+func (d *DataServer) MarkInactive() error {
 	d.Status = LiveStatusInactive
 
-	putDataServerToKv(d)
+	return putDataServerToKv(d)
 }
 
-func (d *DataServer) MarkOffline() {
+func (d *DataServer) MarkOffline() error {
 	d.Status = LiveStatusOffline
 
-	putDataServerToKv(d)
+	return putDataServerToKv(d)
 }
 
 func (d *DataServer) Addr() string {
@@ -113,18 +118,22 @@ func DataServerAdd(ip, port string) error {
 		Port: uint32(portInt),
 	}
 
-	DataServers[addr] = dataserver
-
 	err := putDataServerToKv(dataserver)
 	if err != nil {
-		// TODO: remove DataServers In memory
 		return err
 	}
 
+	DataServersLock.Lock()
+	defer DataServersLock.Unlock()
+
+	DataServers[addr] = dataserver
 	return nil
 }
 
 func DataServerRemove(addr string) error {
+	DataServersLock.Lock()
+	defer DataServersLock.Unlock()
+
 	delete(DataServers, addr)
 
 	return deleteDataServerFromKv(addr)
@@ -137,6 +146,9 @@ func LoadDataServersFromEtcd() error {
 		log.Warn("failed to get dataserver from etcd")
 		return err
 	}
+
+	DataServersLock.Lock()
+	defer DataServersLock.Unlock()
 
 	for _, kv := range resp.Kvs {
 		pbDataServer := &pbdata.DataServer{}
@@ -160,6 +172,26 @@ func LoadDataServersFromEtcd() error {
 	}
 
 	return nil
+}
+
+func GetDataServerAddrs() []string {
+	DataServersLock.RLock()
+	defer DataServersLock.RUnlock()
+
+	var addrs []string
+	for addr := range DataServers {
+		addrs = append(addrs, addr)
+	}
+
+	return addrs
+}
+
+func IsDataServerExists(addr string) bool {
+	DataServersLock.RLock()
+	defer DataServersLock.RUnlock()
+
+	_, ok := DataServers[addr]
+	return ok
 }
 
 // func TransferShard(shardID ShardID, fromAddr, toAddr string) error {
@@ -188,18 +220,3 @@ func LoadDataServersFromEtcd() error {
 
 // 	return sm.PutShard(shard)
 // }
-
-func GetDataServerAddrs() []string {
-	var addrs []string
-
-	for addr := range DataServers {
-		addrs = append(addrs, addr)
-	}
-
-	return addrs
-}
-
-func IsDataServerExists(addr string) bool {
-	_, ok := DataServers[addr]
-	return ok
-}

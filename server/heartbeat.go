@@ -122,7 +122,7 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 			continue
 		}
 
-		s.MarkActive(true)
+		_ = s.MarkActive(false)
 		ActiveDataServers[s.Addr()] = s
 		delete(InactiveDataServers, s.Addr())
 		delete(OfflineDataServers, s.Addr())

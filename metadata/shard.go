@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -11,43 +12,6 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
 )
-
-// const (
-// 	KvLastShardIDkey = "/last_shard_id"
-// )
-
-// var lastShardID uint64
-
-// func LoadLastShardID() error {
-// 	ec := kv.GetEtcdClient()
-// 	resp, err := ec.Get(context.Background(), KvLastShardIDkey)
-// 	if err != nil {
-// 		log.Error("failed load last storage id from etcd, err: %v", err)
-// 		return err
-// 	}
-
-// 	for _, kv := range resp.Kvs {
-
-// 		sID, err := strconv.ParseUint(string(kv.Value), 10, 64)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		lastStorageID = sID
-// 		break
-// 	}
-
-// 	return nil
-// }
-
-// func SaveLastShardID() error {
-// 	ec := kv.GetEtcdClient()
-// 	_, err := ec.Put(context.Background(), KvLastShardIDkey, strconv.FormatUint(lastShardID, 10))
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	return nil
-// }
 
 type ShardID uint64
 
@@ -63,14 +27,14 @@ type Shard struct {
 	LeaderChangeTs  time.Time
 }
 
-func (sd *Shard) Info() {
+func (sd *Shard) String() string {
+	return fmt.Sprintf("%+v", sd)
 }
 
 func (sd *Shard) RemoveReplicates(addrs []string) {
 	for _, addr := range addrs {
 		delete(sd.Replicates, addr)
 	}
-
 }
 
 func (sd *Shard) AddReplicates(addrs []string) {
@@ -249,7 +213,7 @@ func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
 	return shard, nil
 }
 
-func (sm *ShardManager) DeleteShard(shardID ShardID) error {
+func (sm *ShardManager) ShardDelete(shardID ShardID) error {
 	shard, err := sm.GetShard(shardID)
 	if err != nil {
 		return err

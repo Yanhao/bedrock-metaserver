@@ -64,6 +64,9 @@ func runAsLeader() {
 
 	metadata.GetShardManager().ClearCache()
 	log.Info("clear shard cache ...")
+
+	metadata.GetStorageManager().ClearCache()
+	log.Info("clear storage cache ...")
 }
 
 func StartGrpcServer() {

@@ -358,3 +358,60 @@ func deleteStorageFromKv(storageID StorageID) error {
 
 	return nil
 }
+
+func GetDeletedStorage(limit int) ([]*Storage, error) {
+	ec := kv.GetEtcdClient()
+
+	resp, err := ec.Get(context.TODO(),
+		KvPrefixMarkDeletedStorageID,
+		client.WithPrefix(),
+		client.WithLimit(int64(limit)),
+	)
+	if err != nil {
+		log.Warn("failed to get deleted storage, err: %v", err)
+		return nil, err
+	}
+
+	var ret []*Storage
+	for _, kv := range resp.Kvs {
+		var sID uint64
+		_, err := fmt.Sscanf(string(kv.Key), KvPrefixMarkDeletedStorageID+"/%d", &sID)
+		if err != nil {
+			log.Warn("failed to parse deleted storage key")
+			continue
+		}
+
+		s, err := getStorageFromKv(StorageID(sID))
+		if err != nil {
+			log.Warn("failed to get storage, storage id: %d, err: %v", sID, err)
+			continue
+		}
+		ret = append(ret, s)
+	}
+
+	return ret, nil
+}
+
+func putDeletedStorageID(sID StorageID) error {
+	key := DeletedStorageKey(sID)
+
+	ec := kv.GetEtcdClient()
+	_, err := ec.Put(context.TODO(), key, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func delDeletedStorageID(sID StorageID) error {
+	key := DeletedStorageKey(sID)
+
+	ec := kv.GetEtcdClient()
+	_, err := ec.Delete(context.TODO(), key)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

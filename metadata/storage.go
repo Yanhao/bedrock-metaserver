@@ -213,7 +213,6 @@ func (sm *StorageManager) StorageUndelete(storageID StorageID) error {
 			return err
 		}
 		_ = sm.storageCache.Add(storageID, storage)
-
 	} else {
 		storage, _ = value.(*Storage)
 	}
@@ -233,5 +232,24 @@ func (sm *StorageManager) StorageUndelete(storageID StorageID) error {
 }
 
 func (sm *StorageManager) StorageRename(storageID StorageID, name string) error {
-	panic("impletment me!")
+	var st *Storage
+	value, ok := sm.storageCache.Get(storageID)
+	if !ok {
+		var err error
+		st, err = getStorageFromKv(storageID)
+		if err != nil {
+			return err
+		}
+		_ = sm.storageCache.Add(storageID, st)
+	} else {
+		st, _ = value.(*Storage)
+	}
+
+	st.Name = name
+	err := putStorageToKv(st)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

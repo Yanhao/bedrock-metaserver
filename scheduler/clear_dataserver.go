@@ -68,6 +68,11 @@ func ClearDataserver(addr string) error {
 			log.Error("PutShard failed, err: %v", err)
 			return err
 		}
+
+		err = metadata.RemoveShardInDataServer(addr, shardID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

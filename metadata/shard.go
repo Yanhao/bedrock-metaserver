@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -11,6 +12,7 @@ import (
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
+	"sr.ht/moyanhao/bedrock-metaserver/kv"
 )
 
 type ShardID uint64
@@ -237,6 +239,30 @@ func (sm *ShardManager) ShardDelete(shardID ShardID) error {
 	}
 
 	sm.shardsCache.Remove(shardID)
+
+	return nil
+}
+
+func RemoveShardInDataServer(addr string, id ShardID) error {
+	key := ShardInDataServerKey(addr, id)
+	ec := kv.GetEtcdClient()
+
+	_, err := ec.Delete(context.Background(), key)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AddShardInDataServer(addr string, id ShardID) error {
+	key := ShardInDataServerKey(addr, id)
+	ec := kv.GetEtcdClient()
+
+	_, err := ec.Put(context.Background(), key, "")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

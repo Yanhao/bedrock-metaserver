@@ -115,6 +115,11 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 			continue
 		}
 
+		err = metadata.AddShardInDataServer(server, shardID)
+		if err != nil {
+			return nil, err
+		}
+
 		selectedDataServers = append(selectedDataServers, server)
 		i--
 	}

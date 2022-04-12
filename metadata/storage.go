@@ -21,7 +21,8 @@ type Storage struct {
 	Name      string
 	IsDeleted bool
 	DeleteTs  time.Time
-	createTs  time.Time
+	RecycleTs time.Time
+	CreateTs  time.Time
 	Owner     string
 
 	LastShardIndex uint32
@@ -78,7 +79,7 @@ func CreateNewStorage() (*Storage, error) {
 
 	storage := &Storage{
 		ID:        StorageID(id),
-		createTs:  time.Now(),
+		CreateTs:  time.Now(),
 		DeleteTs:  time.Time{},
 		IsDeleted: false,
 	}
@@ -134,11 +135,22 @@ func (sm *StorageManager) GetStorage(id StorageID) (*Storage, error) {
 	return st, nil
 }
 
+func (sm *StorageManager) SaveStorage(st *Storage) error {
+	err := putStorageToKv(st)
+	if err != nil {
+		return err
+	}
+
+	sm.storageCache.Remove(st.ID)
+
+	return nil
+}
+
 func (sm *StorageManager) ClearCache() {
 	sm.storageCache.Purge()
 }
 
-func (sm *StorageManager) StorageDelete(storageID StorageID) error {
+func (sm *StorageManager) StorageDelete(storageID StorageID, recycleAfter time.Duration) error {
 	var storage *Storage
 	value, ok := sm.storageCache.Get(storageID)
 	if !ok {
@@ -158,6 +170,7 @@ func (sm *StorageManager) StorageDelete(storageID StorageID) error {
 
 	storage.IsDeleted = true
 	storage.DeleteTs = time.Now()
+	storage.RecycleTs = time.Now().Add(recycleAfter)
 
 	err := putStorageToKv(storage)
 	if err != nil {

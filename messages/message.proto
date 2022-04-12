@@ -10,13 +10,33 @@ package messages;
 message Storage {
     uint64 id = 1;
     string name = 2;
+
+    google.protobuf.Timestamp deleted_ts = 3;
+    google.protobuf.Timestamp create_ts = 4;
+
+    string owner = 5;
 }
 
 message Shard {
     uint64 id = 1;
+    uint64 storage_id = 2;
+    google.protobuf.Timestamp  replica_update_ts = 3;
+    repeated string replicates = 4;
+    bool is_deleted = 5;
+    google.protobuf.Timestamp deleted_ts = 6;
+    google.protobuf.Timestamp create_ts = 7;
+    string leader = 8;
+    google.protobuf.Timestamp leader_change_ts = 9;
 }
 
 message DataServer {
+    uint32 ip = 1;
+    uint32 port = 2;
+    uint64 capacity = 3;
+    uint64 free = 4;
+    google.protobuf.Timestamp last_heartbeat_ts = 5;
+    string status = 6;
+    string idc = 7;
 }
 
 message Replicate {
@@ -39,7 +59,9 @@ message CreateStorageResponse {
 }
 
 message DeleteStorageRequest {
-    repeated uint64 ids = 1;
+    uint64 id = 1;
+    bool real_delete = 2;
+    uint64 recycle_after = 3; // in minutes
 }
 
 message DeleteStorageResponse {
@@ -56,6 +78,7 @@ message RenameStorageResponse {
 message ResizeStorageRequest {
     uint64 id = 1;
     uint64 new_size = 2;
+    uint64 new_shard_count = 3;
 }
 
 message ResizeStorageResponse {
@@ -141,6 +164,7 @@ message ShardInfoRequest {
 }
 
 message ShardInfoResponse {
+     Shard shard = 1;
 }
 
 service MetaService {

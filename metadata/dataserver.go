@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jinzhu/copier"
 	client "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 
@@ -39,8 +40,6 @@ type DataServer struct {
 	Capacity uint64
 	Free     uint64
 
-	// Shards []*Shard
-
 	LastHeartBeatTs time.Time
 	CreatedTs       time.Time
 	DeletedTs       time.Time
@@ -52,6 +51,7 @@ var DataServers map[string]*DataServer
 var DataServersLock *sync.RWMutex
 
 func init() {
+	DataServers = make(map[string]*DataServer)
 	DataServersLock = &sync.RWMutex{}
 }
 
@@ -137,6 +137,17 @@ func DataServerRemove(addr string) error {
 	delete(DataServers, addr)
 
 	return deleteDataServerFromKv(addr)
+}
+
+func DataServersClone() map[string]*DataServer {
+	DataServersLock.RLock()
+	defer DataServersLock.RUnlock()
+
+	ret := make(map[string]*DataServer)
+
+	copier.CopyWithOption(&ret, DataServers, copier.Option{IgnoreEmpty: true, DeepCopy: true})
+
+	return ret
 }
 
 func LoadDataServersFromEtcd() error {

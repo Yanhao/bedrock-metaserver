@@ -42,7 +42,8 @@ message Storage {
     bool is_deleted = 2;
     google.protobuf.Timestamp deleted_ts = 3;
     google.protobuf.Timestamp create_ts = 4;
+    google.protobuf.Timestamp recycle_ts = 5;
 
-    string owner = 5;
-    uint32 last_shard_index = 6;
+    string owner = 6;
+    uint32 last_shard_index = 7;
 }

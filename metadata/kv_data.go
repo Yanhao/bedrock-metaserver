@@ -288,7 +288,8 @@ func putStorageToKv(storage *Storage) error {
 		Id:        uint64(storage.ID),
 		IsDeleted: storage.IsDeleted,
 		DeletedTs: timestamppb.New(storage.DeleteTs),
-		CreateTs:  timestamppb.New(storage.createTs),
+		CreateTs:  timestamppb.New(storage.CreateTs),
+		RecycleTs: timestamppb.New(storage.RecycleTs),
 	}
 
 	value, err := proto.Marshal(pbStorage)
@@ -334,7 +335,8 @@ func getStorageFromKv(storageID StorageID) (*Storage, error) {
 		ID:        StorageID(pbStorage.Id),
 		IsDeleted: pbStorage.IsDeleted,
 		DeleteTs:  pbStorage.DeletedTs.AsTime(),
-		createTs:  pbStorage.CreateTs.AsTime(),
+		CreateTs:  pbStorage.CreateTs.AsTime(),
+		RecycleTs: pbStorage.RecycleTs.AsTime(),
 	}, nil
 }
 

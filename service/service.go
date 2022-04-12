@@ -5,9 +5,11 @@ import (
 	"net"
 	"time"
 
+	"github.com/jinzhu/copier"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/messages"
@@ -101,12 +103,21 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *messages.CreateSto
 func (m *MetaService) DeleteStorage(ctx context.Context, req *messages.DeleteStorageRequest) (*messages.DeleteStorageResponse, error) {
 	resp := &messages.DeleteStorageResponse{}
 
-	for _, id := range req.Ids {
-		err := metadata.GetStorageManager().StorageDelete(metadata.StorageID(id))
-		if err != nil {
-			log.Error("create storage failed, err: %v", err)
-			return resp, status.Errorf(codes.Internal, "create storage failed")
+	var recycleTime time.Duration
+	if req.RealDelete {
+		recycleTime = time.Minute * 10
+	} else {
+		if req.RecycleAfter < 30 {
+			recycleTime = time.Minute * 30
+		} else {
+			recycleTime = time.Minute * time.Duration(req.RecycleAfter)
 		}
+	}
+
+	err := metadata.GetStorageManager().StorageDelete(metadata.StorageID(req.Id), recycleTime)
+	if err != nil {
+		log.Error("create storage failed, err: %v", err)
+		return resp, status.Errorf(codes.Internal, "create storage failed")
 	}
 
 	return resp, nil
@@ -125,7 +136,37 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *messages.RenameSto
 }
 
 func (m *MetaService) ResizeStorage(ctx context.Context, req *messages.ResizeStorageRequest) (*messages.ResizeStorageResponse, error) {
-	panic("impletment me!")
+	resp := &messages.ResizeStorageResponse{}
+
+	st, err := metadata.GetStorageManager().GetStorage(metadata.StorageID(req.Id))
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "")
+	}
+
+	if st.LastShardIndex >= uint32(req.NewShardCount) {
+		return nil, status.Errorf(codes.InvalidArgument, "")
+	}
+
+	expandCount := req.NewShardCount - uint64(st.LastShardIndex)
+	err = scheduler.GetShardAllocator().ExpandStorage(st, uint32(expandCount))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "")
+	}
+
+	st.LastShardIndex = uint32(req.NewShardCount)
+
+	var updatedSt metadata.Storage
+	err = copier.CopyWithOption(&updatedSt, st, copier.Option{IgnoreEmpty: true, DeepCopy: true})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "")
+	}
+
+	err = metadata.GetStorageManager().SaveStorage(&updatedSt)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "")
+	}
+
+	return resp, nil
 }
 
 func (m *MetaService) GetStorages(ctx context.Context, req *messages.GetStoragesRequest) (*messages.GetStoragesResponse, error) {
@@ -138,8 +179,11 @@ func (m *MetaService) GetStorages(ctx context.Context, req *messages.GetStorages
 		}
 
 		resp.Storages = append(resp.Storages, &messages.Storage{
-			Id:   uint64(st.ID),
-			Name: st.Name,
+			Id:        uint64(st.ID),
+			Name:      st.Name,
+			CreateTs:  timestamppb.New(st.CreateTs),
+			DeletedTs: timestamppb.New(st.DeleteTs),
+			Owner:     st.Owner,
 		})
 	}
 
@@ -172,11 +216,20 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *messages.Remove
 		return nil, status.Errorf(codes.InvalidArgument, "")
 	}
 
-	err = scheduler.ClearDataserver(req.Addr)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "")
+	if !metadata.IsDataServerExists(req.Addr) {
+		return nil, status.Errorf(codes.NotFound, "")
 	}
-	metadata.DataServerRemove(req.Addr)
+
+	go func() {
+		err = scheduler.ClearDataserver(req.Addr)
+		if err != nil {
+			return
+		}
+		err = metadata.DataServerRemove(req.Addr)
+		if err != nil {
+			return
+		}
+	}()
 
 	return resp, nil
 }
@@ -184,18 +237,77 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *messages.Remove
 func (m *MetaService) ListDataServer(ctx context.Context, req *messages.ListDataServerRequest) (*messages.ListDataServerResponse, error) {
 	resp := &messages.ListDataServerResponse{}
 
-	for _, ds := range metadata.DataServers {
+	dss := metadata.DataServersClone()
+
+	for _, ds := range dss {
 		_ = ds
-		resp.DataServers = append(resp.DataServers, &messages.DataServer{})
+		resp.DataServers = append(resp.DataServers,
+			&messages.DataServer{
+				Ip:              ds.Ip,
+				Port:            ds.Port,
+				Capacity:        ds.Capacity,
+				Free:            ds.Free,
+				LastHeartbeatTs: timestamppb.New(ds.LastHeartBeatTs),
+				Status: func(s metadata.LiveStatus) string {
+					switch s {
+					case metadata.LiveStatusActive:
+						return "active"
+					case metadata.LiveStatusOffline:
+						return "offline"
+					case metadata.LiveStatusInactive:
+						return "inactive"
+					default:
+						return "unknown"
+					}
+				}(ds.Status),
+			})
 	}
 
 	return resp, nil
 }
 
 func (m *MetaService) UpdateDataServer(ctx context.Context, req *messages.UpdateDataServerRequest) (*messages.UpdateDataServerResponse, error) {
-	panic("")
+	resp := &messages.UpdateDataServerResponse{}
+
+	return resp, nil
 }
 
 func (m *MetaService) ShardInfo(ctx context.Context, req *messages.ShardInfoRequest) (*messages.ShardInfoResponse, error) {
-	panic("")
+	if err := ShardInfoParamCheck(req); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	resp := &messages.ShardInfoResponse{}
+
+	sm := metadata.GetShardManager()
+	if sm == nil {
+		return resp, status.Errorf(codes.Internal, "")
+	}
+
+	shard, err := sm.GetShard(metadata.ShardID(req.GetId()))
+	if err != nil {
+		return resp, status.Errorf(codes.Internal, "")
+	}
+
+	resp = &messages.ShardInfoResponse{
+		Shard: &messages.Shard{
+			Id:              uint64(shard.ID),
+			StorageId:       uint64(shard.SID),
+			ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),
+			Replicates: func(repSet map[string]struct{}) []string {
+				var ret []string
+				for rep := range repSet {
+					ret = append(ret, rep)
+				}
+
+				return ret
+			}(shard.Replicates),
+			IsDeleted:      shard.IsDeleted,
+			DeletedTs:      timestamppb.New(shard.DeleteTs),
+			Leader:         shard.Leader,
+			LeaderChangeTs: timestamppb.New(shard.LeaderChangeTs),
+		},
+	}
+
+	return resp, nil
 }

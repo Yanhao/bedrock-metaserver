@@ -19,12 +19,12 @@ func NewShardAllocator() *ShardAllocator {
 }
 
 var (
-	shardAllocator    *ShardAllocator
-	shardAllcatorOnce sync.Once
+	shardAllocator     *ShardAllocator
+	shardAllocatorOnce sync.Once
 )
 
 func GetShardAllocator() *ShardAllocator {
-	shardAllcatorOnce.Do(func() {
+	shardAllocatorOnce.Do(func() {
 		shardAllocator = NewShardAllocator()
 	})
 

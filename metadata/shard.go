@@ -29,7 +29,7 @@ type Shard struct {
 	LeaderChangeTs  time.Time
 }
 
-func (sd *Shard) String() string {
+func (sd *Shard) Info() string {
 	return fmt.Sprintf("%+v", sd)
 }
 
@@ -90,7 +90,7 @@ func (sd *Shard) ReSelectLeader(ops ...shardOpFunc) error {
 		}
 
 		if len(candidates) == 0 {
-			return errors.New("no enought candidates")
+			return errors.New("no enough candidates")
 		}
 
 		nextLeader = candidates[rand.Intn(len(candidates))]

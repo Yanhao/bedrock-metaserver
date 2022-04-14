@@ -36,7 +36,7 @@ func (rb *Rebalancer) Start() error {
 		for {
 			select {
 			case <-ticker.C:
-				rb.doRebalceByCapacity()
+				rb.doRebalanceByCapacity()
 
 			case <-rb.stop:
 				break out
@@ -53,6 +53,6 @@ func (rb *Rebalancer) Stop() {
 	close(rb.stop)
 }
 
-func (rb *Rebalancer) doRebalceByCapacity() {
+func (rb *Rebalancer) doRebalanceByCapacity() {
 
 }

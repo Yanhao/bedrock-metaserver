@@ -83,7 +83,7 @@ func (l *LeaderShip) Campaign() bool {
 		Then(clientv3.OpPut(l.leaderKey, l.leaderValue, clientv3.WithLease(grantResp.ID))).
 		Commit()
 	if err != nil || !resp.Succeeded {
-		log.Debug("failed to compaign leader")
+		log.Debug("failed to campaign leader")
 		return false
 	}
 

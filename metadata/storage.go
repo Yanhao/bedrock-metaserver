@@ -28,7 +28,7 @@ type Storage struct {
 	LastShardIndex uint32
 }
 
-func (s *Storage) String() string {
+func (s *Storage) Info() string {
 	return fmt.Sprintf("%+v", s)
 }
 
@@ -42,7 +42,7 @@ const (
 
 var lastStorageID atomic.Uint64
 
-func LoadLastStroageId() error {
+func LoadLastStorageId() error {
 	ec := kv.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), KvLastStorageIDkey)
 	if err != nil {

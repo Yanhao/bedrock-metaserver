@@ -42,12 +42,12 @@ func ClearDataserver(addr string) error {
 			return err
 		}
 
-		err = dataServerCli.PullShardData(uint64(shardID), shard.Leader)
-		if err != nil {
-			log.Error("RepairShard failed, err: %v", err)
-			return err
-		}
-		log.Info("repaired shard %v in %v", shardID, addr)
+		// err = dataServerCli.PullShardData(uint64(shardID), shard.Leader)
+		// if err != nil {
+		// 	log.Error("RepairShard failed, err: %v", err)
+		// 	return err
+		// }
+		// log.Info("repaired shard %v in %v", shardID, addr)
 
 		shard.AddReplicates([]string{ds})
 

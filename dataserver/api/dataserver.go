@@ -11,7 +11,7 @@ type DsApi interface {
 	CreateShard(shardID uint64) error
 
 	// TransferShard(shardID uint64, toAddr string) error
-	PullShardData(shardID uint64, leader string) error
+	// PullShardData(shardID uint64, leader string) error
 	TransferShardLeader(shardID uint64, newLeader string) error
 
 	// RepairShard(shardID uint64, leader string) error
@@ -79,13 +79,13 @@ func (ds *DataServerApi) TransferShardLeader(shardID uint64, newLeader string) e
 	return nil
 }
 
-func (ds *DataServerApi) PullShardData(shardID uint64, leader string) error {
-	req := &PullShardDataRequest{}
+// func (ds *DataServerApi) PullShardData(shardID uint64, leader string) error {
+// 	req := &PullShardDataRequest{}
 
-	resp, err := ds.client.PullShardData(context.TODO(), req)
-	if err != nil || resp == nil {
+// 	resp, err := ds.client.PullShardData(context.TODO(), req)
+// 	if err != nil || resp == nil {
 
-	}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

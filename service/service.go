@@ -12,16 +12,16 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
-	"sr.ht/moyanhao/bedrock-metaserver/messages"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata"
+	"sr.ht/moyanhao/bedrock-metaserver/proto"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
 type MetaService struct {
-	messages.UnimplementedMetaServiceServer
+	proto.UnimplementedMetaServiceServer
 }
 
-func (m *MetaService) HeartBeat(ctx context.Context, req *messages.HeartBeatRequest) (resp *emptypb.Empty, err error) {
+func (m *MetaService) HeartBeat(ctx context.Context, req *proto.HeartBeatRequest) (resp *emptypb.Empty, err error) {
 	server, ok := metadata.DataServers[req.Addr]
 	if !ok {
 		log.Warn("no such server in record: %s", req.Addr)
@@ -33,7 +33,7 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *messages.HeartBeatRequ
 	return &emptypb.Empty{}, nil
 }
 
-func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*messages.RouteRecord, error) {
+func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*proto.RouteRecord, error) {
 	sm := metadata.GetShardManager()
 
 	shard, err := sm.GetShard(shardID)
@@ -43,7 +43,7 @@ func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*messages.RouteRec
 	}
 
 	if shard.ReplicaUpdateTs.After(ts) {
-		route := &messages.RouteRecord{
+		route := &proto.RouteRecord{
 			ShardId: uint64(shardID),
 		}
 		for rep := range shard.Replicates {
@@ -55,10 +55,10 @@ func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*messages.RouteRec
 	return nil, nil
 }
 
-func (m *MetaService) GetShardRoutes(ctx context.Context, req *messages.GetShardRoutesRequest) (*messages.GetShardRoutesResponse, error) {
+func (m *MetaService) GetShardRoutes(ctx context.Context, req *proto.GetShardRoutesRequest) (*proto.GetShardRoutesResponse, error) {
 	ts := req.GetTimestamp().AsTime()
 
-	resp := &messages.GetShardRoutesResponse{}
+	resp := &proto.GetShardRoutesResponse{}
 
 	if req.GetShardRange() != nil {
 		begin := req.GetShardRange().StartShardId
@@ -86,8 +86,8 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *messages.GetShard
 	return resp, nil
 }
 
-func (m *MetaService) CreateStorage(ctx context.Context, req *messages.CreateStorageRequest) (*messages.CreateStorageResponse, error) {
-	resp := &messages.CreateStorageResponse{}
+func (m *MetaService) CreateStorage(ctx context.Context, req *proto.CreateStorageRequest) (*proto.CreateStorageResponse, error) {
+	resp := &proto.CreateStorageResponse{}
 
 	storage, err := scheduler.GetShardAllocator().AllocatorNewStorage()
 	if err != nil {
@@ -100,8 +100,8 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *messages.CreateSto
 	return resp, nil
 }
 
-func (m *MetaService) DeleteStorage(ctx context.Context, req *messages.DeleteStorageRequest) (*messages.DeleteStorageResponse, error) {
-	resp := &messages.DeleteStorageResponse{}
+func (m *MetaService) DeleteStorage(ctx context.Context, req *proto.DeleteStorageRequest) (*proto.DeleteStorageResponse, error) {
+	resp := &proto.DeleteStorageResponse{}
 
 	var recycleTime time.Duration
 	if req.RealDelete {
@@ -123,8 +123,8 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *messages.DeleteSto
 	return resp, nil
 }
 
-func (m *MetaService) RenameStorage(ctx context.Context, req *messages.RenameStorageRequest) (*messages.RenameStorageResponse, error) {
-	resp := &messages.RenameStorageResponse{}
+func (m *MetaService) RenameStorage(ctx context.Context, req *proto.RenameStorageRequest) (*proto.RenameStorageResponse, error) {
+	resp := &proto.RenameStorageResponse{}
 
 	err := metadata.GetStorageManager().StorageRename(metadata.StorageID(req.Id), req.NewName)
 	if err != nil {
@@ -135,8 +135,8 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *messages.RenameSto
 	return resp, nil
 }
 
-func (m *MetaService) ResizeStorage(ctx context.Context, req *messages.ResizeStorageRequest) (*messages.ResizeStorageResponse, error) {
-	resp := &messages.ResizeStorageResponse{}
+func (m *MetaService) ResizeStorage(ctx context.Context, req *proto.ResizeStorageRequest) (*proto.ResizeStorageResponse, error) {
+	resp := &proto.ResizeStorageResponse{}
 
 	st, err := metadata.GetStorageManager().GetStorage(metadata.StorageID(req.Id))
 	if err != nil {
@@ -169,8 +169,8 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *messages.ResizeSto
 	return resp, nil
 }
 
-func (m *MetaService) GetStorages(ctx context.Context, req *messages.GetStoragesRequest) (*messages.GetStoragesResponse, error) {
-	resp := &messages.GetStoragesResponse{}
+func (m *MetaService) GetStorages(ctx context.Context, req *proto.GetStoragesRequest) (*proto.GetStoragesResponse, error) {
+	resp := &proto.GetStoragesResponse{}
 
 	for _, id := range req.Ids {
 		st, err := metadata.GetStorageManager().GetStorage(metadata.StorageID(id))
@@ -178,7 +178,7 @@ func (m *MetaService) GetStorages(ctx context.Context, req *messages.GetStorages
 			return nil, status.Errorf(codes.Internal, "")
 		}
 
-		resp.Storages = append(resp.Storages, &messages.Storage{
+		resp.Storages = append(resp.Storages, &proto.Storage{
 			Id:        uint64(st.ID),
 			Name:      st.Name,
 			CreateTs:  timestamppb.New(st.CreateTs),
@@ -194,8 +194,8 @@ func (m *MetaService) GetStorages(ctx context.Context, req *messages.GetStorages
 	return resp, nil
 }
 
-func (m *MetaService) AddDataServer(ctx context.Context, req *messages.AddDataServerRequest) (*messages.AddDataServerResponse, error) {
-	resp := &messages.AddDataServerResponse{}
+func (m *MetaService) AddDataServer(ctx context.Context, req *proto.AddDataServerRequest) (*proto.AddDataServerResponse, error) {
+	resp := &proto.AddDataServerResponse{}
 
 	ip, port, err := net.SplitHostPort(req.Addr)
 	if err != nil {
@@ -209,8 +209,8 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *messages.AddDataSe
 	return resp, nil
 }
 
-func (m *MetaService) RemoveDataServer(ctx context.Context, req *messages.RemoveDataServerRequest) (*messages.RemoveDataServerResponse, error) {
-	resp := &messages.RemoveDataServerResponse{}
+func (m *MetaService) RemoveDataServer(ctx context.Context, req *proto.RemoveDataServerRequest) (*proto.RemoveDataServerResponse, error) {
+	resp := &proto.RemoveDataServerResponse{}
 	_, _, err := net.SplitHostPort(req.Addr)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "")
@@ -234,15 +234,15 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *messages.Remove
 	return resp, nil
 }
 
-func (m *MetaService) ListDataServer(ctx context.Context, req *messages.ListDataServerRequest) (*messages.ListDataServerResponse, error) {
-	resp := &messages.ListDataServerResponse{}
+func (m *MetaService) ListDataServer(ctx context.Context, req *proto.ListDataServerRequest) (*proto.ListDataServerResponse, error) {
+	resp := &proto.ListDataServerResponse{}
 
 	dss := metadata.DataServersClone()
 
 	for _, ds := range dss {
 		_ = ds
 		resp.DataServers = append(resp.DataServers,
-			&messages.DataServer{
+			&proto.DataServer{
 				Ip:              ds.Ip,
 				Port:            ds.Port,
 				Capacity:        ds.Capacity,
@@ -266,18 +266,18 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *messages.ListData
 	return resp, nil
 }
 
-func (m *MetaService) UpdateDataServer(ctx context.Context, req *messages.UpdateDataServerRequest) (*messages.UpdateDataServerResponse, error) {
-	resp := &messages.UpdateDataServerResponse{}
+func (m *MetaService) UpdateDataServer(ctx context.Context, req *proto.UpdateDataServerRequest) (*proto.UpdateDataServerResponse, error) {
+	resp := &proto.UpdateDataServerResponse{}
 
 	return resp, nil
 }
 
-func (m *MetaService) ShardInfo(ctx context.Context, req *messages.ShardInfoRequest) (*messages.ShardInfoResponse, error) {
+func (m *MetaService) ShardInfo(ctx context.Context, req *proto.ShardInfoRequest) (*proto.ShardInfoResponse, error) {
 	if err := ShardInfoParamCheck(req); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	resp := &messages.ShardInfoResponse{}
+	resp := &proto.ShardInfoResponse{}
 
 	sm := metadata.GetShardManager()
 	if sm == nil {
@@ -289,8 +289,8 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *messages.ShardInfoRequ
 		return resp, status.Errorf(codes.Internal, "")
 	}
 
-	resp = &messages.ShardInfoResponse{
-		Shard: &messages.Shard{
+	resp = &proto.ShardInfoResponse{
+		Shard: &proto.Shard{
 			Id:              uint64(shard.ID),
 			StorageId:       uint64(shard.SID),
 			ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),

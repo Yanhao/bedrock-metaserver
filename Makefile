@@ -3,7 +3,7 @@ default: metaserver mscli
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		messages/message.proto
+		proto/metaserver.proto
 	protoc --go_out=. --go_opt=paths=source_relative metadata/pbdata/data.proto
 
 proto-gogo:

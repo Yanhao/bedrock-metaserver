@@ -3,9 +3,9 @@ package service
 import (
 	_ "errors"
 
-	"sr.ht/moyanhao/bedrock-metaserver/messages"
+	"sr.ht/moyanhao/bedrock-metaserver/proto"
 )
 
-func ShardInfoParamCheck(req *messages.ShardInfoRequest) error {
+func ShardInfoParamCheck(req *proto.ShardInfoRequest) error {
 	return nil
 }

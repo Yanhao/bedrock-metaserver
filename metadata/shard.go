@@ -27,6 +27,8 @@ type Shard struct {
 	CreateTs        time.Time
 	Leader          string
 	LeaderChangeTs  time.Time
+
+	lock sync.RWMutex
 }
 
 func (sd *Shard) Info() string {
@@ -40,17 +42,26 @@ func (sd *Shard) RemoveReplicates(addrs []string) {
 }
 
 func (sd *Shard) AddReplicates(addrs []string) {
+	sd.lock.Lock()
+	defer sd.lock.Unlock()
+
 	for _, addr := range addrs {
 		sd.Replicates[addr] = struct{}{}
 	}
 }
 
 func (sd *Shard) markDelete() {
+	sd.lock.Lock()
+	defer sd.lock.Unlock()
+
 	sd.IsDeleted = true
 	sd.DeleteTs = time.Now()
 }
 
 func (sd *Shard) markUndelete() {
+	sd.lock.Lock()
+	defer sd.lock.Unlock()
+
 	sd.IsDeleted = false
 	sd.DeleteTs = time.Time{}
 }
@@ -188,8 +199,7 @@ func generateShardID(storageID StorageID, shardIndex uint32) ShardID {
 }
 
 func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
-	shardIndex := storage.LastShardIndex + 1
-	storage.LastShardIndex++
+	shardIndex := storage.FetchAddLastIndex()
 
 	err := putStorageToKv(storage)
 	if err != nil {
@@ -212,6 +222,7 @@ func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
 		return nil, err
 	}
 
+	sm.shardsCache.Add(shard.ID, shard)
 	return shard, nil
 }
 

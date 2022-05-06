@@ -26,6 +26,55 @@ type Storage struct {
 	Owner     string
 
 	LastShardIndex uint32
+
+	lock sync.RWMutex
+}
+
+func (s *Storage) FetchAddLastIndex() uint32 {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.LastShardIndex++
+	return s.LastShardIndex
+}
+
+func (s *Storage) MarkDelete(recycleAfter time.Duration) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if s.IsDeleted {
+		return nil
+	}
+
+	s.IsDeleted = true
+	s.DeleteTs = time.Now()
+	s.RecycleTs = time.Now().Add(recycleAfter)
+
+	return nil
+}
+
+func (s *Storage) Undelete() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if !s.IsDeleted {
+		return nil
+	}
+
+	storage.IsDeleted = false
+	storage.DeleteTs = time.Time{}
+
+	return nil
+
+}
+
+func (s *Storage) Rename(newName string) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.Name = newName
+
+	return nil
 }
 
 func (s *Storage) Info() string {
@@ -74,7 +123,7 @@ func SaveLastStorageId() error {
 	return nil
 }
 
-func CreateNewStorage() (*Storage, error) {
+func CreateNewStorage() (StorageID, error) {
 	id := lastStorageID.Inc()
 
 	storage := &Storage{
@@ -84,17 +133,17 @@ func CreateNewStorage() (*Storage, error) {
 		IsDeleted: false,
 	}
 
-	err := putStorageToKv(storage)
+	err := SaveLastStorageId()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	err = SaveLastStorageId()
+	err = putStorageToKv(storage)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	return storage, nil
+	return StorageID(id), nil
 }
 
 type StorageManager struct {
@@ -126,6 +175,11 @@ func GetStorageManager() *StorageManager {
 }
 
 func (sm *StorageManager) GetStorage(id StorageID) (*Storage, error) {
+	v, ok := sm.storageCache.Get(id)
+	if ok {
+		return v.(*Storage), nil
+	}
+
 	st, err := getStorageFromKv(id)
 	if err != nil {
 		return nil, err
@@ -151,28 +205,17 @@ func (sm *StorageManager) ClearCache() {
 }
 
 func (sm *StorageManager) StorageDelete(storageID StorageID, recycleAfter time.Duration) error {
-	var storage *Storage
-	value, ok := sm.storageCache.Get(storageID)
-	if !ok {
-		var err error
-		storage, err = getStorageFromKv(storageID)
-		if err != nil {
-			return err
-		}
-		_ = sm.storageCache.Add(storageID, storage)
-
-	} else {
-		storage, _ = value.(*Storage)
-	}
-	if storage.IsDeleted {
-		return nil
+	storage, err := sm.GetStorage(storageID)
+	if err != nil {
+		return err
 	}
 
-	storage.IsDeleted = true
-	storage.DeleteTs = time.Now()
-	storage.RecycleTs = time.Now().Add(recycleAfter)
+	err = storage.MarkDelete(recycleAfter)
+	if err != nil {
+		return err
+	}
 
-	err := putStorageToKv(storage)
+	err = putStorageToKv(storage)
 	if err != nil {
 		return err
 	}
@@ -204,26 +247,17 @@ func (sm *StorageManager) StorageRealDelete(storageID StorageID) error {
 }
 
 func (sm *StorageManager) StorageUndelete(storageID StorageID) error {
-	var storage *Storage
-	value, ok := sm.storageCache.Get(storageID)
-	if !ok {
-		var err error
-		storage, err = getStorageFromKv(storageID)
-		if err != nil {
-			return err
-		}
-		_ = sm.storageCache.Add(storageID, storage)
-	} else {
-		storage, _ = value.(*Storage)
+	storage, err := sm.GetStorage(storageID)
+	if err != nil {
+		return err
 	}
 
-	if !storage.IsDeleted {
-		return nil
+	err = storage.Undelete()
+	if err != nil {
+		return err
 	}
-	storage.IsDeleted = false
-	storage.DeleteTs = time.Time{}
 
-	err := putStorageToKv(storage)
+	err = putStorageToKv(storage)
 	if err != nil {
 		return err
 	}
@@ -232,21 +266,12 @@ func (sm *StorageManager) StorageUndelete(storageID StorageID) error {
 }
 
 func (sm *StorageManager) StorageRename(storageID StorageID, name string) error {
-	var st *Storage
-	value, ok := sm.storageCache.Get(storageID)
-	if !ok {
-		var err error
-		st, err = getStorageFromKv(storageID)
-		if err != nil {
-			return err
-		}
-		_ = sm.storageCache.Add(storageID, st)
-	} else {
-		st, _ = value.(*Storage)
+	storage, err := sm.GetStorage(storageID)
+	if err != nil {
+		return err
 	}
 
-	st.Name = name
-	err := putStorageToKv(st)
+	err = storage.Rename(name)
 	if err != nil {
 		return err
 	}

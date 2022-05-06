@@ -81,7 +81,12 @@ const (
 )
 
 func (sa *ShardAllocator) AllocatorNewStorage() (*metadata.Storage, error) {
-	storage, err := metadata.CreateNewStorage()
+	storageId, err := metadata.CreateNewStorage()
+	if err != nil {
+		return nil, err
+	}
+
+	storage, err := metadata.GetStorageManager().GetStorage(storageId)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +145,7 @@ func (sa *ShardAllocator) ExpandStorage(storage *metadata.Storage, count uint32)
 		}
 
 		for _, addr := range addrs {
-			shard.Replicates[addr] = struct{}{}
+			shard.AddReplicates([]string{addr})
 		}
 
 		i--

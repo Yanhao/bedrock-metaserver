@@ -45,6 +45,8 @@ type DataServer struct {
 	DeletedTs       time.Time
 
 	Status LiveStatus
+
+	lock sync.RWMutex `copier:"-"`
 }
 
 var DataServers map[string]*DataServer
@@ -56,18 +58,30 @@ func init() {
 }
 
 func (d *DataServer) Used() uint64 {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+
 	return d.Capacity - d.Free
 }
 
 func (d *DataServer) UsedPercent() float64 {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+
 	return float64(d.Used()) / float64(d.Capacity)
 }
 
 func (d *DataServer) IsOverLoaded() bool {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+
 	return d.UsedPercent() > DATASERVER_OVERLOAD_PERCENT
 }
 
 func (d *DataServer) String() string {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+
 	return fmt.Sprintf("%v", *d)
 }
 
@@ -76,24 +90,45 @@ func (d *DataServer) HeartBeat() error {
 }
 
 func (d *DataServer) MarkActive(isHeartBeat bool) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
 	d.Status = LiveStatusActive
 	if isHeartBeat {
 		d.LastHeartBeatTs = time.Now()
 	}
 
-	return putDataServerToKv(d)
+	var ds DataServer
+	copier.Copy(&ds, d)
+	go putDataServerToKv(&ds)
+
+	return nil
 }
 
 func (d *DataServer) MarkInactive() error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
 	d.Status = LiveStatusInactive
 
-	return putDataServerToKv(d)
+	var ds DataServer
+	copier.Copy(&ds, d)
+	go putDataServerToKv(&ds)
+
+	return nil
 }
 
 func (d *DataServer) MarkOffline() error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
 	d.Status = LiveStatusOffline
 
-	return putDataServerToKv(d)
+	var ds DataServer
+	copier.Copy(&ds, d)
+	go putDataServerToKv(&ds)
+
+	return nil
 }
 
 func (d *DataServer) Addr() string {
@@ -203,6 +238,18 @@ func IsDataServerExists(addr string) bool {
 
 	_, ok := DataServers[addr]
 	return ok
+}
+
+func GetDataServerByAddr(addr string) (*DataServer, error) {
+	DataServersLock.RLock()
+	defer DataServersLock.RUnlock()
+
+	server, ok := DataServers[addr]
+	if !ok {
+		return nil, ErrNoSuchDataServer
+	}
+
+	return server, nil
 }
 
 // func TransferShard(shardID ShardID, fromAddr, toAddr string) error {

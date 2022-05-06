@@ -142,8 +142,25 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *proto.DeleteStorag
 
 	err = metadata.GetStorageManager().StorageDelete(metadata.StorageID(req.Id), recycleTime)
 	if err != nil {
-		log.Error("create storage failed, err: %v", err)
-		return resp, status.Errorf(codes.Internal, "create storage failed")
+		log.Error("delete storage failed, err: %v", err)
+		return resp, status.Errorf(codes.Internal, "delete storage failed")
+	}
+
+	return resp, nil
+}
+
+func (m *MetaService) UndeleteStorage(ctx context.Context, req *proto.UndeleteStorageRequest) (*proto.UndeleteStorageResponse, error) {
+	err := UndeleteStorageParamCheck(req)
+	if err != nil {
+		log.Warn("UndeleteStorage: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	resp := &proto.UndeleteStorageResponse{}
+
+	err = metadata.GetStorageManager().StorageUndelete(metadata.StorageID(req.Id))
+	if err != nil {
+		log.Error("undelete storage failed, err: %v", err)
+		return resp, status.Errorf(codes.Internal, "undelte storage failed")
 	}
 
 	return resp, nil

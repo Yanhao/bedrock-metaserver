@@ -61,8 +61,8 @@ func (s *Storage) Undelete() error {
 		return nil
 	}
 
-	storage.IsDeleted = false
-	storage.DeleteTs = time.Time{}
+	s.IsDeleted = false
+	s.DeleteTs = time.Time{}
 
 	return nil
 

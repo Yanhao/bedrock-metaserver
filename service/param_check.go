@@ -22,6 +22,10 @@ func DeleteStorageParamCheck(req *proto.DeleteStorageRequest) error {
 	return nil
 }
 
+func UndeleteStorageParamCheck(req *proto.UndeleteStorageRequest) error {
+	return nil
+}
+
 func RenameStorageParamCheck(req *proto.RenameStorageRequest) error {
 	return nil
 }

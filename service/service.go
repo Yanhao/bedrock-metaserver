@@ -8,7 +8,7 @@ import (
 	"github.com/jinzhu/copier"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
@@ -21,14 +21,22 @@ type MetaService struct {
 	proto.UnimplementedMetaServiceServer
 }
 
-func (m *MetaService) HeartBeat(ctx context.Context, req *proto.HeartBeatRequest) (resp *emptypb.Empty, err error) {
-	server, ok := metadata.DataServers[req.Addr]
-	if !ok {
+func (m *MetaService) HeartBeat(ctx context.Context, req *proto.HeartBeatRequest) (*emptypb.Empty, error) {
+	err := HeartBeatParamCheck(req)
+	if err != nil {
+		log.Warn("HeartBeat: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	server, err := metadata.GetDataServerByAddr(req.Addr)
+	if err != nil {
 		log.Warn("no such server in record: %s", req.Addr)
 		return nil, status.Errorf(codes.NotFound, "no such server: %s", req.Addr)
 	}
 
 	server.HeartBeat()
+
+	log.Debug("receive heartbeat from %s", req.Addr)
 
 	return &emptypb.Empty{}, nil
 }
@@ -52,14 +60,20 @@ func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*proto.RouteRecord
 
 		return route, nil
 	}
+
 	return nil, nil
 }
 
 func (m *MetaService) GetShardRoutes(ctx context.Context, req *proto.GetShardRoutesRequest) (*proto.GetShardRoutesResponse, error) {
-	ts := req.GetTimestamp().AsTime()
+	err := GetShardRoutesParamCheck(req)
+	if err != nil {
+		log.Warn("GetShardRoutes: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
 
 	resp := &proto.GetShardRoutesResponse{}
 
+	ts := req.GetTimestamp().AsTime()
 	if req.GetShardRange() != nil {
 		begin := req.GetShardRange().StartShardId
 		end := begin + req.GetShardRange().Offset
@@ -87,6 +101,12 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *proto.GetShardRou
 }
 
 func (m *MetaService) CreateStorage(ctx context.Context, req *proto.CreateStorageRequest) (*proto.CreateStorageResponse, error) {
+	err := CreateStorageParamCheck(req)
+	if err != nil {
+		log.Warn("CreateStorage: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	resp := &proto.CreateStorageResponse{}
 
 	storage, err := scheduler.GetShardAllocator().AllocatorNewStorage()
@@ -101,6 +121,12 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *proto.CreateStorag
 }
 
 func (m *MetaService) DeleteStorage(ctx context.Context, req *proto.DeleteStorageRequest) (*proto.DeleteStorageResponse, error) {
+	err := DeleteStorageParamCheck(req)
+	if err != nil {
+		log.Warn("DeleteStorage: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	resp := &proto.DeleteStorageResponse{}
 
 	var recycleTime time.Duration
@@ -114,7 +140,7 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *proto.DeleteStorag
 		}
 	}
 
-	err := metadata.GetStorageManager().StorageDelete(metadata.StorageID(req.Id), recycleTime)
+	err = metadata.GetStorageManager().StorageDelete(metadata.StorageID(req.Id), recycleTime)
 	if err != nil {
 		log.Error("create storage failed, err: %v", err)
 		return resp, status.Errorf(codes.Internal, "create storage failed")
@@ -124,9 +150,15 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *proto.DeleteStorag
 }
 
 func (m *MetaService) RenameStorage(ctx context.Context, req *proto.RenameStorageRequest) (*proto.RenameStorageResponse, error) {
+	err := RenameStorageParamCheck(req)
+	if err != nil {
+		log.Warn("RenameStorage: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	resp := &proto.RenameStorageResponse{}
 
-	err := metadata.GetStorageManager().StorageRename(metadata.StorageID(req.Id), req.NewName)
+	err = metadata.GetStorageManager().StorageRename(metadata.StorageID(req.Id), req.NewName)
 	if err != nil {
 		log.Error("create storage failed, err: %v", err)
 		return resp, status.Errorf(codes.Internal, "create storage failed")
@@ -136,6 +168,12 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *proto.RenameStorag
 }
 
 func (m *MetaService) ResizeStorage(ctx context.Context, req *proto.ResizeStorageRequest) (*proto.ResizeStorageResponse, error) {
+	err := ResizeStorageParamCheck(req)
+	if err != nil {
+		log.Warn("ResizeStorage: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	resp := &proto.ResizeStorageResponse{}
 
 	st, err := metadata.GetStorageManager().GetStorage(metadata.StorageID(req.Id))
@@ -170,6 +208,12 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *proto.ResizeStorag
 }
 
 func (m *MetaService) GetStorages(ctx context.Context, req *proto.GetStoragesRequest) (*proto.GetStoragesResponse, error) {
+	err := GetStoragesParamCheck(req)
+	if err != nil {
+		log.Warn("GetStorages: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	resp := &proto.GetStoragesResponse{}
 
 	for _, id := range req.Ids {
@@ -195,6 +239,12 @@ func (m *MetaService) GetStorages(ctx context.Context, req *proto.GetStoragesReq
 }
 
 func (m *MetaService) AddDataServer(ctx context.Context, req *proto.AddDataServerRequest) (*proto.AddDataServerResponse, error) {
+	err := AddDataServerParamCheck(req)
+	if err != nil {
+		log.Warn("AddDataServer: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	resp := &proto.AddDataServerResponse{}
 
 	ip, port, err := net.SplitHostPort(req.Addr)
@@ -210,8 +260,14 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *proto.AddDataServe
 }
 
 func (m *MetaService) RemoveDataServer(ctx context.Context, req *proto.RemoveDataServerRequest) (*proto.RemoveDataServerResponse, error) {
+	err := RemoveDataServerParamCheck(req)
+	if err != nil {
+		log.Warn("RemoveDataServer: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	resp := &proto.RemoveDataServerResponse{}
-	_, _, err := net.SplitHostPort(req.Addr)
+	_, _, err = net.SplitHostPort(req.Addr)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "")
 	}
@@ -235,6 +291,12 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *proto.RemoveDat
 }
 
 func (m *MetaService) ListDataServer(ctx context.Context, req *proto.ListDataServerRequest) (*proto.ListDataServerResponse, error) {
+	err := ListDataServerParamCheck(req)
+	if err != nil {
+		log.Warn("ListDataServer: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	resp := &proto.ListDataServerResponse{}
 
 	dss := metadata.DataServersClone()
@@ -267,6 +329,12 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *proto.ListDataSer
 }
 
 func (m *MetaService) UpdateDataServer(ctx context.Context, req *proto.UpdateDataServerRequest) (*proto.UpdateDataServerResponse, error) {
+	err := UpdateDataServerParamCheck(req)
+	if err != nil {
+		log.Warn("UpdateDataServer: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
 	resp := &proto.UpdateDataServerResponse{}
 
 	return resp, nil
@@ -274,7 +342,8 @@ func (m *MetaService) UpdateDataServer(ctx context.Context, req *proto.UpdateDat
 
 func (m *MetaService) ShardInfo(ctx context.Context, req *proto.ShardInfoRequest) (*proto.ShardInfoResponse, error) {
 	if err := ShardInfoParamCheck(req); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		log.Warn("ShardInfo: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
 	resp := &proto.ShardInfoResponse{}

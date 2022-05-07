@@ -3,3 +3,4 @@
 /test/test-server-start/run/
 .DS_Store
 *.md.tmp
+*.pb.go

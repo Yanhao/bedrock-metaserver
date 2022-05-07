@@ -1,7 +1,9 @@
-package api
+package dataserver
 
 import (
 	"context"
+
+	"sr.ht/moyanhao/bedrock-metaserver/proto"
 
 	grpc "google.golang.org/grpc"
 )
@@ -21,7 +23,7 @@ type DsApi interface {
 
 type DataServerApi struct {
 	addr     string
-	client   DataServiceClient
+	client   proto.DataServiceClient
 	grpcConn *grpc.ClientConn
 }
 
@@ -31,7 +33,7 @@ func NewDataServerApi(addr string) (DsApi, error) {
 		return nil, err
 	}
 
-	c := NewDataServiceClient(conn)
+	c := proto.NewDataServiceClient(conn)
 
 	ret := &DataServerApi{
 		addr:     addr,
@@ -47,7 +49,7 @@ func (ds *DataServerApi) Close() {
 }
 
 func (ds *DataServerApi) CreateShard(shardID uint64) error {
-	req := &CreateShardRequest{}
+	req := &proto.CreateShardRequest{}
 
 	resp, err := ds.client.CreateShard(context.TODO(), req)
 	if err != nil || resp == nil {
@@ -58,7 +60,7 @@ func (ds *DataServerApi) CreateShard(shardID uint64) error {
 }
 
 func (ds *DataServerApi) DeleteShard(shardID uint64) error {
-	req := &DeleteShardRequest{}
+	req := &proto.DeleteShardRequest{}
 
 	resp, err := ds.client.DeleteShard(context.TODO(), req)
 	if err != nil || resp == nil {
@@ -69,12 +71,12 @@ func (ds *DataServerApi) DeleteShard(shardID uint64) error {
 }
 
 func (ds *DataServerApi) TransferShardLeader(shardID uint64, newLeader string) error {
-	req := &TransferShardLeaderRequest{}
+	// req := &proto.TransferShardLeaderRequest{}
 
-	resp, err := ds.client.TransferShardLeader(context.TODO(), req)
-	if err != nil || resp == nil {
+	// resp, err := ds.client.TransferShardLeader(context.TODO(), req)
+	// if err != nil || resp == nil {
 
-	}
+	// }
 
 	return nil
 }

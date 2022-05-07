@@ -9,6 +9,7 @@ import (
 	"time"
 
 	cache "github.com/hashicorp/golang-lru"
+	"github.com/jinzhu/copier"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
@@ -64,6 +65,16 @@ func (sd *Shard) markUndelete() {
 
 	sd.IsDeleted = false
 	sd.DeleteTs = time.Time{}
+}
+
+func (sd *Shard) Copy() *Shard {
+	sd.lock.RLock()
+	defer sd.lock.RUnlock()
+
+	var ret Shard
+	copier.Copy(&ret, sd)
+
+	return &ret
 }
 
 func (sd *Shard) Repair() {
@@ -161,6 +172,15 @@ func (sm *ShardManager) GetShard(shardID ShardID) (*Shard, error) {
 	_ = sm.shardsCache.Add(shardID, shard)
 
 	return shard, nil
+}
+
+func (sm *ShardManager) GetShardCopy(shardID ShardID) (*Shard, error) {
+	shard, err := sm.GetShard(shardID)
+	if err != nil {
+		return nil, err
+	}
+
+	return shard.Copy(), nil
 }
 
 func (sm *ShardManager) PutShard(shard *Shard) error {

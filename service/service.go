@@ -370,7 +370,7 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *proto.ShardInfoRequest
 		return resp, status.Errorf(codes.Internal, "")
 	}
 
-	shard, err := sm.GetShard(metadata.ShardID(req.GetId()))
+	shard, err := sm.GetShardCopy(metadata.ShardID(req.GetId()))
 	if err != nil {
 		return resp, status.Errorf(codes.Internal, "")
 	}

@@ -2,58 +2,56 @@ package service
 
 import (
 	_ "errors"
-
-	"sr.ht/moyanhao/bedrock-metaserver/proto"
 )
 
-func HeartBeatParamCheck(req *proto.HeartBeatRequest) error {
+func HeartBeatParamCheck(req *HeartBeatRequest) error {
 	return nil
 }
 
-func GetShardRoutesParamCheck(req *proto.GetShardRoutesRequest) error {
+func GetShardRoutesParamCheck(req *GetShardRoutesRequest) error {
 	return nil
 }
 
-func CreateStorageParamCheck(req *proto.CreateStorageRequest) error {
+func CreateStorageParamCheck(req *CreateStorageRequest) error {
 	return nil
 }
 
-func DeleteStorageParamCheck(req *proto.DeleteStorageRequest) error {
+func DeleteStorageParamCheck(req *DeleteStorageRequest) error {
 	return nil
 }
 
-func UndeleteStorageParamCheck(req *proto.UndeleteStorageRequest) error {
+func UndeleteStorageParamCheck(req *UndeleteStorageRequest) error {
 	return nil
 }
 
-func RenameStorageParamCheck(req *proto.RenameStorageRequest) error {
+func RenameStorageParamCheck(req *RenameStorageRequest) error {
 	return nil
 }
 
-func ResizeStorageParamCheck(req *proto.ResizeStorageRequest) error {
+func ResizeStorageParamCheck(req *ResizeStorageRequest) error {
 	return nil
 }
 
-func GetStoragesParamCheck(req *proto.GetStoragesRequest) error {
+func GetStoragesParamCheck(req *GetStoragesRequest) error {
 	return nil
 }
 
-func AddDataServerParamCheck(req *proto.AddDataServerRequest) error {
+func AddDataServerParamCheck(req *AddDataServerRequest) error {
 	return nil
 }
 
-func RemoveDataServerParamCheck(req *proto.RemoveDataServerRequest) error {
+func RemoveDataServerParamCheck(req *RemoveDataServerRequest) error {
 	return nil
 }
 
-func ListDataServerParamCheck(req *proto.ListDataServerRequest) error {
+func ListDataServerParamCheck(req *ListDataServerRequest) error {
 	return nil
 }
 
-func UpdateDataServerParamCheck(req *proto.UpdateDataServerRequest) error {
+func UpdateDataServerParamCheck(req *UpdateDataServerRequest) error {
 	return nil
 }
 
-func ShardInfoParamCheck(req *proto.ShardInfoRequest) error {
+func ShardInfoParamCheck(req *ShardInfoRequest) error {
 	return nil
 }

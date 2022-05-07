@@ -118,7 +118,7 @@ func (sd *Shard) ReSelectLeader(ops ...shardOpFunc) error {
 		nextLeader = candidates[rand.Intn(len(candidates))]
 	}
 
-	err := dataSerCli.TransferShardLeader(uint64(sd.ID), nextLeader)
+	err := dataSerCli.TransferShardLeader(uint64(sd.ID), []string{})
 	if err != nil {
 		return err
 	}

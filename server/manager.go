@@ -14,7 +14,6 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/config"
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata"
-	"sr.ht/moyanhao/bedrock-metaserver/proto"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 	"sr.ht/moyanhao/bedrock-metaserver/service"
 )
@@ -79,7 +78,7 @@ func StartGrpcServer() {
 	opts := []grpc.ServerOption{}
 
 	grpcServer := grpc.NewServer(opts...)
-	proto.RegisterMetaServiceServer(grpcServer, &service.MetaService{})
+	service.RegisterMetaServiceServer(grpcServer, &service.MetaService{})
 
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Error("failed to start grpc server")

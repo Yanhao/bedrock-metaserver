@@ -12,7 +12,9 @@ type Checker struct {
 }
 
 func NewChecker() *Checker {
-	return &Checker{}
+	return &Checker{
+		stop: make(chan struct{}),
+	}
 }
 
 var (

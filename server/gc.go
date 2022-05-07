@@ -12,7 +12,9 @@ type GarbageCleaner struct {
 }
 
 func NewGarbageCleaner() *GarbageCleaner {
-	return &GarbageCleaner{}
+	return &GarbageCleaner{
+		stop: make(chan struct{}),
+	}
 }
 
 var (
@@ -29,19 +31,21 @@ func GetGarbageCleaner() *GarbageCleaner {
 }
 
 func (gc *GarbageCleaner) Start() error {
-	ticker := time.NewTicker(time.Second * 30)
+	go func() {
+		ticker := time.NewTicker(time.Second * 30)
 
-out:
-	for {
-		select {
-		case <-ticker.C:
-			gc.doGarbageClean()
-		case <-gc.stop:
-			break out
+	out:
+		for {
+			select {
+			case <-ticker.C:
+				gc.doGarbageClean()
+			case <-gc.stop:
+				break out
+			}
 		}
-	}
 
-	log.Info("garbage cleaner stopped ...")
+		log.Info("garbage cleaner stopped ...")
+	}()
 
 	return nil
 }

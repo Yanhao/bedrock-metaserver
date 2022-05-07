@@ -71,7 +71,7 @@ func (l *LeaderShip) Campaign() bool {
 	ctx, cancel := context.WithTimeout(l.client.Ctx(), 3*time.Second)
 	defer cancel()
 
-	grantResp, err := ls.Grant(ctx, 10)
+	grantResp, err := ls.Grant(ctx, 10 /* 10 seconds */)
 	if err != nil {
 		log.Error("failed to grant lease")
 
@@ -92,11 +92,28 @@ func (l *LeaderShip) Campaign() bool {
 	return true
 }
 
+func (l *LeaderShip) IsLeader() bool {
+	resp, err := l.client.Get(context.TODO(), l.leaderKey)
+	if err != nil {
+		return false
+	}
+	if resp.Count == 0 {
+		return false
+	}
+
+	return string(resp.Kvs[0].Value) == l.leaderValue
+}
+
 func (l *LeaderShip) keepLeader() {
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 
 	for {
+		if !l.IsLeader() {
+			l.notifier <- NewRole{Role: BecameFollower}
+			return
+		}
+
 		ctx := context.TODO()
 		_, err := l.client.KeepAliveOnce(ctx, l.leaseID)
 		if err != nil {

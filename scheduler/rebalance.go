@@ -12,7 +12,9 @@ type Rebalancer struct {
 }
 
 func NewRebalancer() *Rebalancer {
-	return &Rebalancer{}
+	return &Rebalancer{
+		stop: make(chan struct{}),
+	}
 }
 
 var (

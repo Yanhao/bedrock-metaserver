@@ -2,13 +2,14 @@ package dataserver
 
 import (
 	"context"
+	"errors"
 
 	grpc "google.golang.org/grpc"
 )
 
 type DsApi interface {
-	DeleteShard(shardID uint64) error
-	CreateShard(shardID uint64) error
+	DeleteShard(shardID uint64, storageID uint64) error
+	CreateShard(shardID uint64, storageID uint64) error
 
 	// TransferShard(shardID uint64, toAddr string) error
 	// PullShardData(shardID uint64, leader string) error
@@ -46,23 +47,28 @@ func (ds *DataServerApi) Close() {
 	_ = ds.grpcConn.Close()
 }
 
-func (ds *DataServerApi) CreateShard(shardID uint64) error {
-	req := &CreateShardRequest{}
+func (ds *DataServerApi) CreateShard(shardID uint64, storageID uint64) error {
+	req := &CreateShardRequest{
+		ShardId:   shardID,
+		StorageId: storageID,
+	}
 
 	resp, err := ds.client.CreateShard(context.TODO(), req)
 	if err != nil || resp == nil {
-
+		return errors.New("")
 	}
 
 	return nil
 }
 
-func (ds *DataServerApi) DeleteShard(shardID uint64) error {
-	req := &DeleteShardRequest{}
+func (ds *DataServerApi) DeleteShard(shardID uint64, storageID uint64) error {
+	req := &DeleteShardRequest{
+		ShardId: shardID,
+	}
 
 	resp, err := ds.client.DeleteShard(context.TODO(), req)
 	if err != nil || resp == nil {
-
+		return errors.New("")
 	}
 
 	return nil
@@ -76,7 +82,7 @@ func (ds *DataServerApi) TransferShardLeader(shardID uint64, replicates []string
 
 	resp, err := ds.client.TransferShardLeader(context.TODO(), req)
 	if err != nil || resp == nil {
-
+		return errors.New("")
 	}
 
 	return nil

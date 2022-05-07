@@ -118,7 +118,11 @@ func (sd *Shard) ReSelectLeader(ops ...shardOpFunc) error {
 		nextLeader = candidates[rand.Intn(len(candidates))]
 	}
 
-	err := dataSerCli.TransferShardLeader(uint64(sd.ID), []string{})
+	replicates := []string{}
+	for addr := range sd.Replicates {
+		replicates = append(replicates, addr)
+	}
+	err := dataSerCli.TransferShardLeader(uint64(sd.ID), replicates)
 	if err != nil {
 		return err
 	}
@@ -257,7 +261,7 @@ func (sm *ShardManager) ShardDelete(shardID ShardID) error {
 	for addr := range shard.Replicates {
 		dataServerCli, _ := conns.GetApiClient(addr)
 
-		err := dataServerCli.DeleteShard(uint64(shardID))
+		err := dataServerCli.DeleteShard(uint64(shardID), 0)
 		if err != nil {
 			log.Warn("failed to delete shard from dataserver, err: %v", err)
 			return err

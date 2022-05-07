@@ -113,7 +113,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 
 		dataServerCli, _ := conns.GetApiClient(server)
 
-		err := dataServerCli.CreateShard(uint64(shardID))
+		err := dataServerCli.CreateShard(uint64(shardID), 0)
 		if err != nil {
 			log.Warn("failed to delete shard from dataserver, err: %v", err)
 

@@ -4,8 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jinzhu/copier"
-
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
@@ -73,8 +71,8 @@ func (hb *HeartBeater) Stop() {
 func (hb *HeartBeater) InitDataServers() {
 	log.Info("init dataservers ...")
 
-	metadata.DataServersLock.Lock()
-	defer metadata.DataServersLock.Unlock()
+	metadata.DataServersLock.RLock()
+	defer metadata.DataServersLock.RUnlock()
 
 	for _, d := range metadata.DataServers {
 		switch d.Status {
@@ -102,11 +100,7 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 			delete(ActiveDataServers, s.Addr())
 			delete(InactiveDataServers, s.Addr())
 
-			var ds *metadata.DataServer
-			err := copier.Copy(ds, s)
-			if err != nil {
-				log.Error("copy metadata.DataServer failed, err: %v", err)
-			}
+			ds := s.Copy()
 			go repairDataInServer(ds)
 
 			continue
@@ -140,6 +134,8 @@ func repairDataInServer(server *metadata.DataServer) {
 	}
 
 	metadata.DataServerRemove(server.Addr())
+
+	// FIXME: protect by lock
 	delete(OfflineDataServers, server.Addr())
 
 	log.Info("successfully repair data in dataserver: %s", server.Addr())

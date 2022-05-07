@@ -53,13 +53,14 @@ func ClearDataserver(addr string) error {
 
 		if shard.Leader == addr {
 			shard.ReSelectLeader()
+		} else {
+			// TODO: notify leader the shard member change
 		}
 
 		dsTobeClearedCli, _ := conns.GetApiClient(addr)
 		err = dsTobeClearedCli.DeleteShard(uint64(shardID))
 		if err != nil {
-			log.Error("DeleteShard failed, err: %v", err)
-			return err
+			log.Warn("DeleteShard failed, err: %v", err)
 		}
 
 		shard.RemoveReplicates([]string{addr})

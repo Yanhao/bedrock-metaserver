@@ -57,6 +57,16 @@ func init() {
 	DataServersLock = &sync.RWMutex{}
 }
 
+func (d *DataServer) Copy() *DataServer {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+
+	var ret DataServer
+	copier.Copy(&ret, d)
+
+	return &ret
+}
+
 func (d *DataServer) Used() uint64 {
 	d.lock.RLock()
 	defer d.lock.RUnlock()

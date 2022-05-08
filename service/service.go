@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
+	"sr.ht/moyanhao/bedrock-metaserver/kv"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
@@ -25,6 +26,12 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *HeartBeatRequest) (*em
 	if err != nil {
 		log.Warn("HeartBeat: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.HeartBeat(ctx, req)
 	}
 
 	server, err := metadata.GetDataServerByAddr(req.Addr)
@@ -70,6 +77,12 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesReq
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.GetShardRoutes(ctx, req)
+	}
+
 	resp := &GetShardRoutesResponse{}
 
 	ts := req.GetTimestamp().AsTime()
@@ -106,6 +119,12 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *CreateStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.CreateStorage(ctx, req)
+	}
+
 	resp := &CreateStorageResponse{}
 
 	storage, err := scheduler.GetShardAllocator().AllocatorNewStorage()
@@ -124,6 +143,12 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *DeleteStorageReque
 	if err != nil {
 		log.Warn("DeleteStorage: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.DeleteStorage(ctx, req)
 	}
 
 	resp := &DeleteStorageResponse{}
@@ -154,6 +179,13 @@ func (m *MetaService) UndeleteStorage(ctx context.Context, req *UndeleteStorageR
 		log.Warn("UndeleteStorage: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.UndeleteStorage(ctx, req)
+	}
+
 	resp := &UndeleteStorageResponse{}
 
 	err = metadata.GetStorageManager().StorageUndelete(metadata.StorageID(req.Id))
@@ -172,6 +204,12 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *RenameStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.RenameStorage(ctx, req)
+	}
+
 	resp := &RenameStorageResponse{}
 
 	err = metadata.GetStorageManager().StorageRename(metadata.StorageID(req.Id), req.NewName)
@@ -188,6 +226,12 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *ResizeStorageReque
 	if err != nil {
 		log.Warn("ResizeStorage: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.ResizeStorage(ctx, req)
 	}
 
 	resp := &ResizeStorageResponse{}
@@ -230,6 +274,12 @@ func (m *MetaService) GetStorages(ctx context.Context, req *GetStoragesRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.GetStorages(ctx, req)
+	}
+
 	resp := &GetStoragesResponse{}
 
 	for _, id := range req.Ids {
@@ -261,6 +311,12 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *AddDataServerReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.AddDataServer(ctx, req)
+	}
+
 	resp := &AddDataServerResponse{}
 
 	ip, port, err := net.SplitHostPort(req.Addr)
@@ -280,6 +336,12 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *RemoveDataServe
 	if err != nil {
 		log.Warn("RemoveDataServer: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.RemoveDataServer(ctx, req)
 	}
 
 	resp := &RemoveDataServerResponse{}
@@ -311,6 +373,12 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *ListDataServerReq
 	if err != nil {
 		log.Warn("ListDataServer: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.ListDataServer(ctx, req)
 	}
 
 	resp := &ListDataServerResponse{}
@@ -351,6 +419,12 @@ func (m *MetaService) UpdateDataServer(ctx context.Context, req *UpdateDataServe
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.UpdateDataServer(ctx, req)
+	}
+
 	resp := &UpdateDataServerResponse{}
 
 	return resp, nil
@@ -360,6 +434,12 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *ShardInfoRequest) (*Sh
 	if err := ShardInfoParamCheck(req); err != nil {
 		log.Warn("ShardInfo: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.ShardInfo(ctx, req)
 	}
 
 	resp := &ShardInfoResponse{}

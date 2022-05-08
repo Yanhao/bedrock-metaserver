@@ -17,6 +17,22 @@ const (
 	BecameFollower
 )
 
+var isMetaServerLeader int32
+var metaServerLeader atomic.Value
+
+func IsMetaServerLeader() bool {
+	return atomic.LoadInt32(&isMetaServerLeader) == 1
+}
+
+func GetMetaServerLeader() string {
+	v := metaServerLeader.Load()
+	if v == nil {
+		return ""
+	}
+
+	return v.(string)
+}
+
 type NewRole struct {
 	Role int
 }
@@ -65,6 +81,8 @@ func (l *LeaderShip) GetNotifier() <-chan NewRole {
 }
 
 func (l *LeaderShip) Campaign() bool {
+	defer l.IsLeader()
+
 	ls := clientv3.NewLease(l.client)
 	l.setLease(&ls)
 
@@ -88,6 +106,7 @@ func (l *LeaderShip) Campaign() bool {
 	}
 
 	l.notifier <- NewRole{Role: BecameLeader}
+	atomic.StoreInt32(&isMetaServerLeader, 1)
 
 	return true
 }
@@ -100,6 +119,7 @@ func (l *LeaderShip) IsLeader() bool {
 	if resp.Count == 0 {
 		return false
 	}
+	metaServerLeader.Store(resp.Kvs[0].Value)
 
 	return string(resp.Kvs[0].Value) == l.leaderValue
 }
@@ -111,6 +131,7 @@ func (l *LeaderShip) keepLeader() {
 	for {
 		if !l.IsLeader() {
 			l.notifier <- NewRole{Role: BecameFollower}
+			atomic.StoreInt32(&isMetaServerLeader, 0)
 			return
 		}
 
@@ -119,6 +140,7 @@ func (l *LeaderShip) keepLeader() {
 		if err != nil {
 			log.Info("failed to keep alive leadership lease")
 			l.notifier <- NewRole{Role: BecameFollower}
+			atomic.StoreInt32(&isMetaServerLeader, 0)
 
 			return
 		}
@@ -135,6 +157,7 @@ func (l *LeaderShip) Start() {
 	go func() {
 		ticker := time.NewTicker(time.Second * 5)
 		defer ticker.Stop()
+
 		for {
 			success := l.Campaign()
 			if success {

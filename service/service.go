@@ -42,7 +42,7 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *HeartBeatRequest) (*em
 
 	server.HeartBeat()
 
-	log.Debug("receive heartbeat from %s", req.Addr)
+	log.Info("receive heartbeat from %s", req.Addr)
 
 	return &emptypb.Empty{}, nil
 }
@@ -323,10 +323,12 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *AddDataServerReque
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "")
 	}
+	log.Info("start add dataserver %v to cluster", req.Addr)
 	err = metadata.DataServerAdd(ip, port)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "")
+		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
+	log.Info("add dataserver %v to cluster successfully", req.Addr)
 
 	return resp, nil
 }

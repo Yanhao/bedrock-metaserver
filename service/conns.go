@@ -41,7 +41,7 @@ func NewConnections(cap int) *Connections {
 }
 
 func NewMetaServerApi(addr string) (*MetaServerApi, error) {
-	conn, err := grpc.Dial(addr)
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func NewMetaServerApi(addr string) (*MetaServerApi, error) {
 func (cns *Connections) GetClient(addr string) (MetaServiceClient, error) {
 	cli, ok := cns.connCaches.Get(addr)
 	if ok {
-		return cli.(MetaServiceClient), nil
+		return cli.(MetaServerApi).client, nil
 	}
 
 	newApi, err := NewMetaServerApi(addr)
@@ -66,7 +66,7 @@ func (cns *Connections) GetClient(addr string) (MetaServiceClient, error) {
 		return nil, err
 	}
 
-	cns.connCaches.Add(addr, newApi)
+	cns.connCaches.Add(addr, *newApi)
 
 	return newApi.client, nil
 }

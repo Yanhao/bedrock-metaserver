@@ -119,7 +119,7 @@ func (l *LeaderShip) IsLeader() bool {
 	if resp.Count == 0 {
 		return false
 	}
-	metaServerLeader.Store(resp.Kvs[0].Value)
+	metaServerLeader.Store(string(resp.Kvs[0].Value))
 
 	return string(resp.Kvs[0].Value) == l.leaderValue
 }

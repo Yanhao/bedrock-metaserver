@@ -71,6 +71,10 @@ func (hb *HeartBeater) Stop() {
 func (hb *HeartBeater) InitDataServers() {
 	log.Info("init dataservers ...")
 
+	ActiveDataServers = make(map[string]*metadata.DataServer)
+	InactiveDataServers = make(map[string]*metadata.DataServer)
+	OfflineDataServers = make(map[string]*metadata.DataServer)
+
 	metadata.DataServersLock.RLock()
 	defer metadata.DataServersLock.RUnlock()
 
@@ -125,6 +129,7 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 
 func repairDataInServer(server *metadata.DataServer) {
 	log.Info("start repair data in dataserver: %s", server.Addr())
+	return // FIXME: remove this line
 
 	err := scheduler.ClearDataserver(server.Addr())
 	if err != nil {

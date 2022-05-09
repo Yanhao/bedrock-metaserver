@@ -150,7 +150,8 @@ func (d *DataServer) Addr() string {
 
 func DataServerAdd(ip, port string) error {
 	addr := net.JoinHostPort(ip, port)
-	if !IsDataServerExists(addr) {
+	if IsDataServerExists(addr) {
+		log.Warn("dataserver %v already in the cluster", addr)
 		return fmt.Errorf("%s already in the cluster", addr)
 	}
 
@@ -158,12 +159,16 @@ func DataServerAdd(ip, port string) error {
 	portInt, _ := strconv.ParseUint(port, 10, 32)
 
 	dataserver := &DataServer{
-		Ip:   uint32(ipInt),
-		Port: uint32(portInt),
+		Ip:              uint32(ipInt),
+		Port:            uint32(portInt),
+		LastHeartBeatTs: time.Now(),
+		CreatedTs:       time.Now(),
+		Status:          LiveStatusActive,
 	}
 
 	err := putDataServerToKv(dataserver)
 	if err != nil {
+		log.Error("failed put dataserver %v to kv", dataserver.Addr())
 		return err
 	}
 

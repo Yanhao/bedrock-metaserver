@@ -97,6 +97,7 @@ func (hb *HeartBeater) InitDataServers() {
 
 func (hb *HeartBeater) doHandleHeartBeat() {
 	log.Info("handle heartbeat ...")
+	return // FIXME: remove this line
 
 	metadata.DataServersLock.Lock()
 	defer metadata.DataServersLock.Unlock()

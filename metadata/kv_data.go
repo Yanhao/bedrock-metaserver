@@ -62,7 +62,7 @@ func putShardToKv(shard *Shard) error {
 
 	value, err := proto.Marshal(pbShard)
 	if err != nil {
-		log.Warn("failed to encode shard to pb, shard=%v", *shard)
+		log.Warn("failed to encode shard to pb, shard=%v", shard)
 		return err
 	}
 

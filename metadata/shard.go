@@ -250,6 +250,24 @@ func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
 	return shard, nil
 }
 
+func (sm *ShardManager) CreateNewShardByIDs(storageID StorageID, shardID ShardID) (*Shard, error) {
+	shard := &Shard{
+		ID:              shardID,
+		SID:             storageID,
+		CreateTs:        time.Now(),
+		IsDeleted:       false,
+		ReplicaUpdateTs: time.Now(),
+		Replicates:      map[string]struct{}{},
+	}
+	err := putShardToKv(shard)
+	if err != nil {
+		return nil, err
+	}
+
+	sm.shardsCache.Add(shardID, shard)
+	return shard, nil
+}
+
 func (sm *ShardManager) ShardDelete(shardID ShardID) error {
 	shard, err := sm.GetShard(shardID)
 	if err != nil {

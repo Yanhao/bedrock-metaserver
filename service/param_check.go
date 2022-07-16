@@ -55,3 +55,11 @@ func UpdateDataServerParamCheck(req *UpdateDataServerRequest) error {
 func ShardInfoParamCheck(req *ShardInfoRequest) error {
 	return nil
 }
+
+func CreateShardParamCheck(req *CreateShardRequest) error {
+	return nil
+}
+
+func RemoveShardParamCheck(req *RemoveShardRequest) error {
+	return nil
+}

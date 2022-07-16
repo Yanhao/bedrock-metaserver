@@ -479,3 +479,86 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *ShardInfoRequest) (*Sh
 
 	return resp, nil
 }
+
+func (m *MetaService) CreateShard(ctx context.Context, req *CreateShardRequest) (*CreateShardResponse, error) {
+	if err := CreateShardParamCheck(req); err != nil {
+		log.Warn("CreateShard: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.CreateShard(ctx, req)
+	}
+
+	resp := &CreateShardResponse{}
+
+	stm := metadata.GetStorageManager()
+	st, err := stm.GetStorage(metadata.StorageID(req.StorageId))
+	if err != nil || st == nil {
+		log.Warn("no such storage, storageid: %v", req.StorageId)
+		return nil, status.Errorf(codes.FailedPrecondition, "no such storage, id=%v", req.StorageId)
+	}
+
+	shm := metadata.GetShardManager()
+	_, err = shm.GetShard(metadata.ShardID(req.ShardId))
+	if err != nil {
+		log.Warn("shard already exists, shardid: %v", req.ShardId)
+		return nil, status.Errorf(codes.AlreadyExists, "shard already exists, id=%v", req.ShardId)
+	}
+	if err != metadata.ErrNoSuchShard {
+		log.Warn("failed to get shard, shardid: %v, err: %v", req.ShardId, err)
+		return nil, status.Errorf(codes.Internal, "failed to get shard, err: %v", err)
+	}
+
+	shard, err := shm.CreateNewShardByIDs(metadata.StorageID(req.StorageId), metadata.ShardID(req.ShardId))
+	if err != nil {
+		log.Warn("failed to create new shard by id, err: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to create shard, err: %v", err)
+	}
+
+	sa := scheduler.GetShardAllocator()
+	// replicates, err := sa.AllocateShardReplicates(shard.ID, 3)
+	_, err = sa.AllocateShardReplicates(shard.ID, 3)
+	if err != nil {
+		log.Warn("failed to allocate shard replicates, err: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to allocate replicates, err: %v", err)
+	}
+
+	return resp, nil
+}
+
+func (m *MetaService) RemoveShard(ctx context.Context, req *RemoveShardRequest) (*RemoveShardResponse, error) {
+	if err := RemoveShardParamCheck(req); err != nil {
+		log.Warn("CreateShard: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.RemoveShard(ctx, req)
+	}
+
+	resp := &RemoveShardResponse{}
+
+	shm := metadata.GetShardManager()
+	shard, err := shm.GetShard(metadata.ShardID(req.ShardId))
+	if err != nil {
+		log.Warn("failed to get shard, shardid: %v, err: %v", req.ShardId, err)
+		return nil, status.Errorf(codes.Internal, "failed to get shard, err: %v", err)
+	}
+	if err == metadata.ErrNoSuchShard {
+		log.Warn("no such shard, shardid: %v", req.ShardId)
+		return nil, status.Errorf(codes.FailedPrecondition, "no such shard, id=%v", req.ShardId)
+	}
+
+	err = shm.MarkDelete(shard)
+	if err != nil {
+		log.Warn("failed to mark delete for shard, err: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to mark delete for shard, err: %v", err)
+	}
+
+	return resp, nil
+}

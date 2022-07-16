@@ -26,7 +26,7 @@ var (
 
 func GetEtcdNode() *EtcdNode {
 	etcdNodeOnce.Do(func() {
-		etcdNode = NewEtcdNode()
+		etcdNode = NewEtcdNode(config.GetConfiguration())
 	})
 	return etcdNode
 }
@@ -36,19 +36,19 @@ func GetEtcdClient() *client.Client {
 	return GetEtcdNode().client
 }
 
-func NewEtcdNode() *EtcdNode {
+func NewEtcdNode(config *config.Configuration) *EtcdNode {
 	cfg := embed.NewConfig()
-	cfg.Dir = config.MsConfig.EtcdDataDir
-	cfg.WalDir = config.MsConfig.EtcdWalDir
+	cfg.Dir = config.EtcdDataDir
+	cfg.WalDir = config.EtcdWalDir
 
-	cfg.Name = config.MsConfig.EtcdName
+	cfg.Name = config.EtcdName
 	cfg.InitialCluster = cfg.InitialClusterFromName(cfg.Name)
 
-	cfg.LCUrls = []url.URL{*config.MsConfig.EtcdClientAddr}
-	cfg.LPUrls = []url.URL{*config.MsConfig.EtcdPeerAddr}
-	// cfg.LogOutput = config.MsConfig.LogFile
+	cfg.LCUrls = []url.URL{*config.EtcdClientAddr}
+	cfg.LPUrls = []url.URL{*config.EtcdPeerAddr}
+	// cfg.LogOutput = config.LogFile
 	cfg.LogLevel = "info"
-	cfg.InitialCluster = config.MsConfig.EtcdClusterPeers
+	cfg.InitialCluster = config.EtcdClusterPeers
 
 	cfg.ACUrls = cfg.LCUrls
 	cfg.APUrls = cfg.LPUrls

@@ -181,7 +181,7 @@ func putDataServerToKv(dataserver *DataServer) error {
 	ec := kv.GetEtcdClient()
 	_, err = ec.Put(context.Background(), DataServerKey(dataserver.Addr()), string(value))
 	if err != nil {
-		log.Warn("failed to save dataserver to etcd, dataserver=%v", *dataserver)
+		log.Warn("failed to save dataserver to etcd, dataserver=%v", dataserver)
 		return err
 	}
 

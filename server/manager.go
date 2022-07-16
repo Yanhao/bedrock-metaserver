@@ -79,6 +79,7 @@ func StartGrpcServer() {
 	grpcServer := grpc.NewServer(opts...)
 	service.RegisterMetaServiceServer(grpcServer, &service.MetaService{})
 
+	log.Info("start grpc server at %s", lis.Addr().String())
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Error("failed to start grpc server")
 		os.Exit(-1)
@@ -121,7 +122,7 @@ func Start() {
 
 	en := kv.GetEtcdNode()
 	if err := en.Start(); err != nil {
-		fmt.Println("failed to start embed etcd server")
+		log.Error("failed to start embed etcd server")
 		os.Exit(-1)
 	}
 
@@ -146,4 +147,6 @@ func Start() {
 	}()
 
 	StartGrpcServer()
+
+	log.Info("metaserver stop here")
 }

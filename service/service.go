@@ -305,6 +305,7 @@ func (m *MetaService) GetStorages(ctx context.Context, req *GetStoragesRequest) 
 }
 
 func (m *MetaService) AddDataServer(ctx context.Context, req *AddDataServerRequest) (*AddDataServerResponse, error) {
+	log.Info("serve AddDataServer: req %#v", req)
 	err := AddDataServerParamCheck(req)
 	if err != nil {
 		log.Warn("AddDataServer: invalid arguments, err: %v", err)

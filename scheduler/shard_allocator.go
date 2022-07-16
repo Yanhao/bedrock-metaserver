@@ -11,6 +11,10 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/metadata"
 )
 
+const (
+	MAX_ALLOCATE_TIMES = 6
+)
+
 type ShardAllocator struct {
 }
 
@@ -103,7 +107,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 	var selectedDataServers []string
 	conns := dataserver.GetDataServerConns()
 
-	for i := count; i > 0; {
+	for i, times := count, MAX_ALLOCATE_TIMES; i > 0 && times > 0; {
 		viableDataServers := generateViableDataServer(selectedDataServers)
 		if len(viableDataServers) < i {
 			return nil, errors.New("dataserver is not enough to allocate shard")
@@ -115,8 +119,9 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 
 		err := dataServerCli.CreateShard(uint64(shardID), 0)
 		if err != nil {
-			log.Warn("failed to delete shard from dataserver, err: %v", err)
+			log.Warn("failed to create shard from dataserver %v, err: %v", server, err)
 
+			times--
 			continue
 		}
 
@@ -127,7 +132,13 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 
 		selectedDataServers = append(selectedDataServers, server)
 		i--
+		times--
 	}
+
+	if len(selectedDataServers) < count {
+		return selectedDataServers, errors.New("not enough replicates")
+	}
+
 	return selectedDataServers, nil
 }
 

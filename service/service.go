@@ -503,7 +503,7 @@ func (m *MetaService) CreateShard(ctx context.Context, req *CreateShardRequest) 
 
 	shm := metadata.GetShardManager()
 	_, err = shm.GetShard(metadata.ShardID(req.ShardId))
-	if err != nil {
+	if err == nil {
 		log.Warn("shard already exists, shardid: %v", req.ShardId)
 		return nil, status.Errorf(codes.AlreadyExists, "shard already exists, id=%v", req.ShardId)
 	}

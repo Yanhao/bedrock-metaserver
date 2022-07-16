@@ -290,14 +290,14 @@ func putStorageToKv(storage *Storage) error {
 
 	value, err := proto.Marshal(pbStorage)
 	if err != nil {
-		log.Warn("failed to encode storage to pb, storage=%v", *storage)
+		log.Warn("failed to encode storage to pb, storage=%v", storage)
 		return err
 	}
 
 	ec := kv.GetEtcdClient()
 	_, err = ec.Put(context.Background(), StorageKey(storage.ID), string(value))
 	if err != nil {
-		log.Warn("failed to save storage to etcd, storage=%v", *storage)
+		log.Warn("failed to save storage to etcd, storage=%v", storage)
 		return err
 	}
 

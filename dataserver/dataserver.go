@@ -55,7 +55,7 @@ func (ds *DataServerApi) CreateShard(shardID uint64, storageID uint64) error {
 
 	resp, err := ds.client.CreateShard(context.TODO(), req)
 	if err != nil || resp == nil {
-		return errors.New("")
+		return err
 	}
 
 	return nil

@@ -28,11 +28,11 @@ func IdcKey(idc string) string {
 }
 
 func StorageKey(storageID StorageID) string {
-	return fmt.Sprintf("%s%d", KvPrefixStorage, storageID)
+	return fmt.Sprintf("%s0x%08x", KvPrefixStorage, storageID)
 }
 
 func DeletedStorageKey(storageID StorageID) string {
-	return fmt.Sprintf("%s%d", KvPrefixMarkDeletedStorageID, storageID)
+	return fmt.Sprintf("%s0x%08x", KvPrefixMarkDeletedStorageID, storageID)
 }
 
 func DataServerKey(addr string) string {
@@ -40,7 +40,7 @@ func DataServerKey(addr string) string {
 }
 
 func ShardKey(shardID ShardID) string {
-	return fmt.Sprintf("%s%d", KvPrefixShard, shardID)
+	return fmt.Sprintf("%s0x%08x", KvPrefixShard, shardID)
 }
 
 // ---------------------------------------------------------------------

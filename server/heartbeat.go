@@ -66,6 +66,11 @@ func (hb *HeartBeater) Start() error {
 
 func (hb *HeartBeater) Stop() {
 	close(hb.stop)
+	hb.Reset()
+}
+
+func (hb *HeartBeater) Reset() {
+	hb.stop = make(chan struct{})
 }
 
 func (hb *HeartBeater) InitDataServers() {

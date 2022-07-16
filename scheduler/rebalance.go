@@ -53,6 +53,11 @@ func (rb *Rebalancer) Start() error {
 
 func (rb *Rebalancer) Stop() {
 	close(rb.stop)
+	rb.Reset()
+}
+
+func (rb *Rebalancer) Reset() {
+	rb.stop = make(chan struct{})
 }
 
 func (rb *Rebalancer) doRebalanceByCapacity() {

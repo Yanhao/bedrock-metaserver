@@ -53,6 +53,11 @@ func (c *Checker) Start() error {
 
 func (c *Checker) Stop() {
 	close(c.stop)
+	c.Reset()
+}
+
+func (c *Checker) Reset() {
+	c.stop = make(chan struct{})
 }
 
 func (c *Checker) doCheck() {

@@ -52,6 +52,11 @@ func (gc *GarbageCleaner) Start() error {
 
 func (gc *GarbageCleaner) Stop() {
 	close(gc.stop)
+	gc.Reset()
+}
+
+func (gc *GarbageCleaner) Reset() {
+	gc.stop = make(chan struct{})
 }
 
 func (gc *GarbageCleaner) doGarbageClean() {

@@ -41,7 +41,7 @@ func getShardFromKv(shardID ShardID) (*Shard, error) {
 	}
 
 	shard := &Shard{}
-	shard.ID = ShardID(pbShard.Id)
+	shard.ISN = ShardISN(pbShard.Isn)
 	for _, rep := range pbShard.Replicates {
 		shard.Replicates[rep] = struct{}{}
 	}
@@ -53,7 +53,7 @@ func getShardFromKv(shardID ShardID) (*Shard, error) {
 
 func putShardToKv(shard *Shard) error {
 	pbShard := &pbdata.Shard{
-		Id:              uint64(shard.ID),
+		Isn:             uint32(shard.ISN),
 		ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),
 	}
 	for _, rep := range pbShard.Replicates {
@@ -66,11 +66,11 @@ func putShardToKv(shard *Shard) error {
 		return err
 	}
 
-	keys := []string{ShardKey(shard.ID), ShardInStorageKey(shard.SID, shard.ID)}
+	keys := []string{ShardKey(shard.ID()), ShardInStorageKey(shard.SID, shard.ISN)}
 	values := []string{string(value), ""}
 
 	for addr := range shard.Replicates {
-		keys = append(keys, ShardInDataServerKey(addr, shard.ID))
+		keys = append(keys, ShardInDataServerKey(addr, shard.ID()))
 		values = append(values, "")
 	}
 
@@ -90,10 +90,10 @@ func putShardToKv(shard *Shard) error {
 }
 
 func deleteShardFromKv(shard *Shard) error {
-	keys := []string{ShardKey(shard.ID)}
+	keys := []string{ShardKey(shard.ID())}
 
 	for addr := range shard.Replicates {
-		keys = append(keys, ShardInDataServerKey(addr, shard.ID))
+		keys = append(keys, ShardInDataServerKey(addr, shard.ID()))
 	}
 
 	var ops []client.Op
@@ -208,7 +208,7 @@ func GetShardsInDataServerInKv(addr string) ([]ShardID, error) {
 		key := string(kv.Key)
 
 		var id uint64
-		keyTemplate := fmt.Sprintf("%s%s/%%d", KvPrefixShardsInDataServer, addr)
+		keyTemplate := fmt.Sprintf("%s%s/0x%%016x", KvPrefixShardsInDataServer, addr)
 		_, _ = fmt.Sscanf(keyTemplate, key, &id)
 
 		shardIDs = append(shardIDs, ShardID(id))
@@ -228,11 +228,11 @@ func getShardsInStorageInKv(storageID StorageID) ([]ShardID, error) {
 	for _, kv := range resp.Kvs {
 		key := string(kv.Key)
 
-		var id uint64
-		keyTemplate := fmt.Sprintf("%s%d/%%d", KvPrefixShardsInDataServer, storageID)
+		var id uint32
+		keyTemplate := fmt.Sprintf("%s0x%08x/0x%%08x", KvPrefixShardsInStorage, storageID)
 		_, _ = fmt.Sscanf(keyTemplate, key, &id)
 
-		shardIDs = append(shardIDs, ShardID(id))
+		shardIDs = append(shardIDs, GenerateShardID(storageID, ShardISN(id)))
 	}
 	return shardIDs, nil
 }

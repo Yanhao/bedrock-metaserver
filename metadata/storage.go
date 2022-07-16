@@ -25,17 +25,17 @@ type Storage struct {
 	CreateTs  time.Time
 	Owner     string
 
-	LastShardIndex uint32
+	LastShardISN ShardISN
 
 	lock sync.RWMutex
 }
 
-func (s *Storage) FetchAddLastIndex() uint32 {
+func (s *Storage) FetchAddLastISN() ShardISN {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.LastShardIndex++
-	return s.LastShardIndex
+	s.LastShardISN++
+	return s.LastShardISN
 }
 
 func (s *Storage) MarkDelete(recycleAfter time.Duration) error {

@@ -150,7 +150,7 @@ func (sa *ShardAllocator) ExpandStorage(storage *metadata.Storage, count uint32)
 	}
 
 	for i := count; i > 0; {
-		addrs, err := sa.AllocateShardReplicates(shard.ID, defaultReplicatesCount)
+		addrs, err := sa.AllocateShardReplicates(shard.ID(), defaultReplicatesCount)
 		if err != nil {
 			return err
 		}

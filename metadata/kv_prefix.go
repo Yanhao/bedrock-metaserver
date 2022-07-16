@@ -40,7 +40,7 @@ func DataServerKey(addr string) string {
 }
 
 func ShardKey(shardID ShardID) string {
-	return fmt.Sprintf("%s0x%08x", KvPrefixShard, shardID)
+	return fmt.Sprintf("%s0x%016x", KvPrefixShard, shardID)
 }
 
 // ---------------------------------------------------------------------
@@ -54,7 +54,7 @@ func ShardInDataServerPrefixKey(addr string) string {
 }
 
 func ShardInStoragePrefixKey(storageID StorageID) string {
-	return fmt.Sprintf("%s%d/", KvPrefixShardsInStorage, storageID)
+	return fmt.Sprintf("%s0x%08x/", KvPrefixShardsInStorage, storageID)
 }
 
 // ---------------------------------------------------------------------
@@ -64,9 +64,9 @@ func DataServerInIdcKey(idc, addr string) string {
 }
 
 func ShardInDataServerKey(addr string, shardID ShardID) string {
-	return fmt.Sprintf("%s%d", ShardInDataServerPrefixKey(addr), shardID)
+	return fmt.Sprintf("%s0x%016x", ShardInDataServerPrefixKey(addr), shardID)
 }
 
-func ShardInStorageKey(storageID StorageID, shardID ShardID) string {
-	return fmt.Sprintf("%s%d", ShardInStoragePrefixKey(storageID), shardID)
+func ShardInStorageKey(storageID StorageID, shardID ShardISN) string {
+	return fmt.Sprintf("%s0x%08x", ShardInStoragePrefixKey(storageID), shardID)
 }

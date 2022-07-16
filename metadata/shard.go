@@ -16,10 +16,11 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
 )
 
+type ShardISN uint32
 type ShardID uint64
 
 type Shard struct {
-	ID              ShardID
+	ISN             ShardISN
 	SID             StorageID
 	Replicates      map[string]struct{}
 	ReplicaUpdateTs time.Time
@@ -49,6 +50,10 @@ func (sd *Shard) AddReplicates(addrs []string) {
 	for _, addr := range addrs {
 		sd.Replicates[addr] = struct{}{}
 	}
+}
+
+func (sd *Shard) ID() ShardID {
+	return GenerateShardID(sd.SID, sd.ISN)
 }
 
 func (sd *Shard) markDelete() {
@@ -122,7 +127,7 @@ func (sd *Shard) ReSelectLeader(ops ...shardOpFunc) error {
 	for addr := range sd.Replicates {
 		replicates = append(replicates, addr)
 	}
-	err := dataSerCli.TransferShardLeader(uint64(sd.ID), replicates)
+	err := dataSerCli.TransferShardLeader(uint64(sd.ID()), replicates)
 	if err != nil {
 		return err
 	}
@@ -216,24 +221,22 @@ func (sm *ShardManager) updateCache(shard *Shard) {
 	_ = sm.shardsCache.Add(shard.ID, shard)
 }
 
-func generateShardID(storageID StorageID, shardIndex uint32) ShardID {
-	shardID := (uint64(storageID) << 32) & (uint64(shardIndex))
+func GenerateShardID(storageID StorageID, shardISN ShardISN) ShardID {
+	shardID := (uint64(storageID) << 32) & (uint64(shardISN))
 
 	return ShardID(shardID)
 }
 
 func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
-	shardIndex := storage.FetchAddLastIndex()
+	shardISN := storage.FetchAddLastISN()
 
 	err := putStorageToKv(storage)
 	if err != nil {
 		return nil, err
 	}
 
-	shardID := generateShardID(storage.ID, shardIndex)
-
 	shard := &Shard{
-		ID:              shardID,
+		ISN:             shardISN,
 		SID:             storage.ID,
 		CreateTs:        time.Now(),
 		IsDeleted:       false,
@@ -250,9 +253,9 @@ func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
 	return shard, nil
 }
 
-func (sm *ShardManager) CreateNewShardByIDs(storageID StorageID, shardID ShardID) (*Shard, error) {
+func (sm *ShardManager) CreateNewShardByIDs(storageID StorageID, shardISN ShardISN) (*Shard, error) {
 	shard := &Shard{
-		ID:              shardID,
+		ISN:             shardISN,
 		SID:             storageID,
 		CreateTs:        time.Now(),
 		IsDeleted:       false,
@@ -264,7 +267,7 @@ func (sm *ShardManager) CreateNewShardByIDs(storageID StorageID, shardID ShardID
 		return nil, err
 	}
 
-	sm.shardsCache.Add(shardID, shard)
+	sm.shardsCache.Add(shard.ID(), shard)
 	return shard, nil
 }
 

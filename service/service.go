@@ -241,17 +241,17 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *ResizeStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, "")
 	}
 
-	if st.LastShardIndex >= uint32(req.NewShardCount) {
+	if uint32(st.LastShardISN) >= uint32(req.NewShardCount) {
 		return nil, status.Errorf(codes.InvalidArgument, "")
 	}
 
-	expandCount := req.NewShardCount - uint64(st.LastShardIndex)
+	expandCount := req.NewShardCount - uint64(st.LastShardISN)
 	err = scheduler.GetShardAllocator().ExpandStorage(st, uint32(expandCount))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "")
 	}
 
-	st.LastShardIndex = uint32(req.NewShardCount)
+	st.LastShardISN = metadata.ShardISN(req.NewShardCount)
 
 	var updatedSt metadata.Storage
 	err = copier.CopyWithOption(&updatedSt, st, copier.Option{IgnoreEmpty: true, DeepCopy: true})
@@ -289,7 +289,7 @@ func (m *MetaService) GetStorages(ctx context.Context, req *GetStoragesRequest) 
 		}
 
 		resp.Storages = append(resp.Storages, &Storage{
-			Id:        uint64(st.ID),
+			Id:        uint32(st.ID),
 			Name:      st.Name,
 			CreateTs:  timestamppb.New(st.CreateTs),
 			DeletedTs: timestamppb.New(st.DeleteTs),
@@ -459,8 +459,8 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *ShardInfoRequest) (*Sh
 
 	resp = &ShardInfoResponse{
 		Shard: &Shard{
-			Id:              uint64(shard.ID),
-			StorageId:       uint64(shard.SID),
+			Isn:             uint32(shard.ISN),
+			StorageId:       uint32(shard.SID),
 			ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),
 			Replicates: func(repSet map[string]struct{}) []string {
 				var ret []string
@@ -501,18 +501,19 @@ func (m *MetaService) CreateShard(ctx context.Context, req *CreateShardRequest) 
 		return nil, status.Errorf(codes.FailedPrecondition, "no such storage, id=%v", req.StorageId)
 	}
 
+	shardID := metadata.GenerateShardID(metadata.StorageID(req.StorageId), metadata.ShardISN(req.ShardIsn))
 	shm := metadata.GetShardManager()
-	_, err = shm.GetShard(metadata.ShardID(req.ShardId))
+	_, err = shm.GetShard(shardID)
 	if err == nil {
-		log.Warn("shard already exists, shardid: %v", req.ShardId)
-		return nil, status.Errorf(codes.AlreadyExists, "shard already exists, id=%v", req.ShardId)
+		log.Warn("shard already exists, shardid: %v", shardID)
+		return nil, status.Errorf(codes.AlreadyExists, "shard already exists, id=%v", shardID)
 	}
 	if err != metadata.ErrNoSuchShard {
-		log.Warn("failed to get shard, shardid: %v, err: %v", req.ShardId, err)
+		log.Warn("failed to get shard, shardid: %v, err: %v", shardID, err)
 		return nil, status.Errorf(codes.Internal, "failed to get shard, err: %v", err)
 	}
 
-	shard, err := shm.CreateNewShardByIDs(metadata.StorageID(req.StorageId), metadata.ShardID(req.ShardId))
+	shard, err := shm.CreateNewShardByIDs(metadata.StorageID(req.StorageId), metadata.ShardISN(req.ShardIsn))
 	if err != nil {
 		log.Warn("failed to create new shard by id, err: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to create shard, err: %v", err)
@@ -520,7 +521,7 @@ func (m *MetaService) CreateShard(ctx context.Context, req *CreateShardRequest) 
 
 	sa := scheduler.GetShardAllocator()
 	// replicates, err := sa.AllocateShardReplicates(shard.ID, 3)
-	_, err = sa.AllocateShardReplicates(shard.ID, 3)
+	_, err = sa.AllocateShardReplicates(shard.ID(), 3)
 	if err != nil {
 		log.Warn("failed to allocate shard replicates, err: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to allocate replicates, err: %v", err)
@@ -543,15 +544,16 @@ func (m *MetaService) RemoveShard(ctx context.Context, req *RemoveShardRequest) 
 
 	resp := &RemoveShardResponse{}
 
+	shardID := metadata.GenerateShardID(metadata.StorageID(req.StorageId), metadata.ShardISN(req.ShardIsn))
 	shm := metadata.GetShardManager()
-	shard, err := shm.GetShard(metadata.ShardID(req.ShardId))
+	shard, err := shm.GetShard(shardID)
 	if err != nil {
-		log.Warn("failed to get shard, shardid: %v, err: %v", req.ShardId, err)
+		log.Warn("failed to get shard, shardid: %v, err: %v", shardID, err)
 		return nil, status.Errorf(codes.Internal, "failed to get shard, err: %v", err)
 	}
 	if err == metadata.ErrNoSuchShard {
-		log.Warn("no such shard, shardid: %v", req.ShardId)
-		return nil, status.Errorf(codes.FailedPrecondition, "no such shard, id=%v", req.ShardId)
+		log.Warn("no such shard, shardid: %v", shardID)
+		return nil, status.Errorf(codes.FailedPrecondition, "no such shard, id=%v", shardID)
 	}
 
 	err = shm.MarkDelete(shard)

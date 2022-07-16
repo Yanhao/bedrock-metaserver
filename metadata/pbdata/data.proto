@@ -7,8 +7,8 @@ option go_package = "sr.ht/moyanhao/bedrock-metaserver/metadata/pbdata";
 package pbdata;
 
 message Shard {
-    uint64 id = 1;
-    uint64 storage_id = 2;
+    uint32 isn = 1;
+    uint32 storage_id = 2;
     google.protobuf.Timestamp  replica_update_ts = 3;
     repeated string replicates = 4;
     bool is_deleted = 5;

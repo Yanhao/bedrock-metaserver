@@ -7,7 +7,6 @@ import (
 
 	"github.com/fatih/color"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/server/v3/embed"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 )
@@ -17,8 +16,10 @@ const (
 	BecameFollower
 )
 
-var isMetaServerLeader int32
-var metaServerLeader atomic.Value
+var (
+	isMetaServerLeader int32
+	metaServerLeader   atomic.Value
+)
 
 func IsMetaServerLeader() bool {
 	return atomic.LoadInt32(&isMetaServerLeader) == 1
@@ -38,7 +39,6 @@ type NewRole struct {
 }
 
 type LeaderShip struct {
-	etcd    *embed.Etcd
 	client  *clientv3.Client
 	lease   *atomic.Value
 	leaseID clientv3.LeaseID
@@ -50,9 +50,8 @@ type LeaderShip struct {
 	leaderValue string
 }
 
-func NewLeaderShip(etcd *embed.Etcd, client *clientv3.Client, key, value string) (*LeaderShip, error) {
+func NewLeaderShip(client *clientv3.Client, key, value string) (*LeaderShip, error) {
 	ret := &LeaderShip{
-		etcd:        etcd,
 		notifier:    make(chan NewRole, 128),
 		client:      client,
 		stop:        make(chan struct{}),
@@ -81,8 +80,6 @@ func (l *LeaderShip) GetNotifier() <-chan NewRole {
 }
 
 func (l *LeaderShip) Campaign() bool {
-	defer l.IsLeader()
-
 	ls := clientv3.NewLease(l.client)
 	l.setLease(&ls)
 
@@ -102,6 +99,7 @@ func (l *LeaderShip) Campaign() bool {
 		Commit()
 	if err != nil || !resp.Succeeded {
 		log.Debug("failed to campaign leader")
+		ls.Close()
 		return false
 	}
 
@@ -177,4 +175,7 @@ func (l *LeaderShip) Start() {
 func (l *LeaderShip) Stop() error {
 	close(l.stop)
 	return nil
+}
+
+func (l *LeaderShip) Reset() {
 }

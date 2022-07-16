@@ -90,7 +90,7 @@ func (en *EtcdNode) Start() error {
 		return err
 	}
 
-	en.LeaderShip, err = NewLeaderShip(e, en.client, "metaserver-leader", config.GetConfiguration().ServerAddr)
+	en.LeaderShip, err = NewLeaderShip(en.client, "metaserver-leader", config.GetConfiguration().ServerAddr)
 	en.LeaderShip.Start()
 
 	return nil

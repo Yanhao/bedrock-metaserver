@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"github.com/fatih/color"
 	"google.golang.org/grpc"
@@ -126,7 +125,7 @@ func Start() {
 		os.Exit(-1)
 	}
 
-	stop := make(chan struct{})
+	stop := make(chan struct{}, 1)
 	go func() {
 		for {
 			leaderChangeNotifier := en.LeaderShip.GetNotifier()
@@ -146,10 +145,5 @@ func Start() {
 		}
 	}()
 
-	go StartGrpcServer()
-
-	for {
-		time.Sleep(time.Second)
-	}
-
+	StartGrpcServer()
 }

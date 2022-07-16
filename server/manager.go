@@ -36,7 +36,16 @@ func runAsFollower() {
 func runAsLeader() {
 	log.Info(color.GreenString("start runAsLeader."))
 
-	err := GetHeartBeater().Start()
+	metadata.ClearDataserverCache()
+	log.Info("clear dataserver cache ...")
+
+	err := metadata.LoadDataServersFromEtcd()
+	if err != nil {
+		log.Error("failed to load dataservers from etcd, err: %v", err)
+	}
+	log.Info("load dataservers from kv ...")
+
+	err = GetHeartBeater().Start()
 	if err != nil {
 		log.Error("failed to start heartbeater, err: %v", err)
 	}

@@ -387,9 +387,9 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *ListDataServerReq
 	resp := &ListDataServerResponse{}
 
 	dss := metadata.DataServersClone()
+	log.Info("copied dataservers: %#v", dss)
 
 	for _, ds := range dss {
-		_ = ds
 		resp.DataServers = append(resp.DataServers,
 			&DataServer{
 				Ip:              ds.Ip,

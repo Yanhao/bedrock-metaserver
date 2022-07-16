@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"time"
 
 	client "go.etcd.io/etcd/client/v3"
@@ -136,12 +135,9 @@ func getDataServerFromKv(addr string) (*DataServer, error) {
 		log.Warn("parse address failed, err: %v", err)
 	}
 
-	host, _ := strconv.ParseInt(hostStr, 10, 32)
-	port, _ := strconv.ParseInt(portStr, 10, 32)
-
 	dataServer := &DataServer{
-		Ip:              uint32(host),
-		Port:            uint32(port),
+		Ip:              hostStr,
+		Port:            portStr,
 		Free:            pbDataServer.GetFree(),
 		Capacity:        pbDataServer.GetCapacity(),
 		Status:          LiveStatusActive,

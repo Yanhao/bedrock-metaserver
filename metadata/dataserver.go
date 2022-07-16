@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"sync"
 	"time"
 
@@ -34,8 +33,8 @@ var (
 type LiveStatus int
 
 type DataServer struct {
-	Ip   uint32
-	Port uint32
+	Ip   string
+	Port string
 
 	Capacity uint64
 	Free     uint64
@@ -49,8 +48,10 @@ type DataServer struct {
 	lock sync.RWMutex `copier:"-"`
 }
 
-var DataServers map[string]*DataServer
-var DataServersLock *sync.RWMutex
+var (
+	DataServers     map[string]*DataServer
+	DataServersLock *sync.RWMutex
+)
 
 func init() {
 	DataServers = make(map[string]*DataServer)
@@ -142,10 +143,7 @@ func (d *DataServer) MarkOffline() error {
 }
 
 func (d *DataServer) Addr() string {
-	ipStr := strconv.FormatUint(uint64(d.Ip), 10)
-	portStr := strconv.FormatUint(uint64(d.Port), 10)
-
-	return net.JoinHostPort(ipStr, portStr)
+	return net.JoinHostPort(d.Ip, d.Port)
 }
 
 func DataServerAdd(ip, port string) error {
@@ -155,12 +153,9 @@ func DataServerAdd(ip, port string) error {
 		return fmt.Errorf("%s already in the cluster", addr)
 	}
 
-	ipInt, _ := strconv.ParseUint(ip, 10, 32)
-	portInt, _ := strconv.ParseUint(port, 10, 32)
-
 	dataserver := &DataServer{
-		Ip:              uint32(ipInt),
-		Port:            uint32(portInt),
+		Ip:              ip,
+		Port:            port,
 		LastHeartBeatTs: time.Now(),
 		CreatedTs:       time.Now(),
 		Status:          LiveStatusActive,
@@ -192,6 +187,7 @@ func DataServersClone() map[string]*DataServer {
 	DataServersLock.RLock()
 	defer DataServersLock.RUnlock()
 
+	log.Info("dataservers: %#v", DataServers)
 	ret := make(map[string]*DataServer)
 
 	copier.CopyWithOption(&ret, DataServers, copier.Option{IgnoreEmpty: true, DeepCopy: true})
@@ -223,15 +219,21 @@ func LoadDataServersFromEtcd() error {
 			Ip:   pbDataServer.Ip,
 			Port: pbDataServer.Port,
 		}
+		log.Info("load dataserver: %v", dataserver.Addr())
 
-		addr := net.JoinHostPort(
-			strconv.FormatInt(int64(pbDataServer.Ip), 10),
-			strconv.FormatInt(int64(pbDataServer.Port), 10))
-
+		addr := dataserver.Addr()
 		DataServers[addr] = dataserver
 	}
 
+	log.Info("load dataservers: %#v", DataServers)
 	return nil
+}
+
+func ClearDataserverCache() {
+	DataServersLock.Lock()
+	defer DataServersLock.Unlock()
+
+	DataServers = make(map[string]*DataServer)
 }
 
 func GetDataServerAddrs() []string {

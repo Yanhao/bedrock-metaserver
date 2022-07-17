@@ -2,6 +2,7 @@ package kv
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"time"
 
@@ -28,8 +29,10 @@ func IsMetaServerLeader() bool {
 func GetMetaServerLeader() string {
 	v := metaServerLeader.Load()
 	if v == nil {
+		log.Warn("metaserver leader is nil")
 		return ""
 	}
+	log.Info("metaserver leader: %v", v.(string))
 
 	return v.(string)
 }
@@ -105,21 +108,26 @@ func (l *LeaderShip) Campaign() bool {
 
 	l.notifier <- NewRole{Role: BecameLeader}
 	atomic.StoreInt32(&isMetaServerLeader, 1)
+	metaServerLeader.Store(l.leaderValue)
 
 	return true
 }
 
-func (l *LeaderShip) IsLeader() bool {
+func (l *LeaderShip) LoadLeaderFromEtcd() error {
 	resp, err := l.client.Get(context.TODO(), l.leaderKey)
 	if err != nil {
-		return false
+		return err
 	}
 	if resp.Count == 0 {
-		return false
+		return errors.New("")
 	}
 	metaServerLeader.Store(string(resp.Kvs[0].Value))
 
-	return string(resp.Kvs[0].Value) == l.leaderValue
+	return nil
+}
+
+func (l *LeaderShip) IsLeader() bool {
+	return GetMetaServerLeader() == l.leaderValue
 }
 
 func (l *LeaderShip) keepLeader() {
@@ -127,7 +135,7 @@ func (l *LeaderShip) keepLeader() {
 	defer ticker.Stop()
 
 	for {
-		if !l.IsLeader() {
+		if l.LoadLeaderFromEtcd(); !l.IsLeader() {
 			l.notifier <- NewRole{Role: BecameFollower}
 			atomic.StoreInt32(&isMetaServerLeader, 0)
 			return
@@ -161,6 +169,7 @@ func (l *LeaderShip) Start() {
 			if success {
 				l.keepLeader()
 			}
+			_ = l.LoadLeaderFromEtcd()
 
 			select {
 			case <-ticker.C:

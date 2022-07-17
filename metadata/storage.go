@@ -189,6 +189,10 @@ func (sm *StorageManager) GetStorage(id StorageID) (*Storage, error) {
 	return st, nil
 }
 
+func (sm *StorageManager) GetStorageByName(name string) (*Storage, error) {
+	return getStorageFromKvByName(name)
+}
+
 func (sm *StorageManager) SaveStorage(st *Storage) error {
 	err := putStorageToKv(st)
 	if err != nil {

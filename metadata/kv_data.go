@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	client "go.etcd.io/etcd/client/v3"
@@ -282,6 +283,7 @@ func hasStorageInKv(storageID StorageID) (bool, error) {
 func putStorageToKv(storage *Storage) error {
 	pbStorage := &pbdata.Storage{
 		Id:        uint64(storage.ID),
+		Name:      storage.Name,
 		IsDeleted: storage.IsDeleted,
 		DeletedTs: timestamppb.New(storage.DeleteTs),
 		CreateTs:  timestamppb.New(storage.CreateTs),
@@ -298,6 +300,13 @@ func putStorageToKv(storage *Storage) error {
 	_, err = ec.Put(context.Background(), StorageKey(storage.ID), string(value))
 	if err != nil {
 		log.Warn("failed to save storage to etcd, storage=%v", storage)
+		return err
+	}
+
+	storageIDStr := strconv.FormatUint(uint64(storage.ID), 10)
+	_, err = ec.Put(context.Background(), StorageByNameKey(storage.Name), storageIDStr)
+	if err != nil {
+		log.Warn("failed to save storage name, err: %v", err)
 		return err
 	}
 
@@ -334,6 +343,27 @@ func getStorageFromKv(storageID StorageID) (*Storage, error) {
 		CreateTs:  pbStorage.CreateTs.AsTime(),
 		RecycleTs: pbStorage.RecycleTs.AsTime(),
 	}, nil
+}
+
+func getStorageFromKvByName(name string) (*Storage, error) {
+	ec := kv.GetEtcdClient()
+	resp, err := ec.Get(context.Background(), StorageByNameKey(name))
+	if err != nil {
+		log.Warn("failed get storage id by name, err: %v", err)
+		return nil, err
+	}
+
+	if resp.Count != 1 {
+		return nil, fmt.Errorf("storage by name count is not equals 1, count: %v", resp.Count)
+	}
+	storageIDStr := resp.Kvs[0].Value
+	storageID, err := strconv.ParseUint(string(storageIDStr), 10, 32)
+	if err != nil {
+		log.Warn("failed to parse storage id, err: %v", err)
+		return nil, err
+	}
+
+	return getStorageFromKv(StorageID(storageID))
 }
 
 func deleteStorageFromKv(storageID StorageID) error {

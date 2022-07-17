@@ -7,8 +7,8 @@ option go_package = "sr.ht/moyanhao/bedrock-metaserver/metadata/pbdata";
 package pbdata;
 
 message Shard {
-    uint32 isn = 1;
-    uint32 storage_id = 2;
+    uint32 storage_id = 1;
+    uint32 isn = 2;
     google.protobuf.Timestamp  replica_update_ts = 3;
     repeated string replicates = 4;
     bool is_deleted = 5;
@@ -39,11 +39,12 @@ message DataServer {
 
 message Storage {
     uint64 id = 1;
-    bool is_deleted = 2;
-    google.protobuf.Timestamp deleted_ts = 3;
-    google.protobuf.Timestamp create_ts = 4;
-    google.protobuf.Timestamp recycle_ts = 5;
+    string name = 2;
+    bool is_deleted = 3;
+    google.protobuf.Timestamp deleted_ts = 4;
+    google.protobuf.Timestamp create_ts = 5;
+    google.protobuf.Timestamp recycle_ts = 6;
 
-    string owner = 6;
-    uint32 last_shard_index = 7;
+    string owner = 7;
+    uint32 last_shard_index = 8;
 }

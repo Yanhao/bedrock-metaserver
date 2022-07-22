@@ -83,7 +83,7 @@ func putShardToKv(shard *Shard) error {
 	ec := kv.GetEtcdClient()
 	_, err = ec.Txn(context.Background()).If().Then(ops...).Commit()
 	if err != nil {
-		log.Warn("failed to store shard to etcd, shard=%v", *shard)
+		log.Warn("failed to store shard to etcd, shard=%v", shard)
 		return err
 
 	}

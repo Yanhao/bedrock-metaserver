@@ -36,10 +36,11 @@ func runAsFollower() {
 func runAsLeader() {
 	log.Info(color.GreenString("start runAsLeader."))
 
-	metadata.ClearDataserverCache()
+	dm := metadata.GetDataServerManager()
+	dm.ClearCache()
 	log.Info("clear dataserver cache ...")
 
-	err := metadata.LoadDataServersFromEtcd()
+	err := dm.LoadDataServersFromEtcd()
 	if err != nil {
 		log.Error("failed to load dataservers from etcd, err: %v", err)
 	}
@@ -98,7 +99,7 @@ func StartGrpcServer() {
 func Start() {
 	configFile := flag.String("config", "", "specify the configuration file")
 	logFile := flag.String("log", "", "specify the log file")
-	help := flag.Bool("help", false, "display this help infomation")
+	help := flag.Bool("help", false, "display this help information")
 
 	flag.Parse()
 	if *help {

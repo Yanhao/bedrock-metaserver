@@ -18,7 +18,7 @@ var (
 
 const (
 	InactivePeriod = time.Second * 30
-	Offlineperiod  = time.Minute * 30
+	OfflinePeriod  = time.Minute * 30
 )
 
 type HeartBeater struct {
@@ -80,10 +80,10 @@ func (hb *HeartBeater) InitDataServers() {
 	InactiveDataServers = make(map[string]*metadata.DataServer)
 	OfflineDataServers = make(map[string]*metadata.DataServer)
 
-	metadata.DataServersLock.RLock()
-	defer metadata.DataServersLock.RUnlock()
+	dm := metadata.GetDataServerManager()
+	dataservers := dm.DataServersClone()
 
-	for _, d := range metadata.DataServers {
+	for _, d := range dataservers {
 		switch d.Status {
 		case metadata.LiveStatusActive:
 			ActiveDataServers[d.Addr()] = d
@@ -99,11 +99,11 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 	log.Info("handle heartbeat ...")
 	return // FIXME: remove this line
 
-	metadata.DataServersLock.Lock()
-	defer metadata.DataServersLock.Unlock()
+	dm := metadata.GetDataServerManager()
+	dataservers := dm.DataServersClone()
 
-	for _, s := range metadata.DataServers {
-		if s.LastHeartBeatTs.Before(time.Now().Add(-Offlineperiod)) {
+	for _, s := range dataservers {
+		if s.LastHeartBeatTs.Before(time.Now().Add(-OfflinePeriod)) {
 			s.MarkOffline()
 
 			OfflineDataServers[s.Addr()] = s
@@ -144,7 +144,8 @@ func repairDataInServer(server *metadata.DataServer) {
 		return
 	}
 
-	metadata.DataServerRemove(server.Addr())
+	dm := metadata.GetDataServerManager()
+	dm.RemoveDataServer(server.Addr())
 
 	// FIXME: protect by lock
 	delete(OfflineDataServers, server.Addr())

@@ -38,8 +38,11 @@ func GetShardAllocator() *ShardAllocator {
 func generateViableDataServer(selected []string) []string {
 	var ret []string
 
+	dm := metadata.GetDataServerManager()
+	dataservers := dm.DataServersClone()
+
 outer:
-	for addr, ds := range metadata.DataServers {
+	for addr, ds := range dataservers {
 		if ds.IsOverLoaded() {
 			continue
 		}

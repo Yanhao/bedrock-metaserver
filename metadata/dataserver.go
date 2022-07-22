@@ -48,16 +48,6 @@ type DataServer struct {
 	lock sync.RWMutex `copier:"-"`
 }
 
-var (
-	DataServers     map[string]*DataServer
-	DataServersLock *sync.RWMutex
-)
-
-func init() {
-	DataServers = make(map[string]*DataServer)
-	DataServersLock = &sync.RWMutex{}
-}
-
 func (d *DataServer) Copy() *DataServer {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
@@ -146,128 +136,6 @@ func (d *DataServer) Addr() string {
 	return net.JoinHostPort(d.Ip, d.Port)
 }
 
-func DataServerAdd(ip, port string) error {
-	addr := net.JoinHostPort(ip, port)
-	if IsDataServerExists(addr) {
-		log.Warn("dataserver %v already in the cluster", addr)
-		return fmt.Errorf("%s already in the cluster", addr)
-	}
-
-	dataserver := &DataServer{
-		Ip:              ip,
-		Port:            port,
-		LastHeartBeatTs: time.Now(),
-		CreatedTs:       time.Now(),
-		Status:          LiveStatusActive,
-	}
-
-	err := putDataServerToKv(dataserver)
-	if err != nil {
-		log.Error("failed put dataserver %v to kv", dataserver.Addr())
-		return err
-	}
-
-	DataServersLock.Lock()
-	defer DataServersLock.Unlock()
-
-	DataServers[addr] = dataserver
-	return nil
-}
-
-func DataServerRemove(addr string) error {
-	DataServersLock.Lock()
-	defer DataServersLock.Unlock()
-
-	delete(DataServers, addr)
-
-	return deleteDataServerFromKv(addr)
-}
-
-func DataServersClone() map[string]*DataServer {
-	DataServersLock.RLock()
-	defer DataServersLock.RUnlock()
-
-	log.Info("dataservers: %#v", DataServers)
-	ret := make(map[string]*DataServer)
-
-	copier.CopyWithOption(&ret, DataServers, copier.Option{IgnoreEmpty: true, DeepCopy: true})
-
-	return ret
-}
-
-func LoadDataServersFromEtcd() error {
-	ec := kv.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), KvPrefixDataServer, client.WithPrefix())
-	if err != nil {
-		log.Warn("failed to get dataserver from etcd")
-		return err
-	}
-
-	DataServersLock.Lock()
-	defer DataServersLock.Unlock()
-
-	for _, kv := range resp.Kvs {
-		pbDataServer := &pbdata.DataServer{}
-
-		err := proto.Unmarshal(kv.Value, pbDataServer)
-		if err != nil {
-			log.Warn("failed to decode dataserver from pb")
-			return err
-		}
-
-		dataserver := &DataServer{
-			Ip:   pbDataServer.Ip,
-			Port: pbDataServer.Port,
-		}
-		log.Info("load dataserver: %v", dataserver.Addr())
-
-		addr := dataserver.Addr()
-		DataServers[addr] = dataserver
-	}
-
-	log.Info("load dataservers: %#v", DataServers)
-	return nil
-}
-
-func ClearDataserverCache() {
-	DataServersLock.Lock()
-	defer DataServersLock.Unlock()
-
-	DataServers = make(map[string]*DataServer)
-}
-
-func GetDataServerAddrs() []string {
-	DataServersLock.RLock()
-	defer DataServersLock.RUnlock()
-
-	var addrs []string
-	for addr := range DataServers {
-		addrs = append(addrs, addr)
-	}
-
-	return addrs
-}
-
-func IsDataServerExists(addr string) bool {
-	DataServersLock.RLock()
-	defer DataServersLock.RUnlock()
-
-	_, ok := DataServers[addr]
-	return ok
-}
-
-func GetDataServerByAddr(addr string) (*DataServer, error) {
-	DataServersLock.RLock()
-	defer DataServersLock.RUnlock()
-
-	server, ok := DataServers[addr]
-	if !ok {
-		return nil, ErrNoSuchDataServer
-	}
-
-	return server, nil
-}
-
 // func TransferShard(shardID ShardID, fromAddr, toAddr string) error {
 // 	sm := GetShardManager()
 // 	shard, err := sm.GetShard(shardID)
@@ -294,3 +162,158 @@ func GetDataServerByAddr(addr string) (*DataServer, error) {
 
 // 	return sm.PutShard(shard)
 // }
+
+type DataServerManager struct {
+	dataServers     map[string]*DataServer
+	dataServersLock *sync.RWMutex
+}
+
+func NewDataServerManager() *DataServerManager {
+	return &DataServerManager{
+		dataServers: make(map[string]*DataServer),
+	}
+}
+
+var (
+	dataServerManager     *DataServerManager
+	dataServerManagerOnce *sync.Once
+)
+
+func GetDataServerManager() *DataServerManager {
+	dataServerManagerOnce.Do(func() {
+		dataServerManager = NewDataServerManager()
+	})
+
+	return dataServerManager
+}
+
+func (dm *DataServerManager) ClearCache() {
+	dm.dataServersLock.Lock()
+	defer dm.dataServersLock.Unlock()
+
+	dm.dataServers = make(map[string]*DataServer)
+}
+
+func (dm *DataServerManager) LoadDataServersFromEtcd() error {
+	ec := kv.GetEtcdClient()
+	resp, err := ec.Get(context.Background(), KvPrefixDataServer, client.WithPrefix())
+	if err != nil {
+		log.Warn("failed to get dataserver from etcd")
+		return err
+	}
+
+	dm.dataServersLock.Lock()
+	defer dm.dataServersLock.Unlock()
+
+	for _, kv := range resp.Kvs {
+		pbDataServer := &pbdata.DataServer{}
+
+		err := proto.Unmarshal(kv.Value, pbDataServer)
+		if err != nil {
+			log.Warn("failed to decode dataserver from pb")
+			return err
+		}
+
+		dataserver := &DataServer{
+			Ip:   pbDataServer.Ip,
+			Port: pbDataServer.Port,
+		}
+		log.Info("load dataserver: %v", dataserver.Addr())
+
+		addr := dataserver.Addr()
+		dm.dataServers[addr] = dataserver
+	}
+
+	log.Info("load dataservers: %#v", dm.dataServers)
+
+	return nil
+}
+
+func (dm *DataServerManager) AddDataServer(ip, port string) error {
+	addr := net.JoinHostPort(ip, port)
+	if dm.IsDataServerExists(addr) {
+		log.Warn("dataserver %v already in the cluster", addr)
+		return fmt.Errorf("%s already in the cluster", addr)
+	}
+
+	dataserver := &DataServer{
+		Ip:              ip,
+		Port:            port,
+		LastHeartBeatTs: time.Now(),
+		CreatedTs:       time.Now(),
+		Status:          LiveStatusActive,
+	}
+
+	err := putDataServerToKv(dataserver)
+	if err != nil {
+		log.Error("failed put dataserver %v to kv", dataserver.Addr())
+		return err
+	}
+
+	dm.dataServersLock.Lock()
+	defer dm.dataServersLock.Unlock()
+
+	dm.dataServers[addr] = dataserver
+
+	return nil
+}
+
+func (dm *DataServerManager) RemoveDataServer(addr string) error {
+	dm.dataServersLock.Lock()
+	defer dm.dataServersLock.Unlock()
+
+	delete(dm.dataServers, addr)
+
+	return deleteDataServerFromKv(addr)
+}
+
+func (dm *DataServerManager) GetDataServer(addr string) (*DataServer, error) {
+	dm.dataServersLock.RLock()
+	defer dm.dataServersLock.RUnlock()
+
+	server, ok := dm.dataServers[addr]
+	if !ok {
+		return nil, ErrNoSuchDataServer
+	}
+
+	return server, nil
+}
+
+func (dm *DataServerManager) IsDataServerExists(addr string) bool {
+	dm.dataServersLock.RLock()
+	defer dm.dataServersLock.RUnlock()
+
+	_, ok := dm.dataServers[addr]
+	return ok
+}
+
+func (dm *DataServerManager) DataServersClone() map[string]*DataServer {
+	dm.dataServersLock.RLock()
+	defer dm.dataServersLock.RUnlock()
+
+	log.Info("dataservers: %#v", dm.dataServers)
+	ret := make(map[string]*DataServer)
+
+	copier.CopyWithOption(&ret, dm.dataServers, copier.Option{IgnoreEmpty: true, DeepCopy: true})
+
+	return ret
+}
+
+func (dm *DataServerManager) GetDataServerAddrs() []string {
+	dm.dataServersLock.RLock()
+	defer dm.dataServersLock.RUnlock()
+
+	var addrs []string
+	for addr := range dm.dataServers {
+		addrs = append(addrs, addr)
+	}
+
+	return addrs
+}
+
+func (dm *DataServerManager) ClearDataserverCache() {
+	dm.dataServersLock.Lock()
+	defer dm.dataServersLock.Unlock()
+
+	dm.dataServers = make(map[string]*DataServer)
+}

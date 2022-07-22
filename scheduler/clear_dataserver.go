@@ -9,7 +9,8 @@ import (
 )
 
 func ClearDataserver(addr string) error {
-	if !metadata.IsDataServerExists(addr) {
+	dm := metadata.GetDataServerManager()
+	if !dm.IsDataServerExists(addr) {
 		return metadata.ErrNoSuchDataServer
 	}
 

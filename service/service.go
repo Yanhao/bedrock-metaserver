@@ -34,7 +34,9 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *HeartBeatRequest) (*em
 		return mscli.HeartBeat(ctx, req)
 	}
 
-	server, err := metadata.GetDataServerByAddr(req.Addr)
+	dm := metadata.GetDataServerManager()
+
+	server, err := dm.GetDataServer(req.Addr)
 	if err != nil {
 		log.Warn("no such server in record: %s", req.Addr)
 		return nil, status.Errorf(codes.NotFound, "no such server: %s", req.Addr)
@@ -325,7 +327,9 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *AddDataServerReque
 		return nil, status.Errorf(codes.InvalidArgument, "")
 	}
 	log.Info("start add dataserver %v to cluster", req.Addr)
-	err = metadata.DataServerAdd(ip, port)
+
+	dm := metadata.GetDataServerManager()
+	err = dm.AddDataServer(ip, port)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
@@ -353,7 +357,8 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *RemoveDataServe
 		return nil, status.Errorf(codes.InvalidArgument, "")
 	}
 
-	if !metadata.IsDataServerExists(req.Addr) {
+	dm := metadata.GetDataServerManager()
+	if !dm.IsDataServerExists(req.Addr) {
 		return nil, status.Errorf(codes.NotFound, "")
 	}
 
@@ -362,7 +367,7 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *RemoveDataServe
 		if err != nil {
 			return
 		}
-		err = metadata.DataServerRemove(req.Addr)
+		err = dm.RemoveDataServer(req.Addr)
 		if err != nil {
 			return
 		}
@@ -386,7 +391,8 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *ListDataServerReq
 
 	resp := &ListDataServerResponse{}
 
-	dss := metadata.DataServersClone()
+	dm := metadata.GetDataServerManager()
+	dss := dm.DataServersClone()
 	log.Info("copied dataservers: %#v", dss)
 
 	for _, ds := range dss {

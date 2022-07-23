@@ -88,7 +88,8 @@ const (
 )
 
 func (sa *ShardAllocator) AllocatorNewStorage() (*metadata.Storage, error) {
-	storageId, err := metadata.CreateNewStorage()
+	sm := metadata.GetStorageManager()
+	storageId, err := sm.CreateNewStorage()
 	if err != nil {
 		return nil, err
 	}

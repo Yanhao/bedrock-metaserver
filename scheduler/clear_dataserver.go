@@ -14,13 +14,13 @@ func ClearDataserver(addr string) error {
 		return metadata.ErrNoSuchDataServer
 	}
 
-	shardIDs, err := metadata.GetShardsInDataServerInKv(addr)
+	sm := metadata.GetShardManager()
+	shardIDs, err := sm.GetShardIDsInDataServer(addr)
 	if err != nil {
 		log.Error("GetShardsInDataServer failed, err: %v", err)
 		return errors.New("GetShardsInDataServer failed")
 	}
 
-	sm := metadata.GetShardManager()
 	conns := dataserver.GetDataServerConns()
 	for _, shardID := range shardIDs {
 		shard, err := sm.GetShard(shardID)

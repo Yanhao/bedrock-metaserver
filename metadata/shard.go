@@ -173,7 +173,7 @@ func (sm *ShardManager) GetShard(shardID ShardID) (*Shard, error) {
 		return v.(*Shard), nil
 	}
 
-	shard, err := getShardFromKv(shardID)
+	shard, err := kvGetShard(shardID)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func (sm *ShardManager) GetShardCopy(shardID ShardID) (*Shard, error) {
 }
 
 func (sm *ShardManager) PutShard(shard *Shard) error {
-	err := putShardToKv(shard)
+	err := kvPutShard(shard)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func GenerateShardID(storageID StorageID, shardISN ShardISN) ShardID {
 func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
 	shardISN := storage.FetchAddLastISN()
 
-	err := putStorageToKv(storage)
+	err := kvPutStorage(storage)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (sm *ShardManager) CreateNewShard(storage *Storage) (*Shard, error) {
 		Replicates:      map[string]struct{}{},
 	}
 
-	err = putShardToKv(shard)
+	err = kvPutShard(shard)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +262,7 @@ func (sm *ShardManager) CreateNewShardByIDs(storageID StorageID, shardISN ShardI
 		ReplicaUpdateTs: time.Now(),
 		Replicates:      map[string]struct{}{},
 	}
-	err := putShardToKv(shard)
+	err := kvPutShard(shard)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func (sm *ShardManager) ShardDelete(shardID ShardID) error {
 		}
 	}
 
-	err = deleteShardFromKv(shard)
+	err = kvDeleteShard(shard)
 	if err != nil {
 		return err
 	}
@@ -321,4 +321,8 @@ func AddShardInDataServer(addr string, id ShardID) error {
 	}
 
 	return nil
+}
+
+func (sm *ShardManager) GetShardIDsInDataServer(addr string) ([]ShardID, error) {
+	return kvGetShardIDsInDataServer(addr)
 }

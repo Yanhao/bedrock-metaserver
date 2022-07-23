@@ -21,7 +21,9 @@ var (
 	ErrNoSuchShard = errors.New("no such shard")
 )
 
-func getShardFromKv(shardID ShardID) (*Shard, error) {
+// ==================== shard dao =========================================
+
+func kvGetShard(shardID ShardID) (*Shard, error) {
 	ec := kv.GetEtcdClient()
 
 	resp, err := ec.KV.Get(context.Background(), ShardKey(shardID))
@@ -49,10 +51,9 @@ func getShardFromKv(shardID ShardID) (*Shard, error) {
 	shard.ReplicaUpdateTs = pbShard.ReplicaUpdateTs.AsTime()
 
 	return shard, nil
-
 }
 
-func putShardToKv(shard *Shard) error {
+func kvPutShard(shard *Shard) error {
 	pbShard := &pbdata.Shard{
 		Isn:             uint32(shard.ISN),
 		ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),
@@ -90,7 +91,7 @@ func putShardToKv(shard *Shard) error {
 	return nil
 }
 
-func deleteShardFromKv(shard *Shard) error {
+func kvDeleteShard(shard *Shard) error {
 	keys := []string{ShardKey(shard.ID())}
 
 	for addr := range shard.Replicates {
@@ -111,9 +112,10 @@ func deleteShardFromKv(shard *Shard) error {
 	return nil
 }
 
-func getDataServerFromKv(addr string) (*DataServer, error) {
-	ec := kv.GetEtcdClient()
+// ==================== dataserver dao =========================================
 
+func kvGetDataServer(addr string) (*DataServer, error) {
+	ec := kv.GetEtcdClient()
 	resp, err := ec.KV.Get(context.Background(), DataServerKey(addr))
 	if err != nil || resp.Count == 0 {
 		return nil, ErrNoSuchShard
@@ -148,7 +150,21 @@ func getDataServerFromKv(addr string) (*DataServer, error) {
 	return dataServer, nil
 }
 
-func putDataServerToKv(dataserver *DataServer) error {
+func kvHasDataServer(addr string) (bool, error) {
+	ec := kv.GetEtcdClient()
+	resp, err := ec.Get(context.Background(), DataServerKey(addr))
+	if err != nil {
+		return false, err
+	}
+
+	if resp.Count != 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func kvPutDataServer(dataserver *DataServer) error {
 	var status pbdata.DataServer_LiveStatus
 	if dataserver.Status == LiveStatusActive {
 		status = pbdata.DataServer_ACTIVE
@@ -185,7 +201,7 @@ func putDataServerToKv(dataserver *DataServer) error {
 	return nil
 }
 
-func deleteDataServerFromKv(addr string) error {
+func kvDeleteDataServer(addr string) error {
 	ec := kv.GetEtcdClient()
 	_, err := ec.Delete(context.Background(), DataServerKey(addr))
 	if err != nil {
@@ -196,77 +212,62 @@ func deleteDataServerFromKv(addr string) error {
 	return nil
 }
 
-func GetShardsInDataServerInKv(addr string) ([]ShardID, error) {
-	ec := kv.GetEtcdClient()
+// ==================== storage dao =========================================
 
-	resp, err := ec.Get(context.Background(), ShardInDataServerPrefixKey(addr), client.WithPrefix())
+func kvGetStorage(storageID StorageID) (*Storage, error) {
+	ec := kv.GetEtcdClient()
+	resp, err := ec.Get(context.Background(), StorageKey(storageID))
 	if err != nil {
+		log.Warn("failed get storage from etcd, storageID=%d", storageID)
 		return nil, err
 	}
 
-	var shardIDs []ShardID
-	for _, kv := range resp.Kvs {
-		key := string(kv.Key)
-
-		var id uint64
-		keyTemplate := fmt.Sprintf("%s%s/0x%%016x", KvPrefixShardsInDataServer, addr)
-		_, _ = fmt.Sscanf(keyTemplate, key, &id)
-
-		shardIDs = append(shardIDs, ShardID(id))
+	if resp.Count != 1 {
+		return nil, fmt.Errorf("expected only one storage , found %d", resp.Count)
 	}
-	return shardIDs, nil
+
+	pbStorage := &pbdata.Storage{}
+	for _, kv := range resp.Kvs {
+		err := proto.Unmarshal(kv.Value, pbStorage)
+		if err != nil {
+			log.Warn("failed to decode storage")
+
+			return nil, err
+		}
+
+		break
+	}
+	return &Storage{
+		ID:        StorageID(pbStorage.Id),
+		IsDeleted: pbStorage.IsDeleted,
+		DeleteTs:  pbStorage.DeletedTs.AsTime(),
+		CreateTs:  pbStorage.CreateTs.AsTime(),
+		RecycleTs: pbStorage.RecycleTs.AsTime(),
+	}, nil
 }
 
-func getShardsInStorageInKv(storageID StorageID) ([]ShardID, error) {
+func kvGetStorageByName(name string) (*Storage, error) {
 	ec := kv.GetEtcdClient()
-
-	resp, err := ec.Get(context.Background(), ShardInStoragePrefixKey(storageID), client.WithPrefix())
+	resp, err := ec.Get(context.Background(), StorageByNameKey(name))
 	if err != nil {
+		log.Warn("failed get storage id by name, err: %v", err)
 		return nil, err
 	}
 
-	var shardIDs []ShardID
-	for _, kv := range resp.Kvs {
-		key := string(kv.Key)
-
-		var id uint32
-		keyTemplate := fmt.Sprintf("%s0x%08x/0x%%08x", KvPrefixShardsInStorage, storageID)
-		_, _ = fmt.Sscanf(keyTemplate, key, &id)
-
-		shardIDs = append(shardIDs, GenerateShardID(storageID, ShardISN(id)))
+	if resp.Count != 1 {
+		return nil, fmt.Errorf("storage by name count is not equals 1, count: %v", resp.Count)
 	}
-	return shardIDs, nil
-}
-
-func isShardInDataServerInKv(addr string, shardID ShardID) (bool, error) {
-	ec := kv.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), ShardInDataServerKey(addr, shardID), client.WithPrefix())
+	storageIDStr := resp.Kvs[0].Value
+	storageID, err := strconv.ParseUint(string(storageIDStr), 10, 32)
 	if err != nil {
-		return false, err
+		log.Warn("failed to parse storage id, err: %v", err)
+		return nil, err
 	}
 
-	if resp.Count != 0 {
-		return true, nil
-	}
-
-	return false, nil
+	return kvGetStorage(StorageID(storageID))
 }
 
-func hasDataServerInKv(addr string) (bool, error) {
-	ec := kv.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), DataServerKey(addr))
-	if err != nil {
-		return false, err
-	}
-
-	if resp.Count != 0 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func hasStorageInKv(storageID StorageID) (bool, error) {
+func kvHasStorage(storageID StorageID) (bool, error) {
 	ec := kv.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), StorageKey(storageID))
 	if err != nil {
@@ -280,7 +281,7 @@ func hasStorageInKv(storageID StorageID) (bool, error) {
 	return false, nil
 }
 
-func putStorageToKv(storage *Storage) error {
+func kvPutStorage(storage *Storage) error {
 	pbStorage := &pbdata.Storage{
 		Id:        uint64(storage.ID),
 		Name:      storage.Name,
@@ -313,60 +314,7 @@ func putStorageToKv(storage *Storage) error {
 	return nil
 }
 
-func getStorageFromKv(storageID StorageID) (*Storage, error) {
-	ec := kv.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), StorageKey(storageID))
-	if err != nil {
-		log.Warn("failed get storage from etcd, storageID=%d", storageID)
-		return nil, err
-	}
-
-	if resp.Count != 1 {
-		return nil, fmt.Errorf("expected only one storage , found %d", resp.Count)
-	}
-
-	pbStorage := &pbdata.Storage{}
-	for _, kv := range resp.Kvs {
-		err := proto.Unmarshal(kv.Value, pbStorage)
-		if err != nil {
-			log.Warn("failed to decode storage")
-
-			return nil, err
-		}
-
-		break
-	}
-	return &Storage{
-		ID:        StorageID(pbStorage.Id),
-		IsDeleted: pbStorage.IsDeleted,
-		DeleteTs:  pbStorage.DeletedTs.AsTime(),
-		CreateTs:  pbStorage.CreateTs.AsTime(),
-		RecycleTs: pbStorage.RecycleTs.AsTime(),
-	}, nil
-}
-
-func getStorageFromKvByName(name string) (*Storage, error) {
-	ec := kv.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), StorageByNameKey(name))
-	if err != nil {
-		log.Warn("failed get storage id by name, err: %v", err)
-		return nil, err
-	}
-
-	if resp.Count != 1 {
-		return nil, fmt.Errorf("storage by name count is not equals 1, count: %v", resp.Count)
-	}
-	storageIDStr := resp.Kvs[0].Value
-	storageID, err := strconv.ParseUint(string(storageIDStr), 10, 32)
-	if err != nil {
-		log.Warn("failed to parse storage id, err: %v", err)
-		return nil, err
-	}
-
-	return getStorageFromKv(StorageID(storageID))
-}
-
-func deleteStorageFromKv(storageID StorageID) error {
+func kvDeleteStorage(storageID StorageID) error {
 	keys := []string{
 		StorageKey(storageID),
 		ShardInStoragePrefixKey(storageID),
@@ -387,7 +335,9 @@ func deleteStorageFromKv(storageID StorageID) error {
 	return nil
 }
 
-func GetDeletedStorage(limit int) ([]*Storage, error) {
+// ==================== deleted storage dao ===================================
+
+func kvGetDeletedStorage(limit int) ([]*Storage, error) {
 	ec := kv.GetEtcdClient()
 
 	resp, err := ec.Get(context.TODO(),
@@ -409,7 +359,7 @@ func GetDeletedStorage(limit int) ([]*Storage, error) {
 			continue
 		}
 
-		s, err := getStorageFromKv(StorageID(sID))
+		s, err := kvGetStorage(StorageID(sID))
 		if err != nil {
 			log.Warn("failed to get storage, storage id: %d, err: %v", sID, err)
 			continue
@@ -420,7 +370,7 @@ func GetDeletedStorage(limit int) ([]*Storage, error) {
 	return ret, nil
 }
 
-func putDeletedStorageID(sID StorageID) error {
+func kvPutDeletedStorageID(sID StorageID) error {
 	key := DeletedStorageKey(sID)
 
 	ec := kv.GetEtcdClient()
@@ -432,7 +382,7 @@ func putDeletedStorageID(sID StorageID) error {
 	return nil
 }
 
-func delDeletedStorageID(sID StorageID) error {
+func kvDelDeletedStorageID(sID StorageID) error {
 	key := DeletedStorageKey(sID)
 
 	ec := kv.GetEtcdClient()
@@ -442,4 +392,64 @@ func delDeletedStorageID(sID StorageID) error {
 	}
 
 	return nil
+}
+
+// ===========================================================================
+
+// FIXME: consider support specify count
+func kvGetShardIDsInDataServer(addr string) ([]ShardID, error) {
+	ec := kv.GetEtcdClient()
+
+	resp, err := ec.Get(context.Background(), ShardInDataServerPrefixKey(addr), client.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+
+	var shardIDs []ShardID
+	for _, kv := range resp.Kvs {
+		key := string(kv.Key)
+
+		var id uint64
+		keyTemplate := fmt.Sprintf("%s%s/0x%%016x", KvPrefixShardsInDataServer, addr)
+		_, _ = fmt.Sscanf(keyTemplate, key, &id)
+
+		shardIDs = append(shardIDs, ShardID(id))
+	}
+
+	return shardIDs, nil
+}
+
+func kvIsShardInDataServer(addr string, shardID ShardID) (bool, error) {
+	ec := kv.GetEtcdClient()
+	resp, err := ec.Get(context.Background(), ShardInDataServerKey(addr, shardID), client.WithPrefix())
+	if err != nil {
+		return false, err
+	}
+
+	if resp.Count != 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func kvGetShardsInStorage(storageID StorageID) ([]ShardID, error) {
+	ec := kv.GetEtcdClient()
+
+	resp, err := ec.Get(context.Background(), ShardInStoragePrefixKey(storageID), client.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+
+	var shardIDs []ShardID
+	for _, kv := range resp.Kvs {
+		key := string(kv.Key)
+
+		var id uint32
+		keyTemplate := fmt.Sprintf("%s0x%08x/0x%%08x", KvPrefixShardsInStorage, storageID)
+		_, _ = fmt.Sscanf(keyTemplate, key, &id)
+
+		shardIDs = append(shardIDs, GenerateShardID(storageID, ShardISN(id)))
+	}
+	return shardIDs, nil
 }

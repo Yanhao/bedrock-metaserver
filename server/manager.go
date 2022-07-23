@@ -75,6 +75,11 @@ func runAsLeader() {
 
 	metadata.GetStorageManager().ClearCache()
 	log.Info("clear storage cache ...")
+
+	err = metadata.GetStorageManager().LoadLastStorageId()
+	if err != nil {
+		log.Error("failed to load last storage id from kv, err: %v", err)
+	}
 }
 
 func StartGrpcServer() {

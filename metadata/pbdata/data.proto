@@ -8,7 +8,7 @@ package pbdata;
 
 message Shard {
     uint32 storage_id = 1;
-    uint32 isn = 2;
+    uint32 isn = 2; // internel serial number
     google.protobuf.Timestamp  replica_update_ts = 3;
     repeated string replicates = 4;
     bool is_deleted = 5;
@@ -25,7 +25,6 @@ message DataServer {
     uint64 free = 4;
 
     google.protobuf.Timestamp last_heartbeat_ts = 5;
-    // repeated  Shard shards = 5;
 
     enum LiveStatus {
         ACTIVE = 0;

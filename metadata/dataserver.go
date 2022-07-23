@@ -16,6 +16,7 @@ import (
 	// "sr.ht/moyanhao/bedrock-metaserver/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata/pbdata"
+	"sr.ht/moyanhao/bedrock-metaserver/utils"
 )
 
 const (
@@ -40,8 +41,8 @@ type DataServer struct {
 	Free     uint64
 
 	LastHeartBeatTs time.Time
-	CreatedTs       time.Time
-	DeletedTs       time.Time
+	CreateTs        time.Time
+	DeleteTs        time.Time
 
 	Status LiveStatus
 
@@ -56,6 +57,10 @@ func (d *DataServer) Copy() *DataServer {
 	copier.Copy(&ret, d)
 
 	return &ret
+}
+
+func (d *DataServer) Addr() string {
+	return net.JoinHostPort(d.Ip, d.Port)
 }
 
 func (d *DataServer) Used() uint64 {
@@ -83,7 +88,25 @@ func (d *DataServer) String() string {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
 
-	return fmt.Sprintf("%v", *d)
+	statusStr := "-"
+	if d.Status == LiveStatusActive {
+		statusStr = "Active"
+	} else if d.Status == LiveStatusInactive {
+		statusStr = "Inactive"
+	} else if d.Status == LiveStatusOffline {
+		statusStr = "Offline"
+	}
+
+	return fmt.Sprintf(
+		"DataServer{ Address: %s, Capacity: %s, Free: %v, LastHeartBeatTs: %v, CreateTs: %v, DeleteTs: %v, Status: %s }",
+		d.Addr(),
+		utils.SizeGB(d.Capacity),
+		utils.SizeGB(d.Free),
+		d.LastHeartBeatTs,
+		d.CreateTs,
+		d.DeleteTs,
+		statusStr,
+	)
 }
 
 func (d *DataServer) HeartBeat() error {
@@ -101,7 +124,7 @@ func (d *DataServer) MarkActive(isHeartBeat bool) error {
 
 	var ds DataServer
 	copier.Copy(&ds, d)
-	go putDataServerToKv(&ds)
+	go kvPutDataServer(&ds)
 
 	return nil
 }
@@ -114,7 +137,7 @@ func (d *DataServer) MarkInactive() error {
 
 	var ds DataServer
 	copier.Copy(&ds, d)
-	go putDataServerToKv(&ds)
+	go kvPutDataServer(&ds)
 
 	return nil
 }
@@ -127,13 +150,9 @@ func (d *DataServer) MarkOffline() error {
 
 	var ds DataServer
 	copier.Copy(&ds, d)
-	go putDataServerToKv(&ds)
+	go kvPutDataServer(&ds)
 
 	return nil
-}
-
-func (d *DataServer) Addr() string {
-	return net.JoinHostPort(d.Ip, d.Port)
 }
 
 // func TransferShard(shardID ShardID, fromAddr, toAddr string) error {
@@ -240,11 +259,11 @@ func (dm *DataServerManager) AddDataServer(ip, port string) error {
 		Ip:              ip,
 		Port:            port,
 		LastHeartBeatTs: time.Now(),
-		CreatedTs:       time.Now(),
+		CreateTs:        time.Now(),
 		Status:          LiveStatusActive,
 	}
 
-	err := putDataServerToKv(dataserver)
+	err := kvPutDataServer(dataserver)
 	if err != nil {
 		log.Error("failed put dataserver %v to kv", dataserver.Addr())
 		return err
@@ -264,7 +283,7 @@ func (dm *DataServerManager) RemoveDataServer(addr string) error {
 
 	delete(dm.dataServers, addr)
 
-	return deleteDataServerFromKv(addr)
+	return kvDeleteDataServer(addr)
 }
 
 func (dm *DataServerManager) GetDataServer(addr string) (*DataServer, error) {

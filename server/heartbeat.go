@@ -81,7 +81,7 @@ func (hb *HeartBeater) InitDataServers() {
 	OfflineDataServers = make(map[string]*metadata.DataServer)
 
 	dm := metadata.GetDataServerManager()
-	dataservers := dm.DataServersClone()
+	dataservers := dm.DataServersCopy()
 
 	for _, d := range dataservers {
 		switch d.Status {
@@ -100,7 +100,7 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 	return // FIXME: remove this line
 
 	dm := metadata.GetDataServerManager()
-	dataservers := dm.DataServersClone()
+	dataservers := dm.DataServersCopy()
 
 	for _, s := range dataservers {
 		if s.LastHeartBeatTs.Before(time.Now().Add(-OfflinePeriod)) {

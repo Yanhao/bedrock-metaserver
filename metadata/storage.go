@@ -66,7 +66,6 @@ func (s *Storage) Undelete() error {
 	s.DeleteTs = time.Time{}
 
 	return nil
-
 }
 
 func (s *Storage) Rename(newName string) error {
@@ -171,6 +170,15 @@ func (sm *StorageManager) GetStorage(id StorageID) (*Storage, error) {
 
 	sm.storageCache.Add(id, st)
 	return st, nil
+}
+
+func (sm *StorageManager) GetStorageCopy(id StorageID) (*Storage, error) {
+	ret, err := sm.GetStorage(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return ret.Copy(), nil
 }
 
 func (sm *StorageManager) GetStorageByName(name string) (*Storage, error) {
@@ -315,5 +323,5 @@ func (sm *StorageManager) StorageRename(storageID StorageID, name string) error 
 		return err
 	}
 
-	return nil
+	return sm.PutStorage(storage)
 }

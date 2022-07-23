@@ -34,8 +34,7 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *HeartBeatRequest) (*em
 	}
 
 	dm := metadata.GetDataServerManager()
-
-	server, err := dm.GetDataServer(req.Addr)
+	server, err := dm.GetDataServerCopy(req.Addr)
 	if err != nil {
 		log.Warn("no such server in record: %s", req.Addr)
 		return nil, status.Errorf(codes.NotFound, "no such server: %s", req.Addr)
@@ -50,8 +49,7 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *HeartBeatRequest) (*em
 
 func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*RouteRecord, error) {
 	sm := metadata.GetShardManager()
-
-	shard, err := sm.GetShard(shardID)
+	shard, err := sm.GetShardCopy(shardID)
 	if err != nil {
 		log.Error("get shard failed, shardID=%d", shard)
 		return nil, status.Errorf(codes.Internal, "get shard failed")
@@ -271,7 +269,7 @@ func (m *MetaService) GetStorages(ctx context.Context, req *GetStoragesRequest) 
 	resp := &GetStoragesResponse{}
 
 	for _, id := range req.Ids {
-		st, err := metadata.GetStorageManager().GetStorage(metadata.StorageID(id))
+		st, err := metadata.GetStorageManager().GetStorageCopy(metadata.StorageID(id))
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "")
 		}
@@ -353,6 +351,7 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *RemoveDataServe
 		if err != nil {
 			return
 		}
+
 		err = dm.RemoveDataServer(req.Addr)
 		if err != nil {
 			return
@@ -378,7 +377,7 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *ListDataServerReq
 	resp := &ListDataServerResponse{}
 
 	dm := metadata.GetDataServerManager()
-	dss := dm.DataServersClone()
+	dss := dm.DataServersCopy()
 	log.Info("copied dataservers: %#v", dss)
 
 	for _, ds := range dss {
@@ -513,7 +512,7 @@ func (m *MetaService) CreateShard(ctx context.Context, req *CreateShardRequest) 
 
 	sa := scheduler.GetShardAllocator()
 	// replicates, err := sa.AllocateShardReplicates(shard.ID, 3)
-	_, err = sa.AllocateShardReplicates(shard.ID(), 3)
+	_, err = sa.AllocateShardReplicates(shard.ID(), scheduler.DefaultReplicatesCount)
 	if err != nil {
 		log.Warn("failed to allocate shard replicates, err: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to allocate replicates, err: %v", err)

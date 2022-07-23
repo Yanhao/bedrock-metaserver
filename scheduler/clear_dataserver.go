@@ -23,7 +23,7 @@ func ClearDataserver(addr string) error {
 	sm := metadata.GetShardManager()
 	conns := dataserver.GetDataServerConns()
 	for _, shardID := range shardIDs {
-		shard, err := sm.GetShard(shardID)
+		shard, err := sm.GetShardCopy(shardID)
 		if err != nil {
 			return err
 		}
@@ -43,19 +43,16 @@ func ClearDataserver(addr string) error {
 			return err
 		}
 
-		// err = dataServerCli.PullShardData(uint64(shardID), shard.Leader)
-		// if err != nil {
-		// 	log.Error("RepairShard failed, err: %v", err)
-		// 	return err
-		// }
-		// log.Info("repaired shard %v in %v", shardID, addr)
-
-		shard.AddReplicates([]string{ds})
+		err = sm.AddShardReplicates(shardID, []string{ds})
+		if err != nil {
+			return err
+		}
 
 		if shard.Leader == addr {
 			sm.ReSelectLeader(shardID)
 		} else {
-			// TODO: notify leader the shard member change
+			// notify leader the shard member change
+			sm.ReSelectLeader(shardID, metadata.WithLeader(shard.Leader))
 		}
 
 		dsTobeClearedCli, _ := conns.GetApiClient(addr)
@@ -64,14 +61,7 @@ func ClearDataserver(addr string) error {
 			log.Warn("DeleteShard failed, err: %v", err)
 		}
 
-		shard.RemoveReplicates([]string{addr})
-		err = sm.PutShard(shard)
-		if err != nil {
-			log.Error("PutShard failed, err: %v", err)
-			return err
-		}
-
-		err = metadata.RemoveShardInDataServer(addr, shardID)
+		err = sm.RemoveShardReplicates(shardID, []string{addr})
 		if err != nil {
 			return err
 		}

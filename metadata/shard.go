@@ -170,6 +170,7 @@ func (sm *ShardManager) CreateNewShardByIDs(storageID StorageID, shardISN ShardI
 		ReplicaUpdateTs: time.Now(),
 		Replicates:      map[string]struct{}{},
 	}
+
 	err := kvPutShard(shard)
 	if err != nil {
 		return nil, err
@@ -266,6 +267,42 @@ func (sm *ShardManager) MarkUndelete(shardID ShardID) error {
 	return sm.PutShard(shard)
 }
 
+func (sm *ShardManager) AddShardReplicates(shardID ShardID, addrs []string) error {
+	shard, err := sm.GetShard(shardID)
+	if err != nil {
+		return err
+	}
+
+	shard.AddReplicates(addrs)
+
+	for _, addr := range addrs {
+		err := addShardInDataServer(addr, shardID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return sm.PutShard(shard)
+}
+
+func (sm *ShardManager) RemoveShardReplicates(shardID ShardID, addrs []string) error {
+	shard, err := sm.GetShard(shardID)
+	if err != nil {
+		return err
+	}
+
+	shard.RemoveReplicates(addrs)
+
+	for _, addr := range addrs {
+		err := RemoveShardInDataServer(addr, shardID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return sm.PutShard(shard)
+}
+
 func (sm *ShardManager) updateCache(shard *Shard) {
 	_ = sm.shardsCache.Add(shard.ID, shard)
 }
@@ -335,7 +372,7 @@ func (sm *ShardManager) ReSelectLeader(shardID ShardID, ops ...shardOpFunc) erro
 	return nil
 }
 
-func AddShardInDataServer(addr string, id ShardID) error {
+func addShardInDataServer(addr string, id ShardID) error {
 	key := ShardInDataServerKey(addr, id)
 	ec := kv.GetEtcdClient()
 

@@ -39,7 +39,7 @@ func generateViableDataServer(selected []string) []string {
 	var ret []string
 
 	dm := metadata.GetDataServerManager()
-	dataservers := dm.DataServersClone()
+	dataservers := dm.DataServersCopy()
 
 outer:
 	for addr, ds := range dataservers {
@@ -84,7 +84,7 @@ func randomSelect(dataServers []string) string {
 }
 
 const (
-	defaultReplicatesCount = 3
+	DefaultReplicatesCount = 3
 )
 
 func (sa *ShardAllocator) AllocatorNewStorage() (*metadata.Storage, error) {
@@ -106,6 +106,8 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 	var selectedDataServers []string
 	conns := dataserver.GetDataServerConns()
 
+	sm := metadata.GetShardManager()
+
 	for i, times := count, MAX_ALLOCATE_TIMES; i > 0 && times > 0; {
 		viableDataServers := generateViableDataServer(selectedDataServers)
 		if len(viableDataServers) < i {
@@ -124,12 +126,13 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 			continue
 		}
 
-		err = metadata.AddShardInDataServer(server, shardID)
+		err = sm.AddShardReplicates(shardID, []string{server})
 		if err != nil {
 			return nil, err
 		}
 
 		selectedDataServers = append(selectedDataServers, server)
+
 		i--
 		times--
 	}
@@ -143,13 +146,14 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 
 func (sa *ShardAllocator) ExpandStorage(storageID metadata.StorageID, count uint32) error {
 	sm := metadata.GetShardManager()
-	shard, err := sm.CreateNewShard(storageID)
-	if err != nil {
-		return err
-	}
 
 	for i := count; i > 0; {
-		addrs, err := sa.AllocateShardReplicates(shard.ID(), defaultReplicatesCount)
+		shard, err := sm.CreateNewShard(storageID)
+		if err != nil {
+			return err
+		}
+
+		addrs, err := sa.AllocateShardReplicates(shard.ID(), DefaultReplicatesCount)
 		if err != nil {
 			return err
 		}
@@ -159,11 +163,6 @@ func (sa *ShardAllocator) ExpandStorage(storageID metadata.StorageID, count uint
 		}
 
 		i--
-	}
-
-	err = sm.PutShard(shard)
-	if err != nil {
-		return err
 	}
 
 	return nil

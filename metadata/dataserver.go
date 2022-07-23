@@ -298,6 +298,15 @@ func (dm *DataServerManager) GetDataServer(addr string) (*DataServer, error) {
 	return server, nil
 }
 
+func (dm *DataServerManager) GetDataServerCopy(addr string) (*DataServer, error) {
+	ret, err := dm.GetDataServer(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return ret.Copy(), nil
+}
+
 func (dm *DataServerManager) IsDataServerExists(addr string) bool {
 	dm.dataServersLock.RLock()
 	defer dm.dataServersLock.RUnlock()
@@ -306,7 +315,7 @@ func (dm *DataServerManager) IsDataServerExists(addr string) bool {
 	return ok
 }
 
-func (dm *DataServerManager) DataServersClone() map[string]*DataServer {
+func (dm *DataServerManager) DataServersCopy() map[string]*DataServer {
 	dm.dataServersLock.RLock()
 	defer dm.dataServersLock.RUnlock()
 

@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/jinzhu/copier"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -193,7 +192,7 @@ func (m *MetaService) UndeleteStorage(ctx context.Context, req *UndeleteStorageR
 	err = metadata.GetStorageManager().StorageUndelete(metadata.StorageID(req.Id))
 	if err != nil {
 		log.Error("undelete storage failed, err: %v", err)
-		return resp, status.Errorf(codes.Internal, "undelte storage failed")
+		return resp, status.Errorf(codes.Internal, "undelete storage failed")
 	}
 
 	return resp, nil
@@ -248,20 +247,7 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *ResizeStorageReque
 	}
 
 	expandCount := req.NewShardCount - uint64(st.LastShardISN)
-	err = scheduler.GetShardAllocator().ExpandStorage(st, uint32(expandCount))
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "")
-	}
-
-	st.LastShardISN = metadata.ShardISN(req.NewShardCount)
-
-	var updatedSt metadata.Storage
-	err = copier.CopyWithOption(&updatedSt, st, copier.Option{IgnoreEmpty: true, DeepCopy: true})
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "")
-	}
-
-	err = metadata.GetStorageManager().SaveStorage(&updatedSt)
+	err = scheduler.GetShardAllocator().ExpandStorage(st.ID, uint32(expandCount))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "")
 	}
@@ -503,7 +489,7 @@ func (m *MetaService) CreateShard(ctx context.Context, req *CreateShardRequest) 
 	stm := metadata.GetStorageManager()
 	st, err := stm.GetStorage(metadata.StorageID(req.StorageId))
 	if err != nil || st == nil {
-		log.Warn("no such storage, storageid: %v", req.StorageId)
+		log.Warn("no such storage, storage id: %v", req.StorageId)
 		return nil, status.Errorf(codes.FailedPrecondition, "no such storage, id=%v", req.StorageId)
 	}
 
@@ -511,11 +497,11 @@ func (m *MetaService) CreateShard(ctx context.Context, req *CreateShardRequest) 
 	shm := metadata.GetShardManager()
 	_, err = shm.GetShard(shardID)
 	if err == nil {
-		log.Warn("shard already exists, shardid: %v", shardID)
+		log.Warn("shard already exists, shard id: %v", shardID)
 		return nil, status.Errorf(codes.AlreadyExists, "shard already exists, id=%v", shardID)
 	}
 	if err != metadata.ErrNoSuchShard {
-		log.Warn("failed to get shard, shardid: %v, err: %v", shardID, err)
+		log.Warn("failed to get shard, shard id: %v, err: %v", shardID, err)
 		return nil, status.Errorf(codes.Internal, "failed to get shard, err: %v", err)
 	}
 
@@ -552,17 +538,7 @@ func (m *MetaService) RemoveShard(ctx context.Context, req *RemoveShardRequest) 
 
 	shardID := metadata.GenerateShardID(metadata.StorageID(req.StorageId), metadata.ShardISN(req.ShardIsn))
 	shm := metadata.GetShardManager()
-	shard, err := shm.GetShard(shardID)
-	if err != nil {
-		log.Warn("failed to get shard, shardid: %v, err: %v", shardID, err)
-		return nil, status.Errorf(codes.Internal, "failed to get shard, err: %v", err)
-	}
-	if err == metadata.ErrNoSuchShard {
-		log.Warn("no such shard, shardid: %v", shardID)
-		return nil, status.Errorf(codes.FailedPrecondition, "no such shard, id=%v", shardID)
-	}
-
-	err = shm.MarkDelete(shard)
+	err := shm.MarkDelete(shardID)
 	if err != nil {
 		log.Warn("failed to mark delete for shard, err: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to mark delete for shard, err: %v", err)

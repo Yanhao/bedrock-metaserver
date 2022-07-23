@@ -14,13 +14,13 @@ func ClearDataserver(addr string) error {
 		return metadata.ErrNoSuchDataServer
 	}
 
-	sm := metadata.GetShardManager()
-	shardIDs, err := sm.GetShardIDsInDataServer(addr)
+	shardIDs, err := metadata.GetShardIDsInDataServer(addr)
 	if err != nil {
 		log.Error("GetShardsInDataServer failed, err: %v", err)
 		return errors.New("GetShardsInDataServer failed")
 	}
 
+	sm := metadata.GetShardManager()
 	conns := dataserver.GetDataServerConns()
 	for _, shardID := range shardIDs {
 		shard, err := sm.GetShard(shardID)
@@ -53,7 +53,7 @@ func ClearDataserver(addr string) error {
 		shard.AddReplicates([]string{ds})
 
 		if shard.Leader == addr {
-			shard.ReSelectLeader()
+			sm.ReSelectLeader(shardID)
 		} else {
 			// TODO: notify leader the shard member change
 		}

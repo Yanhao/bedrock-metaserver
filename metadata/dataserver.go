@@ -84,7 +84,7 @@ func (d *DataServer) IsOverLoaded() bool {
 	return d.UsedPercent() > DATASERVER_OVERLOAD_PERCENT
 }
 
-func (d *DataServer) String() string {
+func (d *DataServer) Info() string {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
 

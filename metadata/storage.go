@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cache "github.com/hashicorp/golang-lru"
+	"github.com/jinzhu/copier"
 	"go.uber.org/atomic"
 
 	"sr.ht/moyanhao/bedrock-metaserver/common/log"
@@ -78,8 +79,11 @@ func (s *Storage) Rename(newName string) error {
 }
 
 func (s *Storage) Info() string {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
 	return fmt.Sprintf(
-		"Storate{ ID: %08x, Name: %s, IsDeleted: %v, DeleteTs: %v, RecycleTs: %v, CreateTs: %v, Owner: %s }",
+		"Storage{ ID: %08x, Name: %s, IsDeleted: %v, DeleteTs: %v, RecycleTs: %v, CreateTs: %v, Owner: %s }",
 		s.ID,
 		s.Name,
 		s.IsDeleted,
@@ -88,6 +92,16 @@ func (s *Storage) Info() string {
 		s.CreateTs,
 		s.Owner,
 	)
+}
+
+func (s *Storage) Copy() *Storage {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	var ret Storage
+	copier.Copy(&ret, s)
+
+	return &ret
 }
 
 const (
@@ -163,6 +177,23 @@ func (sm *StorageManager) GetStorageByName(name string) (*Storage, error) {
 	return kvGetStorageByName(name)
 }
 
+func (sm *StorageManager) FetchAddStorageLastISN(id StorageID) (ShardISN, error) {
+	st, err := sm.GetStorage(id)
+	if err != nil {
+		return 0, err
+	}
+
+	ret := st.FetchAddLastISN()
+
+	err = sm.PutStorage(st)
+	if err != nil {
+		// FIXME: restore LastISN
+		return 0, err
+	}
+
+	return ret, nil
+}
+
 func (sm *StorageManager) SaveLastStorageId() error {
 	sID := sm.lastStorageID.Load()
 	ec := kv.GetEtcdClient()
@@ -174,7 +205,7 @@ func (sm *StorageManager) SaveLastStorageId() error {
 	return nil
 }
 
-func (sm *StorageManager) CreateNewStorage() (StorageID, error) {
+func (sm *StorageManager) CreateNewStorage() (*Storage, error) {
 	id := sm.lastStorageID.Inc()
 
 	storage := &Storage{
@@ -186,18 +217,18 @@ func (sm *StorageManager) CreateNewStorage() (StorageID, error) {
 
 	err := sm.SaveLastStorageId()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	err = kvPutStorage(storage)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return StorageID(id), nil
+	return storage.Copy(), nil
 }
 
-func (sm *StorageManager) SaveStorage(st *Storage) error {
+func (sm *StorageManager) PutStorage(st *Storage) error {
 	err := kvPutStorage(st)
 	if err != nil {
 		return err

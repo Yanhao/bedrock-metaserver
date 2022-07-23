@@ -89,17 +89,12 @@ const (
 
 func (sa *ShardAllocator) AllocatorNewStorage() (*metadata.Storage, error) {
 	sm := metadata.GetStorageManager()
-	storageId, err := sm.CreateNewStorage()
+	storage, err := sm.CreateNewStorage()
 	if err != nil {
 		return nil, err
 	}
 
-	storage, err := metadata.GetStorageManager().GetStorage(storageId)
-	if err != nil {
-		return nil, err
-	}
-
-	err = sa.ExpandStorage(storage, 10)
+	err = sa.ExpandStorage(storage.ID, 10)
 	if err != nil {
 		return nil, err
 	}
@@ -146,9 +141,9 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 	return selectedDataServers, nil
 }
 
-func (sa *ShardAllocator) ExpandStorage(storage *metadata.Storage, count uint32) error {
+func (sa *ShardAllocator) ExpandStorage(storageID metadata.StorageID, count uint32) error {
 	sm := metadata.GetShardManager()
-	shard, err := sm.CreateNewShard(storage)
+	shard, err := sm.CreateNewShard(storageID)
 	if err != nil {
 		return err
 	}

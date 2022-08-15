@@ -55,6 +55,7 @@ func (d *DataServer) Copy() *DataServer {
 
 	var ret DataServer
 	copier.Copy(&ret, d)
+	ret.lock = sync.RWMutex{}
 
 	return &ret
 }

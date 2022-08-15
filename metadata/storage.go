@@ -99,6 +99,7 @@ func (s *Storage) Copy() *Storage {
 
 	var ret Storage
 	copier.Copy(&ret, s)
+	s.lock = sync.RWMutex{}
 
 	return &ret
 }

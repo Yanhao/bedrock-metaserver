@@ -115,6 +115,7 @@ func (sd *Shard) Copy() *Shard {
 
 	var ret Shard
 	copier.Copy(&ret, sd)
+	sd.lock = sync.RWMutex{}
 
 	return &ret
 }

@@ -37,7 +37,7 @@ func ClearDataserver(addr string) error {
 		ds := randomSelect(viableDataServers)
 		dataServerCli, _ := conns.GetApiClient(ds)
 
-		err = dataServerCli.CreateShard(uint64(shardID), 0)
+		err = dataServerCli.CreateShard(uint64(shardID))
 		if err != nil {
 			log.Error("CreateShard failed, err: %v", err)
 			return err
@@ -56,7 +56,7 @@ func ClearDataserver(addr string) error {
 		}
 
 		dsTobeClearedCli, _ := conns.GetApiClient(addr)
-		err = dsTobeClearedCli.DeleteShard(uint64(shardID), 0)
+		err = dsTobeClearedCli.DeleteShard(uint64(shardID))
 		if err != nil {
 			log.Warn("DeleteShard failed, err: %v", err)
 		}

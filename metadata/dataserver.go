@@ -184,7 +184,7 @@ func (d *DataServer) MarkOffline() error {
 
 type DataServerManager struct {
 	dataServers     map[string]*DataServer
-	dataServersLock *sync.RWMutex
+	dataServersLock sync.RWMutex
 }
 
 func NewDataServerManager() *DataServerManager {
@@ -195,7 +195,7 @@ func NewDataServerManager() *DataServerManager {
 
 var (
 	dataServerManager     *DataServerManager
-	dataServerManagerOnce *sync.Once
+	dataServerManagerOnce sync.Once
 )
 
 func GetDataServerManager() *DataServerManager {

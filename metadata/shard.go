@@ -228,7 +228,7 @@ func (sm *ShardManager) ShardDelete(shardID ShardID) error {
 	for addr := range shard.Replicates {
 		dataServerCli, _ := conns.GetApiClient(addr)
 
-		err := dataServerCli.DeleteShard(uint64(shardID), 0)
+		err := dataServerCli.DeleteShard(uint64(shardID))
 		if err != nil {
 			log.Warn("failed to delete shard from dataserver, err: %v", err)
 			return err

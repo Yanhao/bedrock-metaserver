@@ -118,7 +118,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 
 		dataServerCli, _ := conns.GetApiClient(server)
 
-		err := dataServerCli.CreateShard(uint64(shardID), 0)
+		err := dataServerCli.CreateShard(uint64(shardID))
 		if err != nil {
 			log.Warn("failed to create shard from dataserver %v, err: %v", server, err)
 

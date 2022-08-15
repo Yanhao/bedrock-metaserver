@@ -8,8 +8,8 @@ import (
 )
 
 type DsApi interface {
-	DeleteShard(shardID uint64, storageID uint64) error
-	CreateShard(shardID uint64, storageID uint64) error
+	DeleteShard(shardID uint64) error
+	CreateShard(shardID uint64) error
 
 	// TransferShard(shardID uint64, toAddr string) error
 	// PullShardData(shardID uint64, leader string) error
@@ -47,10 +47,9 @@ func (ds *DataServerApi) Close() {
 	_ = ds.grpcConn.Close()
 }
 
-func (ds *DataServerApi) CreateShard(shardID uint64, storageID uint64) error {
+func (ds *DataServerApi) CreateShard(shardID uint64) error {
 	req := &CreateShardRequest{
-		ShardId:   shardID,
-		StorageId: storageID,
+		ShardId: shardID,
 	}
 
 	resp, err := ds.client.CreateShard(context.TODO(), req)
@@ -61,7 +60,7 @@ func (ds *DataServerApi) CreateShard(shardID uint64, storageID uint64) error {
 	return nil
 }
 
-func (ds *DataServerApi) DeleteShard(shardID uint64, storageID uint64) error {
+func (ds *DataServerApi) DeleteShard(shardID uint64) error {
 	req := &DeleteShardRequest{
 		ShardId: shardID,
 	}

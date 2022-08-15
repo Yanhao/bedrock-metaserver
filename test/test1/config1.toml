@@ -1,0 +1,16 @@
+log_file = "log.log"
+
+[etcd]
+name = "etcd-1"
+data_dir = "data"
+port = 1000
+wal_dir = "data/wal"
+prevote = true
+peers = "etcd-1=http://0.0.0.0:2380,etcd-2=http://0.0.0.0:2480,etcd-3=http://0.0.0.0:2580"
+raft_addr = "http://0.0.0.0:2380"
+client_addr = "http://localhost:2379"
+client_timeout = 3
+
+[server]
+addr = "0.0.0.0:1081"
+pprof_addr = "0.0.0.0:6061"

@@ -1,8 +1,0 @@
-
-
-#+begin_src shell
-etcdctl --endpoints=localhost:2380 get metaserver-leader
-#+end_src
-
-* Ref
-1. https://etcd.io/docs/v3.4/dev-guide/local_cluster/

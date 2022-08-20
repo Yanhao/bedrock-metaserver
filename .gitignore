@@ -1,6 +1,8 @@
 /metaserver
 /mscli
-/test/test-server-start/run/
 .DS_Store
 *.md.tmp
 *.pb.go
+/test/test1/data
+/test/test2/data
+/test/test3/data

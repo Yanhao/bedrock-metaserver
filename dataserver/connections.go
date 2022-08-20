@@ -1,6 +1,7 @@
 package dataserver
 
 import (
+	"errors"
 	"sync"
 
 	cache "github.com/hashicorp/golang-lru"
@@ -33,6 +34,10 @@ func NewConnections(cap int) *Connections {
 }
 
 func (cns *Connections) GetApiClient(addr string) (DsApi, error) {
+	if addr == "" {
+		return nil, errors.New("empty address")
+	}
+
 	cli, ok := cns.connCaches.Get(addr)
 	if ok {
 		return cli.(*DataServerApi), nil

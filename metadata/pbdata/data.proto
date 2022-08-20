@@ -45,5 +45,5 @@ message Storage {
     google.protobuf.Timestamp recycle_ts = 6;
 
     string owner = 7;
-    uint32 last_shard_index = 8;
+    uint32 last_shard_index = 8; // internel serial number
 }

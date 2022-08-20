@@ -36,7 +36,7 @@ type Shard struct {
 }
 
 func GenerateShardID(storageID StorageID, shardISN ShardISN) ShardID {
-	shardID := (uint64(storageID) << 32) & (uint64(shardISN))
+	shardID := (uint64(storageID) << 32) | (uint64(shardISN))
 
 	return ShardID(shardID)
 }
@@ -115,7 +115,7 @@ func (sd *Shard) Copy() *Shard {
 
 	var ret Shard
 	copier.Copy(&ret, sd)
-	sd.lock = sync.RWMutex{}
+	ret.lock = sync.RWMutex{}
 
 	return &ret
 }
@@ -305,7 +305,7 @@ func (sm *ShardManager) RemoveShardReplicates(shardID ShardID, addrs []string) e
 }
 
 func (sm *ShardManager) updateCache(shard *Shard) {
-	_ = sm.shardsCache.Add(shard.ID, shard)
+	_ = sm.shardsCache.Add(shard.ID(), shard)
 }
 
 type shardOption struct {
@@ -323,6 +323,7 @@ func WithLeader(addr string) shardOpFunc {
 func (sm *ShardManager) ReSelectLeader(shardID ShardID, ops ...shardOpFunc) error {
 	shard, err := sm.GetShardCopy(shardID)
 	if err != nil {
+		log.Error("%v", err)
 		return err
 	}
 
@@ -346,31 +347,36 @@ func (sm *ShardManager) ReSelectLeader(shardID ShardID, ops ...shardOpFunc) erro
 
 		newLeader = candidates[rand.Intn(len(candidates))]
 	}
+	log.Info("new shard leader: %v", newLeader)
 
 	conns := dataserver.GetDataServerConns()
-	dataSerCli, err := conns.GetApiClient(shard.Leader)
+	dataSerCli, err := conns.GetApiClient(newLeader)
 	if err != nil {
+		log.Error("failed to get connection, err: %v", err)
 		return nil
 	}
 
 	replicates := []string{}
 	for addr := range shard.Replicates {
-		replicates = append(replicates, addr)
+		if addr != newLeader {
+			replicates = append(replicates, addr)
+		}
 	}
 	err = dataSerCli.TransferShardLeader(uint64(shard.ID()), replicates)
 	if err != nil {
+		log.Error("failed to transfer leader, err: %v", err)
 		return err
 	}
 
 	shard, err = sm.GetShard(shardID)
 	if err != nil {
+		log.Error("failed to get shard, err: %v", err)
 		return nil
 	}
 
 	shard.ChangeLeader(newLeader)
-	sm.updateCache(shard)
 
-	return nil
+	return kvPutShard(shard)
 }
 
 func addShardInDataServer(addr string, id ShardID) error {

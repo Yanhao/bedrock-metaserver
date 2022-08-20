@@ -35,8 +35,10 @@ func (s *Storage) FetchAddLastISN() ShardISN {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.LastShardISN++
-	return s.LastShardISN
+	ret := s.LastShardISN
+	s.LastShardISN += 1
+
+	return ret
 }
 
 func (s *Storage) MarkDelete(recycleAfter time.Duration) error {
@@ -99,7 +101,7 @@ func (s *Storage) Copy() *Storage {
 
 	var ret Storage
 	copier.Copy(&ret, s)
-	s.lock = sync.RWMutex{}
+	ret.lock = sync.RWMutex{}
 
 	return &ret
 }
@@ -116,7 +118,7 @@ type StorageManager struct {
 func NewStorageManager() *StorageManager {
 	c, err := cache.New(10240)
 	if err != nil {
-		panic("create cache failed")
+		panic("create storage cache failed")
 
 	}
 	return &StorageManager{
@@ -200,6 +202,7 @@ func (sm *StorageManager) FetchAddStorageLastISN(id StorageID) (ShardISN, error)
 		return 0, err
 	}
 
+	log.Info("shard isn: %v", ret)
 	return ret, nil
 }
 
@@ -214,11 +217,13 @@ func (sm *StorageManager) SaveLastStorageId() error {
 	return nil
 }
 
-func (sm *StorageManager) CreateNewStorage() (*Storage, error) {
+func (sm *StorageManager) CreateNewStorage(name string) (*Storage, error) {
 	id := sm.lastStorageID.Inc()
+	log.Info("new storage id, %v", id)
 
 	storage := &Storage{
 		ID:        StorageID(id),
+		Name:      name,
 		CreateTs:  time.Now(),
 		DeleteTs:  time.Time{},
 		IsDeleted: false,
@@ -233,6 +238,8 @@ func (sm *StorageManager) CreateNewStorage() (*Storage, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	sm.storageCache.Add(id, storage)
 
 	return storage.Copy(), nil
 }

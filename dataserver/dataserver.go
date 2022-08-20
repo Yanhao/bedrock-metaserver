@@ -5,6 +5,9 @@ import (
 	"errors"
 
 	grpc "google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 )
 
 type DsApi interface {
@@ -48,12 +51,20 @@ func (ds *DataServerApi) Close() {
 }
 
 func (ds *DataServerApi) CreateShard(shardID uint64) error {
+	now := timestamppb.Now()
+
 	req := &CreateShardRequest{
-		ShardId: shardID,
+		ShardId:         shardID,
+		CreateTs:        now,
+		Leader:          "",
+		LeaderChangeTs:  now,
+		ReplicaUpdateTs: now,
+		Replicates:      []string{},
 	}
 
 	resp, err := ds.client.CreateShard(context.TODO(), req)
 	if err != nil || resp == nil {
+		log.Error("failed to create shard, err: %v", err)
 		return err
 	}
 
@@ -75,13 +86,14 @@ func (ds *DataServerApi) DeleteShard(shardID uint64) error {
 
 func (ds *DataServerApi) TransferShardLeader(shardID uint64, replicates []string) error {
 	req := &TransferShardLeaderRequest{
-		ShardId:    shardID,
-		Replicates: replicates,
+		ShardId:        shardID,
+		Replicates:     replicates,
+		LeaderChangeTs: timestamppb.Now(),
 	}
 
 	resp, err := ds.client.TransferShardLeader(context.TODO(), req)
 	if err != nil || resp == nil {
-		return errors.New("")
+		return err
 	}
 
 	return nil

@@ -63,7 +63,8 @@ outer:
 			}
 
 			if shost == host {
-				continue outer
+				//FIXME: remove the following comments
+				// continue outer
 			}
 		}
 
@@ -87,14 +88,14 @@ const (
 	DefaultReplicatesCount = 3
 )
 
-func (sa *ShardAllocator) AllocatorNewStorage() (*metadata.Storage, error) {
+func (sa *ShardAllocator) AllocatorNewStorage(name string) (*metadata.Storage, error) {
 	sm := metadata.GetStorageManager()
-	storage, err := sm.CreateNewStorage()
+	storage, err := sm.CreateNewStorage(name)
 	if err != nil {
 		return nil, err
 	}
 
-	err = sa.ExpandStorage(storage.ID, 10)
+	err = sa.ExpandStorage(storage.ID, 3)
 	if err != nil {
 		return nil, err
 	}
@@ -109,6 +110,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 	sm := metadata.GetShardManager()
 
 	for i, times := count, MAX_ALLOCATE_TIMES; i > 0 && times > 0; {
+		log.Info("i: %v, times: %v", i, times)
 		viableDataServers := generateViableDataServer(selectedDataServers)
 		if len(viableDataServers) < i {
 			return nil, errors.New("dataserver is not enough to allocate shard")
@@ -141,6 +143,14 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 		return selectedDataServers, errors.New("not enough replicates")
 	}
 
+	err := sm.ReSelectLeader(shardID)
+	if err != nil {
+		log.Error("failed to select leader of shard, shard id: %v, err: %v", shardID, err)
+		return selectedDataServers, err
+	}
+
+	log.Info("successfully create new shard replicate: shard_id: %v, addr: %v", shardID, selectedDataServers)
+
 	return selectedDataServers, nil
 }
 
@@ -152,6 +162,8 @@ func (sa *ShardAllocator) ExpandStorage(storageID metadata.StorageID, count uint
 		if err != nil {
 			return err
 		}
+
+		log.Info("new shard, id: %v", shard.ID())
 
 		addrs, err := sa.AllocateShardReplicates(shard.ID(), DefaultReplicatesCount)
 		if err != nil {

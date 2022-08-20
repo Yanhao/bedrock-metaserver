@@ -51,17 +51,20 @@ func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*RouteRecord, erro
 	sm := metadata.GetShardManager()
 	shard, err := sm.GetShardCopy(shardID)
 	if err != nil {
-		log.Error("get shard failed, shardID=%d", shard)
+		log.Error("get shard failed, shardID: %d, err: %v", shardID, err)
 		return nil, status.Errorf(codes.Internal, "get shard failed")
 	}
 
 	if shard.ReplicaUpdateTs.After(ts) {
 		route := &RouteRecord{
-			ShardId: uint64(shardID),
+			ShardId:    uint64(shardID),
+			LeaderAddr: shard.Leader,
 		}
 		for rep := range shard.Replicates {
 			route.Addrs = append(route.Addrs, rep)
 		}
+
+		log.Info("route: %v", route)
 
 		return route, nil
 	}
@@ -70,6 +73,7 @@ func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*RouteRecord, erro
 }
 
 func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesRequest) (*GetShardRoutesResponse, error) {
+	log.Info("req: %v", req.GetShardRange())
 	err := GetShardRoutesParamCheck(req)
 	if err != nil {
 		log.Warn("GetShardRoutes: invalid arguments, err: %v", err)
@@ -88,6 +92,8 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesReq
 	if req.GetShardRange() != nil {
 		begin := req.GetShardRange().StartShardId
 		end := begin + req.GetShardRange().Offset
+
+		log.Info("req: shard_id: %v, end: %v", begin, end)
 
 		for shardID := begin; shardID <= end; shardID++ {
 			route, err := getUpdatedRoute(metadata.ShardID(shardID), ts)
@@ -126,13 +132,27 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *CreateStorageReque
 
 	resp := &CreateStorageResponse{}
 
-	storage, err := scheduler.GetShardAllocator().AllocatorNewStorage()
+	sm := metadata.GetStorageManager()
+	st, err := sm.GetStorageByName(req.Name)
+	if err != nil {
+		log.Error("check storage by name failed, err: %v", err)
+		return resp, status.Errorf(codes.Internal, "check storage by name failed")
+	}
+
+	if st != nil {
+		log.Error("shard name %v already exists", req.Name)
+		return resp, status.Errorf(codes.AlreadyExists, "shard name %v already exists", req.Name)
+	}
+
+	storage, err := scheduler.GetShardAllocator().AllocatorNewStorage(req.Name)
 	if err != nil {
 		log.Error("create storage failed, err: %v", err)
 		return resp, status.Errorf(codes.Internal, "create storage failed")
 	}
 
 	resp.Id = uint64(storage.ID)
+
+	log.Info("successfully create storage, id: %v", resp.Id)
 
 	return resp, nil
 }
@@ -254,6 +274,7 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *ResizeStorageReque
 }
 
 func (m *MetaService) GetStorages(ctx context.Context, req *GetStoragesRequest) (*GetStoragesResponse, error) {
+	log.Info("GetStorages: req: %v", req)
 	err := GetStoragesParamCheck(req)
 	if err != nil {
 		log.Warn("GetStorages: invalid arguments, err: %v", err)
@@ -271,15 +292,18 @@ func (m *MetaService) GetStorages(ctx context.Context, req *GetStoragesRequest) 
 	for _, id := range req.Ids {
 		st, err := metadata.GetStorageManager().GetStorageCopy(metadata.StorageID(id))
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "")
+			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
 
+		log.Info("storage: %+v", st)
+
 		resp.Storages = append(resp.Storages, &Storage{
-			Id:        uint32(st.ID),
-			Name:      st.Name,
-			CreateTs:  timestamppb.New(st.CreateTs),
-			DeletedTs: timestamppb.New(st.DeleteTs),
-			Owner:     st.Owner,
+			Id:           uint32(st.ID),
+			Name:         st.Name,
+			CreateTs:     timestamppb.New(st.CreateTs),
+			DeletedTs:    timestamppb.New(st.DeleteTs),
+			Owner:        st.Owner,
+			LastShardIsn: uint32(st.LastShardISN),
 		})
 	}
 

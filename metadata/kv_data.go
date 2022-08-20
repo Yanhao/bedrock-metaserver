@@ -49,6 +49,7 @@ func kvGetShard(shardID ShardID) (*Shard, error) {
 		shard.Replicates[rep] = struct{}{}
 	}
 	shard.ReplicaUpdateTs = pbShard.ReplicaUpdateTs.AsTime()
+	shard.Leader = pbShard.Leader
 
 	return shard, nil
 }
@@ -57,6 +58,7 @@ func kvPutShard(shard *Shard) error {
 	pbShard := &pbdata.Shard{
 		Isn:             uint32(shard.ISN),
 		ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),
+		Leader:          shard.Leader,
 	}
 	for _, rep := range pbShard.Replicates {
 		shard.Replicates[rep] = struct{}{}
@@ -238,11 +240,13 @@ func kvGetStorage(storageID StorageID) (*Storage, error) {
 		break
 	}
 	return &Storage{
-		ID:        StorageID(pbStorage.Id),
-		IsDeleted: pbStorage.IsDeleted,
-		DeleteTs:  pbStorage.DeletedTs.AsTime(),
-		CreateTs:  pbStorage.CreateTs.AsTime(),
-		RecycleTs: pbStorage.RecycleTs.AsTime(),
+		ID:           StorageID(pbStorage.Id),
+		Name:         pbStorage.Name,
+		IsDeleted:    pbStorage.IsDeleted,
+		DeleteTs:     pbStorage.DeletedTs.AsTime(),
+		CreateTs:     pbStorage.CreateTs.AsTime(),
+		RecycleTs:    pbStorage.RecycleTs.AsTime(),
+		LastShardISN: ShardISN(pbStorage.LastShardIndex),
 	}, nil
 }
 
@@ -254,6 +258,9 @@ func kvGetStorageByName(name string) (*Storage, error) {
 		return nil, err
 	}
 
+	if resp.Count == 0 {
+		return nil, nil
+	}
 	if resp.Count != 1 {
 		return nil, fmt.Errorf("storage by name count is not equals 1, count: %v", resp.Count)
 	}
@@ -283,12 +290,13 @@ func kvHasStorage(storageID StorageID) (bool, error) {
 
 func kvPutStorage(storage *Storage) error {
 	pbStorage := &pbdata.Storage{
-		Id:        uint64(storage.ID),
-		Name:      storage.Name,
-		IsDeleted: storage.IsDeleted,
-		DeletedTs: timestamppb.New(storage.DeleteTs),
-		CreateTs:  timestamppb.New(storage.CreateTs),
-		RecycleTs: timestamppb.New(storage.RecycleTs),
+		Id:             uint64(storage.ID),
+		Name:           storage.Name,
+		IsDeleted:      storage.IsDeleted,
+		DeletedTs:      timestamppb.New(storage.DeleteTs),
+		CreateTs:       timestamppb.New(storage.CreateTs),
+		RecycleTs:      timestamppb.New(storage.RecycleTs),
+		LastShardIndex: uint32(storage.LastShardISN),
 	}
 
 	value, err := proto.Marshal(pbStorage)

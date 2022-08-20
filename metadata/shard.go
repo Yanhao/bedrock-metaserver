@@ -46,7 +46,7 @@ func (sd *Shard) Info() string {
 	defer sd.lock.RUnlock()
 
 	return fmt.Sprintf(
-		"Shard{ ISN: %08x, StorageID: %08x, IsDeleted: %v, Leader: %s, LeaderChangeTs: %v, ReplicateUpdateTs: %v, DeleteTs: %v, CreateTs: %v }",
+		"Shard{ ISN: 0x%08x, StorageID: 0x%08x, IsDeleted: %v, Leader: %s, LeaderChangeTs: %v, ReplicateUpdateTs: %v, DeleteTs: %v, CreateTs: %v }",
 		sd.ISN,
 		sd.SID,
 		sd.IsDeleted,

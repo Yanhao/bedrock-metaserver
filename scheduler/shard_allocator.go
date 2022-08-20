@@ -117,6 +117,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 		}
 
 		server := randomSelect(viableDataServers)
+		log.Info("allocate shard: 0x%016x on dataserver: %s", shardID, server)
 
 		dataServerCli, _ := conns.GetApiClient(server)
 
@@ -145,11 +146,11 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 
 	err := sm.ReSelectLeader(shardID)
 	if err != nil {
-		log.Error("failed to select leader of shard, shard id: %v, err: %v", shardID, err)
+		log.Error("failed to select leader of shard, shard id: 0x016%x, err: %v", shardID, err)
 		return selectedDataServers, err
 	}
 
-	log.Info("successfully create new shard replicate: shard_id: %v, addr: %v", shardID, selectedDataServers)
+	log.Info("successfully create new shard replicate: shard_id: 0x%016x, addr: %v", shardID, selectedDataServers)
 
 	return selectedDataServers, nil
 }
@@ -163,7 +164,7 @@ func (sa *ShardAllocator) ExpandStorage(storageID metadata.StorageID, count uint
 			return err
 		}
 
-		log.Info("new shard, id: %v", shard.ID())
+		log.Info("new shard, id: 0x%016x", shard.ID())
 
 		addrs, err := sa.AllocateShardReplicates(shard.ID(), DefaultReplicatesCount)
 		if err != nil {

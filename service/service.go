@@ -93,7 +93,7 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesReq
 		begin := req.GetShardRange().StartShardId
 		end := begin + req.GetShardRange().Offset
 
-		log.Info("req: shard_id: %v, end: %v", begin, end)
+		log.Info("req: shard_id: 0x%016x, end: %v", begin, end)
 
 		for shardID := begin; shardID <= end; shardID++ {
 			route, err := getUpdatedRoute(metadata.ShardID(shardID), ts)

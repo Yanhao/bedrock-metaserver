@@ -202,7 +202,7 @@ func (sm *StorageManager) FetchAddStorageLastISN(id StorageID) (ShardISN, error)
 		return 0, err
 	}
 
-	log.Info("shard isn: %v", ret)
+	log.Info("shard isn: 0x%08x", ret)
 	return ret, nil
 }
 

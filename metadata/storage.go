@@ -79,6 +79,18 @@ func (s *Storage) Rename(newName string) error {
 	return nil
 }
 
+func (s *Storage) GetShardIDByKey(key []byte) (ShardID, error) {
+	return kvGetShardIDByKey(s.ID, key)
+}
+
+func (s *Storage) PutShardIDByKey(key []byte, shardID ShardID) error {
+	return kvPutShardIDByKey(s.ID, key, shardID)
+}
+
+func (s *Storage) RmoveShardRnageByKey(key []byte) error {
+	return kvRmoveShardRangeByKey(s.ID, key)
+}
+
 func (s *Storage) Info() string {
 	s.lock.RLock()
 	defer s.lock.RUnlock()

@@ -50,6 +50,8 @@ func kvGetShard(shardID ShardID) (*Shard, error) {
 	}
 	shard.ReplicaUpdateTs = pbShard.ReplicaUpdateTs.AsTime()
 	shard.Leader = pbShard.Leader
+	shard.RangeKeyMax = pbShard.RangeKeyMax
+	shard.RangeKeyMin = pbShard.RangeKeyMin
 
 	return shard, nil
 }
@@ -59,6 +61,8 @@ func kvPutShard(shard *Shard) error {
 		Isn:             uint32(shard.ISN),
 		ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),
 		Leader:          shard.Leader,
+		RangeKeyMax:     shard.RangeKeyMax,
+		RangeKeyMin:     shard.RangeKeyMin,
 	}
 	for _, rep := range pbShard.Replicates {
 		shard.Replicates[rep] = struct{}{}
@@ -460,4 +464,43 @@ func kvGetShardsInStorage(storageID StorageID) ([]ShardID, error) {
 		shardIDs = append(shardIDs, GenerateShardID(storageID, ShardISN(id)))
 	}
 	return shardIDs, nil
+}
+
+func kvGetShardIDByKey(storageID StorageID, key []byte) (ShardID, error) {
+	ec := kv.GetEtcdClient()
+
+	resp, err := ec.Get(context.Background(), ShardRangeInStorageKey(storageID, key), client.WithPrefix())
+	if err != nil {
+		return 0, err
+	}
+
+	if resp.Count == 0 {
+		return 0, errors.New("no such key")
+	}
+
+	kv := resp.Kvs[0]
+
+	var shardID ShardID
+	_, _ = fmt.Sscanf("0x%016x", string(kv.Value), &shardID)
+
+	return shardID, nil
+}
+
+func kvPutShardIDByKey(storageID StorageID, key []byte, shardID ShardID) error {
+	value := fmt.Sprintf("0x%016x", shardID)
+
+	ec := kv.GetEtcdClient()
+
+	_, err := ec.Put(context.Background(), ShardRangeInStorageKey(storageID, key), value)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func kvRmoveShardRangeByKey(storageID StorageID, key []byte) error {
+	ec := kv.GetEtcdClient()
+	_, err := ec.Delete(context.Background(), string(key))
+	return err
 }

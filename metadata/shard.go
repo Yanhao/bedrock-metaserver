@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"sync"
 	"time"
@@ -31,6 +32,8 @@ type Shard struct {
 	CreateTs        time.Time
 	Leader          string
 	LeaderChangeTs  time.Time
+	RangeKeyMax     []byte
+	RangeKeyMin     []byte
 
 	lock sync.RWMutex `copier:"-"`
 }
@@ -39,6 +42,35 @@ func GenerateShardID(storageID StorageID, shardISN ShardISN) ShardID {
 	shardID := (uint64(storageID) << 32) | (uint64(shardISN))
 
 	return ShardID(shardID)
+}
+
+func ParseShardID(shardID ShardID) (uint32, uint32) {
+	var id uint64 = uint64(shardID)
+
+	var storageID uint32 = uint32(id >> 32)
+	var shardISN uint32 = uint32(id & 0x00000000FFFFFFFF)
+
+	return storageID, shardISN
+}
+
+func (sd *Shard) SplitShardRangeKey() []byte {
+	min := big.NewInt(0)
+	max := big.NewInt(0)
+
+	max.SetBytes(sd.RangeKeyMax)
+	min.SetBytes(sd.RangeKeyMin)
+
+	tmp := big.NewInt(0)
+	tmp = tmp.Sub(max, min)
+	tmp = tmp.Div(tmp, big.NewInt(2))
+
+	min.Add(min, tmp)
+
+	return min.Bytes()
+}
+
+func (sd *Shard) ValueSize() uint64 {
+	return 0
 }
 
 func (sd *Shard) Info() string {

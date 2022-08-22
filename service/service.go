@@ -569,3 +569,32 @@ func (m *MetaService) RemoveShard(ctx context.Context, req *RemoveShardRequest) 
 
 	return resp, nil
 }
+
+func (m *MetaService) GetShardIDByKey(ctx context.Context, req *GetShardIDByKeyRequest) (*GetShardIDByKeyResponse, error) {
+	if err := GetShardIDByKeyParamCheck(req); err != nil {
+		log.Warn("GetShardIDByKey: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.GetShardIDByKey(ctx, req)
+	}
+
+	resp := &GetShardIDByKeyResponse{}
+
+	sm := metadata.GetStorageManager()
+	st, err := sm.GetStorageCopy(metadata.StorageID(req.StorageId))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get storage, err: %v", err)
+	}
+	shardID, err := st.GetShardIDByKey(req.Key)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get storage, err: %v", err)
+	}
+
+	resp.ShardId = uint64(shardID)
+
+	return resp, nil
+}

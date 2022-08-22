@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"errors"
+	"math/big"
 	"math/rand"
 	"net"
 	"sync"
@@ -13,6 +14,12 @@ import (
 
 const (
 	MAX_ALLOCATE_TIMES = 6
+	MAX_VALUE_SIZE     = 1024
+)
+
+var (
+	MIN_KEY = []byte{}
+	MAX_KEY = []byte{}
 )
 
 type ShardAllocator struct {
@@ -95,7 +102,12 @@ func (sa *ShardAllocator) AllocatorNewStorage(name string) (*metadata.Storage, e
 		return nil, err
 	}
 
-	err = sa.ExpandStorage(storage.ID, 3)
+	err = sa.ExpandStorage(storage.ID, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	err = storage.PutShardIDByKey(MAX_KEY, metadata.GenerateShardID(storage.ID, 0))
 	if err != nil {
 		return nil, err
 	}
@@ -166,17 +178,140 @@ func (sa *ShardAllocator) ExpandStorage(storageID metadata.StorageID, count uint
 
 		log.Info("new shard, id: 0x%016x", shard.ID())
 
-		addrs, err := sa.AllocateShardReplicates(shard.ID(), DefaultReplicatesCount)
+		_, err = sa.AllocateShardReplicates(shard.ID(), DefaultReplicatesCount)
 		if err != nil {
 			return err
 		}
 
-		for _, addr := range addrs {
-			shard.AddReplicates([]string{addr})
-		}
-
 		i--
 	}
+
+	return nil
+}
+
+func (sa *ShardAllocator) SplitShard(shardID metadata.ShardID) error {
+	sm := metadata.GetShardManager()
+	shard, err := sm.GetShardCopy(shardID)
+	if err != nil {
+		log.Warn("failed to get shard, err: %v", err)
+		return err
+	}
+
+	middleKey := shard.SplitShardRangeKey()
+
+	newShard, err := sm.CreateNewShard(shard.SID)
+	if err != nil {
+		return err
+	}
+
+	shard.RangeKeyMax = middleKey
+	newShard.RangeKeyMin = middleKey
+	newShard.RangeKeyMax = shard.RangeKeyMin
+
+	err = sm.PutShard(shard)
+	if err != nil {
+		return err
+	}
+
+	err = sm.PutShard(newShard)
+	if err != nil {
+		return err
+	}
+
+	log.Info("new shard, id: 0x%016x", newShard.ID())
+
+	_, err = sa.AllocateShardReplicates(newShard.ID(), DefaultReplicatesCount)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (sa *ShardAllocator) MergeShardByKey(storageID metadata.StorageID, key []byte) error {
+	stm := metadata.GetStorageManager()
+	st, err := stm.GetStorage(storageID)
+	if err != nil {
+		return err
+	}
+
+	shardID, err := st.GetShardIDByKey(key)
+	if err != nil {
+		return err
+	}
+
+	shm := metadata.GetShardManager()
+	shard, err := shm.GetShardCopy(shardID)
+	if err != nil {
+		return err
+	}
+
+	if shard.ValueSize() > MAX_VALUE_SIZE/2 {
+		return nil
+	}
+
+	max := big.NewInt(0)
+	max.SetBytes(shard.RangeKeyMin)
+	max.Sub(max, big.NewInt(2))
+
+	prevMaxKey := max.Bytes()
+	prevShardID, err := st.GetShardIDByKey(prevMaxKey)
+	if err != nil {
+		return err
+	}
+	prevShard, err := shm.GetShardCopy(prevShardID)
+	if err != nil {
+		return err
+	}
+
+	if prevShard.ValueSize() < MAX_VALUE_SIZE/2 {
+		return sa.doMergeShard(shard, prevShard)
+	}
+
+	min := big.NewInt(0)
+	min.SetBytes(shard.RangeKeyMax)
+	min.Add(min, big.NewInt(1))
+
+	nexMinKey := min.Bytes()
+	nextShardID, err := st.GetShardIDByKey(nexMinKey)
+	if err != nil {
+		return err
+	}
+	nextShard, err := shm.GetShardCopy(nextShardID)
+	if err != nil {
+		return err
+	}
+
+	if nextShard.ValueSize() < MAX_VALUE_SIZE/2 {
+		return sa.doMergeShard(shard, nextShard)
+	}
+
+	return nil
+}
+
+func (sa *ShardAllocator) doMergeShard(aShard, bShard *metadata.Shard) error {
+	aShard.RangeKeyMax = bShard.RangeKeyMax
+
+	conns := dataserver.GetDataServerConns()
+	aDs, _ := conns.GetApiClient(aShard.Leader)
+	err := aDs.MigrateShard(uint64(aShard.ID()), uint64(bShard.ID()), bShard.Leader)
+	if err != nil {
+		return err
+	}
+
+	bDs, _ := conns.GetApiClient(bShard.Leader)
+
+	bDs.MergeShard(uint64(aShard.ID()), uint64(bShard.ID()))
+
+	shm := metadata.GetShardManager()
+	shm.ShardDelete(bShard.ID())
+
+	shm.PutShard(aShard)
+
+	stm := metadata.GetStorageManager()
+	st, _ := stm.GetStorage(aShard.SID)
+
+	st.RmoveShardRnageByKey(aShard.RangeKeyMax)
 
 	return nil
 }

@@ -17,6 +17,8 @@ const (
 
 	KvPrefixStorageByName = "/storages_by_name/"
 
+	KvPrefixShardRangeByStorage = "/shard_range_by_storage/"
+
 	KvPrefixMarkDeletedStorageID = "/deleted_storages/"
 )
 
@@ -75,4 +77,10 @@ func ShardInDataServerKey(addr string, shardID ShardID) string {
 
 func ShardInStorageKey(storageID StorageID, shardID ShardISN) string {
 	return fmt.Sprintf("%s0x%08x", ShardInStoragePrefixKey(storageID), shardID)
+}
+
+// ---------------------------------------------------------------------
+
+func ShardRangeInStorageKey(storageID StorageID, key []byte) string {
+	return fmt.Sprintf("%s0x%08x/%s", KvPrefixShardRangeByStorage, storageID, string(key))
 }

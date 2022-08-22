@@ -16,6 +16,8 @@ message Shard {
     google.protobuf.Timestamp create_ts = 7;
     string leader = 8;
     google.protobuf.Timestamp leader_change_ts = 9;
+    bytes range_key_max = 10;
+    bytes range_key_min = 11;
 }
 
 message DataServer {

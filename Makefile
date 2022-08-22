@@ -8,7 +8,7 @@ metaserver: cmd/server/metaserver.go
 	cp proto/dataserver_grpc.pb.go dataserver/
 
 	rm -f proto/*.cc proto/*.h
-	go build $^
+	go build -race $^
 
 mscli: cmd/client/mscli.go
 	rm -f proto/*.cc proto/*.h

@@ -18,6 +18,10 @@ type DsApi interface {
 	// PullShardData(shardID uint64, leader string) error
 	TransferShardLeader(shardID uint64, replicates []string) error
 
+	SplitShard(shardID uint64) error
+	MergeShard(aShardID uint64, bShardID uint64) error
+	MigrateShard(shardID uint64, targetShardID uint64, targetAddress string) error
+
 	// RepairShard(shardID uint64, leader string) error
 
 	Close()
@@ -99,13 +103,50 @@ func (ds *DataServerApi) TransferShardLeader(shardID uint64, replicates []string
 	return nil
 }
 
-// func (ds *DataServerApi) PullShardData(shardID uint64, leader string) error {
-// 	req := &PullShardDataRequest{}
+func (ds *DataServerApi) SplitShard(shardID uint64) error {
+	req := &SplitShardRequest{
+		ShardId: shardID,
+	}
 
-// 	resp, err := ds.client.PullShardData(context.TODO(), req)
-// 	if err != nil || resp == nil {
+	resp, err := ds.client.SplitShard(context.TODO(), req)
+	if err != nil || resp == nil {
+		return err
+	}
 
-// 	}
+	return nil
+}
 
-// 	return nil
-// }
+func (ds *DataServerApi) MergeShard(aShardID uint64, bShardID uint64) error {
+	req := &MergeShardRequest{
+		ShardIdA: aShardID,
+		ShardIdB: bShardID,
+	}
+
+	resp, err := ds.client.MergeShard(context.TODO(), req)
+	if err != nil || resp == nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ds *DataServerApi) MigrateShard(shardID uint64, targetShardID uint64, targetAddress string) error {
+	req := &MigrateShardRequest{
+		ShardIdFrom:   shardID,
+		ShardIdTo:     targetShardID,
+		TargetAddress: targetAddress,
+		Entries:       []*MigrateShardRequest_Entry{},
+	}
+
+	cli, err := ds.client.MigrateShard(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	err = cli.Send(req)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

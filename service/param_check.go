@@ -63,3 +63,7 @@ func CreateShardParamCheck(req *CreateShardRequest) error {
 func RemoveShardParamCheck(req *RemoveShardRequest) error {
 	return nil
 }
+
+func GetShardIDByKeyParamCheck(req *GetShardIDByKeyRequest) error {
+	return nil
+}

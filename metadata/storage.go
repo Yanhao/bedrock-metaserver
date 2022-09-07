@@ -91,6 +91,10 @@ func (s *Storage) RmoveShardRnageByKey(key []byte) error {
 	return kvRmoveShardRangeByKey(s.ID, key)
 }
 
+func (s *Storage) GetShardIDs() ([]ShardID, error) {
+	return kvGetShardIDs(s.ID)
+}
+
 func (s *Storage) Info() string {
 	s.lock.RLock()
 	defer s.lock.RUnlock()

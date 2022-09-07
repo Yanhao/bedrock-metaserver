@@ -504,3 +504,26 @@ func kvRmoveShardRangeByKey(storageID StorageID, key []byte) error {
 	_, err := ec.Delete(context.Background(), string(key))
 	return err
 }
+
+func kvGetShardIDs(storageID StorageID) ([]ShardID, error) {
+	ec := kv.GetEtcdClient()
+
+	ret := []ShardID{}
+
+	resp, err := ec.Get(context.Background(), ShardRangeInStorageKey(storageID, []byte{}), client.WithPrefix())
+	if err != nil {
+		return ret, err
+	}
+
+	if resp.Count == 0 {
+		return ret, errors.New("no such key")
+	}
+
+	for _, kv := range resp.Kvs {
+		var shardID ShardID
+		_, _ = fmt.Sscanf("0x%016x", string(kv.Value), &shardID)
+		ret = append(ret, shardID)
+	}
+
+	return ret, nil
+}

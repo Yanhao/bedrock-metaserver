@@ -144,7 +144,7 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *CreateStorageReque
 		return resp, status.Errorf(codes.AlreadyExists, "shard name %v already exists", req.Name)
 	}
 
-	storage, err := scheduler.GetShardAllocator().AllocatorNewStorage(req.Name)
+	storage, err := scheduler.GetShardAllocator().AllocatorNewStorage(req.Name, req.InitialRangeCount)
 	if err != nil {
 		log.Error("create storage failed, err: %v", err)
 		return resp, status.Errorf(codes.Internal, "create storage failed")

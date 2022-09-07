@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"errors"
+	"math"
 	"math/big"
 	"math/rand"
 	"net"
@@ -18,9 +19,16 @@ const (
 )
 
 var (
-	MIN_KEY = []byte{}
+	MIN_KEY = []byte{0x0}
 	MAX_KEY = []byte{}
 )
+
+func init() {
+	MAX_KEY = make([]byte, 512, 512)
+	for i := range MAX_KEY {
+		MAX_KEY[i] = 0xFF
+	}
+}
 
 type ShardAllocator struct {
 }
@@ -95,7 +103,7 @@ const (
 	DefaultReplicatesCount = 3
 )
 
-func (sa *ShardAllocator) AllocatorNewStorage(name string) (*metadata.Storage, error) {
+func (sa *ShardAllocator) AllocatorNewStorage(name string, rangeCount uint32) (*metadata.Storage, error) {
 	sm := metadata.GetStorageManager()
 	storage, err := sm.CreateNewStorage(name)
 	if err != nil {
@@ -110,6 +118,21 @@ func (sa *ShardAllocator) AllocatorNewStorage(name string) (*metadata.Storage, e
 	err = storage.PutShardIDByKey(MAX_KEY, metadata.GenerateShardID(storage.ID, 0))
 	if err != nil {
 		return nil, err
+	}
+
+	splitLoopCount := uint32(math.Sqrt(float64(rangeCount)))
+	for i := 0; i < int(splitLoopCount); i++ {
+		shardIDs, err := storage.GetShardIDs()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, shardID := range shardIDs {
+			err := sa.SplitShard(shardID)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return storage, nil
@@ -172,6 +195,14 @@ func (sa *ShardAllocator) ExpandStorage(storageID metadata.StorageID, count uint
 
 	for i := count; i > 0; {
 		shard, err := sm.CreateNewShard(storageID)
+		if err != nil {
+			return err
+		}
+
+		shard.RangeKeyMax = MAX_KEY
+		shard.RangeKeyMin = MIN_KEY
+
+		err = sm.PutShard(shard)
 		if err != nil {
 			return err
 		}

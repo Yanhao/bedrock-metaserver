@@ -598,3 +598,43 @@ func (m *MetaService) GetShardIDByKey(ctx context.Context, req *GetShardIDByKeyR
 
 	return resp, nil
 }
+
+func (m *MetaService) SyncShardInDataServer(reqStream MetaService_SyncShardInDataServerServer) error {
+	for {
+		req, err := reqStream.Recv()
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+
+		if req == nil {
+			break
+		}
+
+		syncTs := req.GetSyncTs().GetSeconds()
+		shards := req.GetShards()
+		for _, shard := range shards {
+			err := metadata.UpdateShardInDataServer(req.GetDataserverAddr(), metadata.ShardID(shard.GetShardId()), syncTs)
+			if err != nil {
+				return err
+			}
+		}
+
+		if req.GetIsLastPiece() {
+			dsm := metadata.GetDataServerManager()
+			ds, err := dsm.GetDataServer(req.GetDataserverAddr())
+			if err != nil {
+				return err
+			}
+
+			err = ds.UpdateSyncTs(syncTs)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	resp := SyncShardInDataServerResponse{}
+	reqStream.SendAndClose(&resp)
+
+	return nil
+}

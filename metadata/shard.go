@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -415,7 +416,7 @@ func addShardInDataServer(addr string, id ShardID) error {
 	key := ShardInDataServerKey(addr, id)
 	ec := kv.GetEtcdClient()
 
-	_, err := ec.Put(context.Background(), key, "")
+	_, err := ec.Put(context.Background(), key, "0")
 	if err != nil {
 		return err
 	}
@@ -437,4 +438,16 @@ func RemoveShardInDataServer(addr string, id ShardID) error {
 
 func GetShardIDsInDataServer(addr string) ([]ShardID, error) {
 	return kvGetShardIDsInDataServer(addr)
+}
+
+func UpdateShardInDataServer(addr string, id ShardID, ts int64) error {
+	key := ShardInDataServerKey(addr, id)
+	ec := kv.GetEtcdClient()
+
+	_, err := ec.Put(context.Background(), key, strconv.FormatInt(ts, 10))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

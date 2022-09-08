@@ -151,6 +151,7 @@ func kvGetDataServer(addr string) (*DataServer, error) {
 		Capacity:        pbDataServer.GetCapacity(),
 		Status:          LiveStatusActive,
 		LastHeartBeatTs: time.Time{},
+		LastSyncTs:      pbDataServer.GetLastSyncTs(),
 	}
 
 	return dataServer, nil
@@ -188,7 +189,8 @@ func kvPutDataServer(dataserver *DataServer) error {
 
 		LastHeartbeatTs: timestamppb.New(dataserver.LastHeartBeatTs),
 
-		Status: status,
+		Status:     status,
+		LastSyncTs: dataserver.LastSyncTs,
 	}
 
 	value, err := proto.Marshal(pbDataServer)

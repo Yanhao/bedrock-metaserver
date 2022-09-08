@@ -44,7 +44,8 @@ type DataServer struct {
 	CreateTs        time.Time
 	DeleteTs        time.Time
 
-	Status LiveStatus
+	Status     LiveStatus
+	LastSyncTs uint64
 
 	lock sync.RWMutex `copier:"-"`
 }
@@ -148,6 +149,19 @@ func (d *DataServer) MarkOffline() error {
 	defer d.lock.Unlock()
 
 	d.Status = LiveStatusOffline
+
+	var ds DataServer
+	copier.Copy(&ds, d)
+	go kvPutDataServer(&ds)
+
+	return nil
+}
+
+func (d *DataServer) UpdateSyncTs(syncTs int64) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	d.LastSyncTs = uint64(syncTs)
 
 	var ds DataServer
 	copier.Copy(&ds, d)

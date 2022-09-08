@@ -36,6 +36,7 @@ message DataServer {
     LiveStatus status = 6;
 
     string idc = 7;
+    uint64 last_sync_ts = 8;
 }
 
 message Storage {

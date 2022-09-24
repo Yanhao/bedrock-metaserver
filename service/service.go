@@ -14,6 +14,7 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/kv"
 	"sr.ht/moyanhao/bedrock-metaserver/metadata"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
+	"sr.ht/moyanhao/bedrock-metaserver/tso"
 )
 
 type MetaService struct {
@@ -637,4 +638,28 @@ func (m *MetaService) SyncShardInDataServer(reqStream MetaService_SyncShardInDat
 	reqStream.SendAndClose(&resp)
 
 	return nil
+}
+
+func (m *MetaService) AllocateTxIDs(ctx context.Context, req *AllocateTxIDsRequest) (*AllocateTxIDsResponse, error) {
+	if err := AllocateTxIDsParamCheck(req); err != nil {
+		log.Warn("AllocateTxID: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv.IsMetaServerLeader() {
+		leader := kv.GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.AllocateTxIDs(ctx, req)
+	}
+
+	resp := &AllocateTxIDsResponse{}
+
+	txIDs, err := tso.GetTxIDAllocator().Allocate(req.Count)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+
+	resp.TxIds = txIDs
+
+	return resp, nil
 }

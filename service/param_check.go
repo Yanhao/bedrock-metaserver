@@ -67,3 +67,7 @@ func RemoveShardParamCheck(req *RemoveShardRequest) error {
 func GetShardIDByKeyParamCheck(req *GetShardIDByKeyRequest) error {
 	return nil
 }
+
+func AllocateTxIDsParamCheck(req *AllocateTxIDsRequest) error {
+	return nil
+}

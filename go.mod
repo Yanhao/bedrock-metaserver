@@ -1,11 +1,12 @@
 module sr.ht/moyanhao/bedrock-metaserver
 
-go 1.17
+go 1.19
 
 // replace github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.6
 
 require (
 	github.com/fatih/color v1.13.0
+	github.com/golang/protobuf v1.5.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/jinzhu/copier v0.3.5
 	github.com/pelletier/go-toml v1.9.5
@@ -25,7 +26,6 @@ require (
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect

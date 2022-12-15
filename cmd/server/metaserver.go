@@ -45,7 +45,7 @@ func runAsLeader() {
 	dm.ClearCache()
 	log.Info("clear dataserver cache ...")
 
-	err := dm.LoadDataServersFromEtcd()
+	err := dm.LoadDataServersFromKv()
 	if err != nil {
 		log.Error("failed to load dataservers from etcd, err: %v", err)
 	}

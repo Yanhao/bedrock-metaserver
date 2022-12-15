@@ -54,7 +54,7 @@ func (dm *DataServerManager) ClearCache() {
 	dm.dataServers = make(map[string]*model.DataServer)
 }
 
-func (dm *DataServerManager) LoadDataServersFromEtcd() error {
+func (dm *DataServerManager) LoadDataServersFromKv() error {
 	ec := kvengine.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), dao.KvPrefixDataServer, client.WithPrefix())
 	if err != nil {
@@ -137,10 +137,7 @@ func (dm *DataServerManager) GetDataServer(addr string) (*model.DataServer, erro
 		return nil, ErrNoSuchDataServer
 	}
 
-	var ds model.DataServer
-	copier.Copy(&ds, server)
-
-	return &ds, nil
+	return server.Copy(), nil
 }
 
 func (dm *DataServerManager) IsDataServerExists(addr string) bool {
@@ -186,10 +183,7 @@ func (dm *DataServerManager) UpdateSyncTs(addr string, syncTs int64) error {
 
 	d.LastSyncTs = uint64(syncTs)
 
-	var ds model.DataServer
-	copier.Copy(&ds, d)
-
-	go dao.KvPutDataServer(&ds)
+	go dao.KvPutDataServer(d.Copy())
 
 	return nil
 }
@@ -205,9 +199,7 @@ func (dm *DataServerManager) MarkInactive(addr string) error {
 
 	d.Status = model.LiveStatusInactive
 
-	var ds model.DataServer
-	copier.Copy(&ds, d)
-	go dao.KvPutDataServer(&ds)
+	go dao.KvPutDataServer(d.Copy())
 
 	return nil
 }
@@ -226,9 +218,8 @@ func (dm *DataServerManager) MarkActive(addr string, isHeartBeat bool) error {
 		d.LastHeartBeatTs = time.Now()
 	}
 
-	var ds model.DataServer
-	copier.Copy(&ds, d)
-	go dao.KvPutDataServer(&ds)
+	go dao.KvPutDataServer(d.Copy())
+
 	return nil
 }
 
@@ -243,8 +234,7 @@ func (dm *DataServerManager) MarkOffline(addr string) error {
 
 	d.Status = model.LiveStatusInactive
 
-	var ds model.DataServer
-	copier.Copy(&ds, d)
-	go dao.KvPutDataServer(&ds)
+	go dao.KvPutDataServer(d.Copy())
+
 	return nil
 }

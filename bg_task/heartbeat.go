@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
+	"sr.ht/moyanhao/bedrock-metaserver/config"
+	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
-	"sr.ht/moyanhao/bedrock-metaserver/manager"
-
 )
 
 // make sure the following data no need to be locked
@@ -99,7 +99,10 @@ func (hb *HeartBeater) InitDataServers() {
 
 func (hb *HeartBeater) doHandleHeartBeat() {
 	log.Info("handle heartbeat ...")
-	return // FIXME: remove this line
+
+	if !config.GetConfiguration().EnableHeartBeatChecker {
+		return
+	}
 
 	dm := manager.GetDataServerManager()
 	dataservers := dm.DataServersCopy()
@@ -128,7 +131,7 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 			continue
 		}
 
-		_ = dm.MarkActive (s.Addr(), false)
+		_ = dm.MarkActive(s.Addr(), false)
 		ActiveDataServers[s.Addr()] = s
 		delete(InactiveDataServers, s.Addr())
 		delete(OfflineDataServers, s.Addr())

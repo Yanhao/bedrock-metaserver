@@ -20,23 +20,20 @@ type Configuration struct {
 	EtcdClientTimeout time.Duration
 	EtcdClusterPeers  string
 
-	ServerAddr      string
-	PprofListenAddr string
-	LogFile         string
+	ServerAddr             string
+	PprofListenAddr        string
+	LogFile                string
+	EnableHeartBeatChecker bool
 }
 
 var MsConfig *Configuration
-
-func NewConfiguration() *Configuration {
-	return &Configuration{}
-}
 
 func GetConfiguration() *Configuration {
 	return MsConfig
 }
 
 func loadConfigFromFile(filePath string) (*Configuration, error) {
-	ret := NewConfiguration()
+	ret := &Configuration{}
 
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -75,6 +72,7 @@ func loadConfigFromFile(filePath string) (*Configuration, error) {
 	ret.LogFile = c.Get("log_file").(string)
 	ret.ServerAddr = c.Get("server.addr").(string)
 	ret.PprofListenAddr = c.Get("server.pprof_addr").(string)
+	ret.EnableHeartBeatChecker = c.Get("server.enable_heartbeat_checker").(bool)
 
 	MsConfig = ret
 	return MsConfig, nil
@@ -88,7 +86,6 @@ func validateConfig() {
 func MustLoadConfig(configFile string) {
 	if _, err := loadConfigFromFile(configFile); err != nil {
 		panic("failed to load configuration file")
-		// os.Exit(-1)
 	}
 
 	validateConfig()

@@ -1,15 +1,17 @@
-package kv
+package kvengine
 
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/fatih/color"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
+	"sr.ht/moyanhao/bedrock-metaserver/config"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 const (
@@ -17,24 +19,12 @@ const (
 	BecameFollower
 )
 
-var (
-	isMetaServerLeader int32
-	metaServerLeader   atomic.Value
-)
-
 func IsMetaServerLeader() bool {
-	return atomic.LoadInt32(&isMetaServerLeader) == 1
+	return GetLeaderShip().IsLeader()
 }
 
 func GetMetaServerLeader() string {
-	v := metaServerLeader.Load()
-	if v == nil {
-		log.Warn("metaserver leader is nil")
-		return ""
-	}
-	log.Info("metaserver leader: %v", v.(string))
-
-	return v.(string)
+	return GetLeaderShip().GetMetaServerLeader()
 }
 
 type NewRole struct {
@@ -51,16 +41,37 @@ type LeaderShip struct {
 
 	leaderKey   string
 	leaderValue string
+
+	leaderFunc   func()
+	followerFunc func()
 }
 
-func NewLeaderShip(client *clientv3.Client, key, value string) (*LeaderShip, error) {
+type LeaderShipOption struct {
+	client *clientv3.Client
+
+	key   string
+	value string
+
+	LeaderFunc   func()
+	FollowerFunc func()
+}
+
+func sanitizeOptions(opts *LeaderShipOption) error {
+	return nil
+}
+
+func NewLeaderShip(opts LeaderShipOption) (*LeaderShip, error) {
+	if err := sanitizeOptions(&opts); err != nil {
+		return nil, err
+	}
+
 	ret := &LeaderShip{
 		notifier:    make(chan NewRole, 128),
-		client:      client,
+		client:      opts.client,
 		stop:        make(chan struct{}),
 		lease:       &atomic.Value{},
-		leaderKey:   key,
-		leaderValue: value,
+		leaderKey:   opts.key,
+		leaderValue: opts.value,
 	}
 
 	return ret, nil
@@ -107,8 +118,6 @@ func (l *LeaderShip) Campaign() bool {
 	}
 
 	l.notifier <- NewRole{Role: BecameLeader}
-	atomic.StoreInt32(&isMetaServerLeader, 1)
-	metaServerLeader.Store(l.leaderValue)
 
 	return true
 }
@@ -121,13 +130,16 @@ func (l *LeaderShip) LoadLeaderFromEtcd() error {
 	if resp.Count == 0 {
 		return errors.New("")
 	}
-	metaServerLeader.Store(string(resp.Kvs[0].Value))
 
 	return nil
 }
 
 func (l *LeaderShip) IsLeader() bool {
 	return GetMetaServerLeader() == l.leaderValue
+}
+
+func (l *LeaderShip) GetMetaServerLeader() string {
+	return l.leaderValue
 }
 
 func (l *LeaderShip) keepLeader() {
@@ -137,7 +149,6 @@ func (l *LeaderShip) keepLeader() {
 	for {
 		if l.LoadLeaderFromEtcd(); !l.IsLeader() {
 			l.notifier <- NewRole{Role: BecameFollower}
-			atomic.StoreInt32(&isMetaServerLeader, 0)
 			return
 		}
 
@@ -146,7 +157,6 @@ func (l *LeaderShip) keepLeader() {
 		if err != nil {
 			log.Info("failed to keep alive leadership lease")
 			l.notifier <- NewRole{Role: BecameFollower}
-			atomic.StoreInt32(&isMetaServerLeader, 0)
 
 			return
 		}
@@ -179,6 +189,25 @@ func (l *LeaderShip) Start() {
 			}
 		}
 	}()
+
+	go func() {
+		for {
+			leaderChangeNotifier := l.GetNotifier()
+
+			select {
+			case <-l.stop:
+				log.Info("metaserver stopping")
+				return
+			case c := <-leaderChangeNotifier:
+				switch c.Role {
+				case BecameFollower:
+					l.followerFunc()
+				case BecameLeader:
+					l.leaderFunc()
+				}
+			}
+		}
+	}()
 }
 
 func (l *LeaderShip) Stop() error {
@@ -187,4 +216,32 @@ func (l *LeaderShip) Stop() error {
 }
 
 func (l *LeaderShip) Reset() {
+}
+
+var (
+	leaderShip     *LeaderShip
+	leaderShipOnce sync.Once
+)
+
+func GetLeaderShip() *LeaderShip {
+	return leaderShip
+}
+
+func MustInitLeaderShip(client *clientv3.Client, leaderFunc, followerFunc func()) {
+	opts := LeaderShipOption{
+		client:       client,
+		key:          "metaserver-leader",
+		value:        config.GetConfiguration().ServerAddr,
+		LeaderFunc:   leaderFunc,
+		FollowerFunc: followerFunc,
+	}
+
+	l, err := NewLeaderShip(opts)
+	if err != nil {
+		panic(err)
+	}
+
+	l.Start()
+
+	leaderShip = l
 }

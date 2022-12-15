@@ -6,7 +6,7 @@ import (
 
 	cache "github.com/hashicorp/golang-lru"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 const MaxConnections int = 10000

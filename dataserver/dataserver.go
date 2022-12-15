@@ -7,7 +7,7 @@ import (
 	grpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 type DsApi interface {

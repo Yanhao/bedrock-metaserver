@@ -1,4 +1,4 @@
-package kv
+package kvengine
 
 import (
 	"errors"
@@ -8,15 +8,14 @@ import (
 
 	client "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 type EtcdNode struct {
 	etcdServer *embed.Etcd
 	config     *embed.Config
 	client     *client.Client
-	LeaderShip *LeaderShip
 }
 
 var (
@@ -59,7 +58,6 @@ func NewEtcdNode(config *config.Configuration) *EtcdNode {
 		config:     cfg,
 		etcdServer: nil,
 		client:     nil,
-		LeaderShip: nil,
 	}
 }
 
@@ -90,15 +88,20 @@ func (en *EtcdNode) Start() error {
 		return err
 	}
 
-	en.LeaderShip, err = NewLeaderShip(en.client, "metaserver-leader", config.GetConfiguration().ServerAddr)
-	en.LeaderShip.Start()
-
 	return nil
 }
 
 func (en *EtcdNode) Stop() error {
-	en.LeaderShip.Stop()
 	en.etcdServer.Close()
 
 	return nil
+}
+
+func MustStartEmbedEtcd() {
+	en := GetEtcdNode()
+	if err := en.Start(); err != nil {
+		panic("failed to start embed etcd server")
+	}
+
+	log.Info("start embed etcd ...")
 }

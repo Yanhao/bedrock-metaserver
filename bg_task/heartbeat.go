@@ -1,19 +1,21 @@
-package server
+package bg_task
 
 import (
 	"sync"
 	"time"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
-	"sr.ht/moyanhao/bedrock-metaserver/metadata"
+	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
+	"sr.ht/moyanhao/bedrock-metaserver/manager"
+
 )
 
 // make sure the following data no need to be locked
 var (
-	ActiveDataServers   map[string]*metadata.DataServer
-	InactiveDataServers map[string]*metadata.DataServer
-	OfflineDataServers  map[string]*metadata.DataServer
+	ActiveDataServers   map[string]*model.DataServer
+	InactiveDataServers map[string]*model.DataServer
+	OfflineDataServers  map[string]*model.DataServer
 )
 
 const (
@@ -76,20 +78,20 @@ func (hb *HeartBeater) Reset() {
 func (hb *HeartBeater) InitDataServers() {
 	log.Info("init dataservers ...")
 
-	ActiveDataServers = make(map[string]*metadata.DataServer)
-	InactiveDataServers = make(map[string]*metadata.DataServer)
-	OfflineDataServers = make(map[string]*metadata.DataServer)
+	ActiveDataServers = make(map[string]*model.DataServer)
+	InactiveDataServers = make(map[string]*model.DataServer)
+	OfflineDataServers = make(map[string]*model.DataServer)
 
-	dm := metadata.GetDataServerManager()
+	dm := manager.GetDataServerManager()
 	dataservers := dm.DataServersCopy()
 
 	for _, d := range dataservers {
 		switch d.Status {
-		case metadata.LiveStatusActive:
+		case model.LiveStatusActive:
 			ActiveDataServers[d.Addr()] = d
-		case metadata.LiveStatusInactive:
+		case model.LiveStatusInactive:
 			InactiveDataServers[d.Addr()] = d
-		case metadata.LiveStatusOffline:
+		case model.LiveStatusOffline:
 			OfflineDataServers[d.Addr()] = d
 		}
 	}
@@ -99,12 +101,12 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 	log.Info("handle heartbeat ...")
 	return // FIXME: remove this line
 
-	dm := metadata.GetDataServerManager()
+	dm := manager.GetDataServerManager()
 	dataservers := dm.DataServersCopy()
 
 	for _, s := range dataservers {
 		if s.LastHeartBeatTs.Before(time.Now().Add(-OfflinePeriod)) {
-			s.MarkOffline()
+			dm.MarkOffline(s.Addr())
 
 			OfflineDataServers[s.Addr()] = s
 			delete(ActiveDataServers, s.Addr())
@@ -117,7 +119,7 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 		}
 
 		if s.LastHeartBeatTs.Before(time.Now().Add(-InactivePeriod)) {
-			s.MarkInactive()
+			dm.MarkInactive(s.Addr())
 
 			InactiveDataServers[s.Addr()] = s
 			delete(ActiveDataServers, s.Addr())
@@ -126,14 +128,14 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 			continue
 		}
 
-		_ = s.MarkActive(false)
+		_ = dm.MarkActive (s.Addr(), false)
 		ActiveDataServers[s.Addr()] = s
 		delete(InactiveDataServers, s.Addr())
 		delete(OfflineDataServers, s.Addr())
 	}
 }
 
-func repairDataInServer(server *metadata.DataServer) {
+func repairDataInServer(server *model.DataServer) {
 	log.Info("start repair data in dataserver: %s", server.Addr())
 	return // FIXME: remove this line
 
@@ -144,7 +146,7 @@ func repairDataInServer(server *metadata.DataServer) {
 		return
 	}
 
-	dm := metadata.GetDataServerManager()
+	dm := manager.GetDataServerManager()
 	dm.RemoveDataServer(server.Addr())
 
 	// FIXME: protect by lock

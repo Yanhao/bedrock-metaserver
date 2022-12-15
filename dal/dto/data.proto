@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "sr.ht/moyanhao/bedrock-metaserver/metadata/pbdata";
+option go_package = "sr.ht/moyanhao/bedrock-metaserver/dal/dto";
 
 package pbdata;
 

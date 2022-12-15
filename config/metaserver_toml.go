@@ -35,7 +35,7 @@ func GetConfiguration() *Configuration {
 	return MsConfig
 }
 
-func LoadConfigFromFile(filePath string) (*Configuration, error) {
+func loadConfigFromFile(filePath string) (*Configuration, error) {
 	ret := NewConfiguration()
 
 	f, err := os.Open(filePath)
@@ -81,6 +81,15 @@ func LoadConfigFromFile(filePath string) (*Configuration, error) {
 }
 
 // just panic if there are something wrong
-func ValidateConfig() {
+func validateConfig() {
 
+}
+
+func MustLoadConfig(configFile string) {
+	if _, err := loadConfigFromFile(configFile); err != nil {
+		panic("failed to load configuration file")
+		// os.Exit(-1)
+	}
+
+	validateConfig()
 }

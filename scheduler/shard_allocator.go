@@ -6,11 +6,14 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+
+	"sr.ht/moyanhao/bedrock-metaserver/manager"
+	"sr.ht/moyanhao/bedrock-metaserver/model"
+
 	"sync"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
-	"sr.ht/moyanhao/bedrock-metaserver/metadata"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 const (
@@ -53,7 +56,7 @@ func GetShardAllocator() *ShardAllocator {
 func generateViableDataServer(selected []string) []string {
 	var ret []string
 
-	dm := metadata.GetDataServerManager()
+	dm := manager.GetDataServerManager()
 	dataservers := dm.DataServersCopy()
 
 outer:
@@ -103,26 +106,25 @@ const (
 	DefaultReplicatesCount = 3
 )
 
-func (sa *ShardAllocator) AllocatorNewStorage(name string, rangeCount uint32) (*metadata.Storage, error) {
-	sm := metadata.GetStorageManager()
+func (sa *ShardAllocator) AllocatorNewStorage(name string, rangeCount uint32) (*model.Storage, error) {
+	sm := manager.GetStorageManager()
 	storage, err := sm.CreateNewStorage(name)
 	if err != nil {
 		return nil, err
 	}
 
-	err = sa.ExpandStorage(storage.ID, 1)
-	if err != nil {
+	if err := sa.ExpandStorage(storage.ID, 1); err != nil {
 		return nil, err
 	}
 
-	err = storage.PutShardIDByKey(MAX_KEY, metadata.GenerateShardID(storage.ID, 0))
-	if err != nil {
+	if err := manager.GetShardManager().PutShardIDByKey(storage.ID, MAX_KEY, model.GenerateShardID(storage.ID, 0)); err != nil {
 		return nil, err
 	}
 
 	splitLoopCount := uint32(math.Sqrt(float64(rangeCount)))
 	for i := 0; i < int(splitLoopCount); i++ {
-		shardIDs, err := storage.GetShardIDs()
+
+		shardIDs, err := manager.GetShardManager().GetShardIDsInStorage(storage.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -138,11 +140,11 @@ func (sa *ShardAllocator) AllocatorNewStorage(name string, rangeCount uint32) (*
 	return storage, nil
 }
 
-func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, count int) ([]string, error) {
+func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count int) ([]string, error) {
 	var selectedDataServers []string
 	conns := dataserver.GetDataServerConns()
 
-	sm := metadata.GetShardManager()
+	sm := manager.GetShardManager()
 
 	for i, times := count, MAX_ALLOCATE_TIMES; i > 0 && times > 0; {
 		log.Info("i: %v, times: %v", i, times)
@@ -190,8 +192,8 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID metadata.ShardID, coun
 	return selectedDataServers, nil
 }
 
-func (sa *ShardAllocator) ExpandStorage(storageID metadata.StorageID, count uint32) error {
-	sm := metadata.GetShardManager()
+func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32) error {
+	sm := manager.GetShardManager()
 
 	for i := count; i > 0; {
 		shard, err := sm.CreateNewShard(storageID)
@@ -220,9 +222,9 @@ func (sa *ShardAllocator) ExpandStorage(storageID metadata.StorageID, count uint
 	return nil
 }
 
-func (sa *ShardAllocator) SplitShard(shardID metadata.ShardID) error {
-	sm := metadata.GetShardManager()
-	shard, err := sm.GetShardCopy(shardID)
+func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
+	sm := manager.GetShardManager()
+	shard, err := sm.GetShard(shardID)
 	if err != nil {
 		log.Warn("failed to get shard, err: %v", err)
 		return err
@@ -259,20 +261,15 @@ func (sa *ShardAllocator) SplitShard(shardID metadata.ShardID) error {
 	return nil
 }
 
-func (sa *ShardAllocator) MergeShardByKey(storageID metadata.StorageID, key []byte) error {
-	stm := metadata.GetStorageManager()
-	st, err := stm.GetStorage(storageID)
+func (sa *ShardAllocator) MergeShardByKey(storageID model.StorageID, key []byte) error {
+	shm := manager.GetShardManager()
+
+	shardID, err := shm.GetShardIDByKey(storageID, key)
 	if err != nil {
 		return err
 	}
 
-	shardID, err := st.GetShardIDByKey(key)
-	if err != nil {
-		return err
-	}
-
-	shm := metadata.GetShardManager()
-	shard, err := shm.GetShardCopy(shardID)
+	shard, err := shm.GetShard(shardID)
 	if err != nil {
 		return err
 	}
@@ -286,11 +283,11 @@ func (sa *ShardAllocator) MergeShardByKey(storageID metadata.StorageID, key []by
 	max.Sub(max, big.NewInt(2))
 
 	prevMaxKey := max.Bytes()
-	prevShardID, err := st.GetShardIDByKey(prevMaxKey)
+	prevShardID, err := shm.GetShardIDByKey(storageID, prevMaxKey)
 	if err != nil {
 		return err
 	}
-	prevShard, err := shm.GetShardCopy(prevShardID)
+	prevShard, err := shm.GetShard(prevShardID)
 	if err != nil {
 		return err
 	}
@@ -304,11 +301,11 @@ func (sa *ShardAllocator) MergeShardByKey(storageID metadata.StorageID, key []by
 	min.Add(min, big.NewInt(1))
 
 	nexMinKey := min.Bytes()
-	nextShardID, err := st.GetShardIDByKey(nexMinKey)
+	nextShardID, err := shm.GetShardIDByKey(storageID, nexMinKey)
 	if err != nil {
 		return err
 	}
-	nextShard, err := shm.GetShardCopy(nextShardID)
+	nextShard, err := shm.GetShard(nextShardID)
 	if err != nil {
 		return err
 	}
@@ -320,7 +317,7 @@ func (sa *ShardAllocator) MergeShardByKey(storageID metadata.StorageID, key []by
 	return nil
 }
 
-func (sa *ShardAllocator) doMergeShard(aShard, bShard *metadata.Shard) error {
+func (sa *ShardAllocator) doMergeShard(aShard, bShard *model.Shard) error {
 	aShard.RangeKeyMax = bShard.RangeKeyMax
 
 	conns := dataserver.GetDataServerConns()
@@ -334,15 +331,12 @@ func (sa *ShardAllocator) doMergeShard(aShard, bShard *metadata.Shard) error {
 
 	bDs.MergeShard(uint64(aShard.ID()), uint64(bShard.ID()))
 
-	shm := metadata.GetShardManager()
+	shm := manager.GetShardManager()
 	shm.ShardDelete(bShard.ID())
 
 	shm.PutShard(aShard)
 
-	stm := metadata.GetStorageManager()
-	st, _ := stm.GetStorage(aShard.SID)
-
-	st.RmoveShardRnageByKey(aShard.RangeKeyMax)
+	shm.RmoveShardRnageByKey(aShard.SID, aShard.RangeKeyMax)
 
 	return nil
 }

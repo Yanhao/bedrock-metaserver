@@ -3,27 +3,26 @@ package scheduler
 import (
 	"errors"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
 	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
-	"sr.ht/moyanhao/bedrock-metaserver/metadata"
+	"sr.ht/moyanhao/bedrock-metaserver/manager"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 func ClearDataserver(addr string) error {
-	dm := metadata.GetDataServerManager()
+	dm := manager.GetDataServerManager()
 	if !dm.IsDataServerExists(addr) {
-		return metadata.ErrNoSuchDataServer
+		return manager.ErrNoSuchDataServer
 	}
-
-	shardIDs, err := metadata.GetShardIDsInDataServer(addr)
+	sm := manager.GetShardManager()
+	shardIDs, err := sm.GetShardIDsInDataServer(addr)
 	if err != nil {
 		log.Error("GetShardsInDataServer failed, err: %v", err)
 		return errors.New("GetShardsInDataServer failed")
 	}
 
-	sm := metadata.GetShardManager()
 	conns := dataserver.GetDataServerConns()
 	for _, shardID := range shardIDs {
-		shard, err := sm.GetShardCopy(shardID)
+		shard, err := sm.GetShard(shardID)
 		if err != nil {
 			return err
 		}
@@ -52,7 +51,7 @@ func ClearDataserver(addr string) error {
 			sm.ReSelectLeader(shardID)
 		} else {
 			// notify leader the shard member change
-			sm.ReSelectLeader(shardID, metadata.WithLeader(shard.Leader))
+			sm.ReSelectLeader(shardID, manager.WithLeader(shard.Leader))
 		}
 
 		dsTobeClearedCli, _ := conns.GetApiClient(addr)

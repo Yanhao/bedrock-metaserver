@@ -6,7 +6,7 @@ import (
 	cache "github.com/hashicorp/golang-lru"
 	grpc "google.golang.org/grpc"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 type MetaServerApi struct {

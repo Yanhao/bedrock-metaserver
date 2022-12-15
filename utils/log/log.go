@@ -1,7 +1,6 @@
 package log
 
 import (
-	"errors"
 	"log"
 	"os"
 
@@ -23,22 +22,22 @@ var (
 	sugarLogger *zap.SugaredLogger
 )
 
-func InitLogFile(file string) error {
+func MustInitLogFile(file string) {
 	if file == "" {
 		logger = log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)
 		logFile = os.Stdout
 
-		return nil
+		return
 	}
 
 	logfile, err := os.Open(file)
 	if err != nil {
-		return errors.New("failed to open log file")
+		panic("failed to open log file")
 	}
 	logFile = logfile
 	logger = log.New(logFile, "", log.LstdFlags)
 
-	return nil
+	return
 }
 
 func InitLogZap() error {

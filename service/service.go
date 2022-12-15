@@ -10,11 +10,12 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
-	"sr.ht/moyanhao/bedrock-metaserver/kv"
-	"sr.ht/moyanhao/bedrock-metaserver/metadata"
+	"sr.ht/moyanhao/bedrock-metaserver/kvengine"
+	"sr.ht/moyanhao/bedrock-metaserver/manager"
+	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 	"sr.ht/moyanhao/bedrock-metaserver/tso"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 type MetaService struct {
@@ -28,29 +29,25 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *HeartBeatRequest) (*em
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.HeartBeat(ctx, req)
 	}
 
-	dm := metadata.GetDataServerManager()
-	server, err := dm.GetDataServerCopy(req.Addr)
-	if err != nil {
-		log.Warn("no such server in record: %s", req.Addr)
-		return nil, status.Errorf(codes.NotFound, "no such server: %s", req.Addr)
+	dm := manager.GetDataServerManager()
+	if err := dm.MarkActive(req.GetAddr(), true); err != nil {
+		return nil, status.Errorf(codes.Internal, "inernal error: %v", err)
 	}
-
-	server.HeartBeat()
 
 	log.Info("receive heartbeat from %s", req.Addr)
 
 	return &emptypb.Empty{}, nil
 }
 
-func getUpdatedRoute(shardID metadata.ShardID, ts time.Time) (*RouteRecord, error) {
-	sm := metadata.GetShardManager()
-	shard, err := sm.GetShardCopy(shardID)
+func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*RouteRecord, error) {
+	sm := manager.GetShardManager()
+	shard, err := sm.GetShard(shardID)
 	if err != nil {
 		log.Error("get shard failed, shardID: %d, err: %v", shardID, err)
 		return nil, status.Errorf(codes.Internal, "get shard failed")
@@ -81,8 +78,8 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesReq
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.GetShardRoutes(ctx, req)
 	}
@@ -97,7 +94,7 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesReq
 		log.Info("req: shard_id: 0x%016x, end: %v", begin, end)
 
 		for shardID := begin; shardID <= end; shardID++ {
-			route, err := getUpdatedRoute(metadata.ShardID(shardID), ts)
+			route, err := getUpdatedRoute(model.ShardID(shardID), ts)
 			if err != nil {
 				return nil, err
 			}
@@ -106,7 +103,7 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesReq
 		}
 	} else if req.GetShardsList() != nil {
 		for _, shardID := range req.GetShardsList().GetShardIds() {
-			route, err := getUpdatedRoute(metadata.ShardID(shardID), ts)
+			route, err := getUpdatedRoute(model.ShardID(shardID), ts)
 			if err != nil {
 				return nil, err
 			}
@@ -125,15 +122,15 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *CreateStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.CreateStorage(ctx, req)
 	}
 
 	resp := &CreateStorageResponse{}
 
-	sm := metadata.GetStorageManager()
+	sm := manager.GetStorageManager()
 	st, err := sm.GetStorageByName(req.Name)
 	if err != nil {
 		log.Error("check storage by name failed, err: %v", err)
@@ -165,8 +162,8 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *DeleteStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.DeleteStorage(ctx, req)
 	}
@@ -184,7 +181,7 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *DeleteStorageReque
 		}
 	}
 
-	err = metadata.GetStorageManager().StorageDelete(metadata.StorageID(req.Id), recycleTime)
+	err = manager.GetStorageManager().StorageDelete(model.StorageID(req.Id), recycleTime)
 	if err != nil {
 		log.Error("delete storage failed, err: %v", err)
 		return resp, status.Errorf(codes.Internal, "delete storage failed")
@@ -200,15 +197,15 @@ func (m *MetaService) UndeleteStorage(ctx context.Context, req *UndeleteStorageR
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.UndeleteStorage(ctx, req)
 	}
 
 	resp := &UndeleteStorageResponse{}
 
-	err = metadata.GetStorageManager().StorageUndelete(metadata.StorageID(req.Id))
+	err = manager.GetStorageManager().StorageUndelete(model.StorageID(req.Id))
 	if err != nil {
 		log.Error("undelete storage failed, err: %v", err)
 		return resp, status.Errorf(codes.Internal, "undelete storage failed")
@@ -224,15 +221,15 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *RenameStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.RenameStorage(ctx, req)
 	}
 
 	resp := &RenameStorageResponse{}
 
-	err = metadata.GetStorageManager().StorageRename(metadata.StorageID(req.Id), req.NewName)
+	err = manager.GetStorageManager().StorageRename(model.StorageID(req.Id), req.NewName)
 	if err != nil {
 		log.Error("create storage failed, err: %v", err)
 		return resp, status.Errorf(codes.Internal, "create storage failed")
@@ -248,15 +245,15 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *ResizeStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.ResizeStorage(ctx, req)
 	}
 
 	resp := &ResizeStorageResponse{}
 
-	st, err := metadata.GetStorageManager().GetStorage(metadata.StorageID(req.Id))
+	st, err := manager.GetStorageManager().GetStorage(model.StorageID(req.Id))
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "")
 	}
@@ -282,8 +279,8 @@ func (m *MetaService) GetStorages(ctx context.Context, req *GetStoragesRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.GetStorages(ctx, req)
 	}
@@ -291,7 +288,7 @@ func (m *MetaService) GetStorages(ctx context.Context, req *GetStoragesRequest) 
 	resp := &GetStoragesResponse{}
 
 	for _, id := range req.Ids {
-		st, err := metadata.GetStorageManager().GetStorageCopy(metadata.StorageID(id))
+		st, err := manager.GetStorageManager().GetStorage(model.StorageID(id))
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
@@ -323,8 +320,8 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *AddDataServerReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.AddDataServer(ctx, req)
 	}
@@ -337,7 +334,7 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *AddDataServerReque
 	}
 	log.Info("start add dataserver %v to cluster", req.Addr)
 
-	dm := metadata.GetDataServerManager()
+	dm := manager.GetDataServerManager()
 	err = dm.AddDataServer(ip, port)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "%v", err)
@@ -354,8 +351,8 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *RemoveDataServe
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.RemoveDataServer(ctx, req)
 	}
@@ -366,7 +363,7 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *RemoveDataServe
 		return nil, status.Errorf(codes.InvalidArgument, "")
 	}
 
-	dm := metadata.GetDataServerManager()
+	dm := manager.GetDataServerManager()
 	if !dm.IsDataServerExists(req.Addr) {
 		return nil, status.Errorf(codes.NotFound, "")
 	}
@@ -393,15 +390,15 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *ListDataServerReq
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.ListDataServer(ctx, req)
 	}
 
 	resp := &ListDataServerResponse{}
 
-	dm := metadata.GetDataServerManager()
+	dm := manager.GetDataServerManager()
 	dss := dm.DataServersCopy()
 	log.Info("copied dataservers: %#v", dss)
 
@@ -413,13 +410,13 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *ListDataServerReq
 				Capacity:        ds.Capacity,
 				Free:            ds.Free,
 				LastHeartbeatTs: timestamppb.New(ds.LastHeartBeatTs),
-				Status: func(s metadata.LiveStatus) string {
+				Status: func(s model.LiveStatus) string {
 					switch s {
-					case metadata.LiveStatusActive:
+					case model.LiveStatusActive:
 						return "active"
-					case metadata.LiveStatusOffline:
+					case model.LiveStatusOffline:
 						return "offline"
-					case metadata.LiveStatusInactive:
+					case model.LiveStatusInactive:
 						return "inactive"
 					default:
 						return "unknown"
@@ -438,8 +435,8 @@ func (m *MetaService) UpdateDataServer(ctx context.Context, req *UpdateDataServe
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.UpdateDataServer(ctx, req)
 	}
@@ -455,20 +452,20 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *ShardInfoRequest) (*Sh
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.ShardInfo(ctx, req)
 	}
 
 	resp := &ShardInfoResponse{}
 
-	sm := metadata.GetShardManager()
+	sm := manager.GetShardManager()
 	if sm == nil {
 		return resp, status.Errorf(codes.Internal, "")
 	}
 
-	shard, err := sm.GetShardCopy(metadata.ShardID(req.GetId()))
+	shard, err := sm.GetShard(model.ShardID(req.GetId()))
 	if err != nil {
 		return resp, status.Errorf(codes.Internal, "")
 	}
@@ -502,34 +499,30 @@ func (m *MetaService) CreateShard(ctx context.Context, req *CreateShardRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.CreateShard(ctx, req)
 	}
 
 	resp := &CreateShardResponse{}
 
-	stm := metadata.GetStorageManager()
-	st, err := stm.GetStorage(metadata.StorageID(req.StorageId))
+	stm := manager.GetStorageManager()
+	st, err := stm.GetStorage(model.StorageID(req.StorageId))
 	if err != nil || st == nil {
 		log.Warn("no such storage, storage id: %v", req.StorageId)
 		return nil, status.Errorf(codes.FailedPrecondition, "no such storage, id=%v", req.StorageId)
 	}
 
-	shardID := metadata.GenerateShardID(metadata.StorageID(req.StorageId), metadata.ShardISN(req.ShardIsn))
-	shm := metadata.GetShardManager()
+	shardID := model.GenerateShardID(model.StorageID(req.StorageId), model.ShardISN(req.ShardIsn))
+	shm := manager.GetShardManager()
 	_, err = shm.GetShard(shardID)
 	if err == nil {
 		log.Warn("shard already exists, shard id: %v", shardID)
 		return nil, status.Errorf(codes.AlreadyExists, "shard already exists, id=%v", shardID)
 	}
-	if err != metadata.ErrNoSuchShard {
-		log.Warn("failed to get shard, shard id: %v, err: %v", shardID, err)
-		return nil, status.Errorf(codes.Internal, "failed to get shard, err: %v", err)
-	}
 
-	shard, err := shm.CreateNewShardByIDs(metadata.StorageID(req.StorageId), metadata.ShardISN(req.ShardIsn))
+	shard, err := shm.CreateNewShardByIDs(model.StorageID(req.StorageId), model.ShardISN(req.ShardIsn))
 	if err != nil {
 		log.Warn("failed to create new shard by id, err: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to create shard, err: %v", err)
@@ -552,16 +545,16 @@ func (m *MetaService) RemoveShard(ctx context.Context, req *RemoveShardRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.RemoveShard(ctx, req)
 	}
 
 	resp := &RemoveShardResponse{}
 
-	shardID := metadata.GenerateShardID(metadata.StorageID(req.StorageId), metadata.ShardISN(req.ShardIsn))
-	shm := metadata.GetShardManager()
+	shardID := model.GenerateShardID(model.StorageID(req.StorageId), model.ShardISN(req.ShardIsn))
+	shm := manager.GetShardManager()
 	err := shm.MarkDelete(shardID)
 	if err != nil {
 		log.Warn("failed to mark delete for shard, err: %v", err)
@@ -577,20 +570,16 @@ func (m *MetaService) GetShardIDByKey(ctx context.Context, req *GetShardIDByKeyR
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.GetShardIDByKey(ctx, req)
 	}
 
 	resp := &GetShardIDByKeyResponse{}
 
-	sm := metadata.GetStorageManager()
-	st, err := sm.GetStorageCopy(metadata.StorageID(req.StorageId))
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get storage, err: %v", err)
-	}
-	shardID, err := st.GetShardIDByKey(req.Key)
+	sm := manager.GetShardManager()
+	shardID, err := sm.GetShardIDByKey(model.StorageID(req.StorageId), req.Key)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get storage, err: %v", err)
 	}
@@ -614,20 +603,15 @@ func (m *MetaService) SyncShardInDataServer(reqStream MetaService_SyncShardInDat
 		syncTs := req.GetSyncTs().GetSeconds()
 		shards := req.GetShards()
 		for _, shard := range shards {
-			err := metadata.UpdateShardInDataServer(req.GetDataserverAddr(), metadata.ShardID(shard.GetShardId()), syncTs)
+			err := manager.GetShardManager().UpdateShardInDataServer(req.GetDataserverAddr(), model.ShardID(shard.GetShardId()), syncTs)
 			if err != nil {
 				return err
 			}
 		}
 
 		if req.GetIsLastPiece() {
-			dsm := metadata.GetDataServerManager()
-			ds, err := dsm.GetDataServer(req.GetDataserverAddr())
-			if err != nil {
-				return err
-			}
-
-			err = ds.UpdateSyncTs(syncTs)
+			dsm := manager.GetDataServerManager()
+			err = dsm.UpdateSyncTs(req.GetDataserverAddr(), syncTs)
 			if err != nil {
 				return err
 			}
@@ -646,8 +630,8 @@ func (m *MetaService) AllocateTxIDs(ctx context.Context, req *AllocateTxIDsReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kv.IsMetaServerLeader() {
-		leader := kv.GetMetaServerLeader()
+	if !kvengine.IsMetaServerLeader() {
+		leader := kvengine.GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.AllocateTxIDs(ctx, req)
 	}

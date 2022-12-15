@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
-	"sr.ht/moyanhao/bedrock-metaserver/kv"
+	"sr.ht/moyanhao/bedrock-metaserver/kvengine"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 const (
@@ -42,7 +42,7 @@ func GetTxIDAllocator() *TxIDsAllocator {
 }
 
 func NewTxIDsAllocator() *TxIDsAllocator {
-	ec := kv.GetEtcdClient()
+	ec := kvengine.GetEtcdClient()
 	resp, err := ec.KV.Get(context.Background(), TXID_KEY)
 	if err != nil || resp.Count != 1 {
 		panic(fmt.Sprintf("get /txid key failed, err: %v", err))
@@ -103,7 +103,7 @@ func (t *TxIDsAllocator) AllocateOne(withLock bool) (uint64, error) {
 		return 0, err
 	}
 
-	ec := kv.GetEtcdClient()
+	ec := kvengine.GetEtcdClient()
 	_, err = ec.Put(context.TODO(), TXID_KEY, string(data))
 	if err != nil {
 		log.Error("failed to put tso value, err: %v", err)

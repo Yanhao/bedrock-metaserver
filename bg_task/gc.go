@@ -1,10 +1,10 @@
-package server
+package bg_task
 
 import (
 	"sync"
 	"time"
 
-	"sr.ht/moyanhao/bedrock-metaserver/common/log"
+	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 type GarbageCleaner struct {

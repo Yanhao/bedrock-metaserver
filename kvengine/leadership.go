@@ -3,7 +3,6 @@ package kvengine
 import (
 	"context"
 	"errors"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,14 +18,6 @@ const (
 	BecameFollower
 )
 
-func IsMetaServerLeader() bool {
-	return GetLeaderShip().IsLeader()
-}
-
-func GetMetaServerLeader() string {
-	return GetLeaderShip().GetMetaServerLeader()
-}
-
 type NewRole struct {
 	Role int
 }
@@ -39,8 +30,13 @@ type LeaderShip struct {
 	notifier chan NewRole
 	stop     chan struct{}
 
+	currentLeader atomic.Value
+
 	leaderKey   string
 	leaderValue string
+
+	leaseTime   int // in second
+	renewalTime int // in second
 
 	leaderFunc   func()
 	followerFunc func()
@@ -52,11 +48,26 @@ type LeaderShipOption struct {
 	key   string
 	value string
 
+	leaseTime   int // in second
+	renewalTime int // in second
+
 	LeaderFunc   func()
 	FollowerFunc func()
 }
 
 func sanitizeOptions(opts *LeaderShipOption) error {
+	if opts.client == nil {
+		return errors.New("invalid etcd client")
+	}
+
+	if opts.LeaderFunc == nil || opts.FollowerFunc == nil {
+		return errors.New("empty leader func or followr func")
+	}
+
+	if opts.key == "" || opts.value == "" {
+		return errors.New("empty key or value")
+	}
+
 	return nil
 }
 
@@ -70,6 +81,8 @@ func NewLeaderShip(opts LeaderShipOption) (*LeaderShip, error) {
 		client:      opts.client,
 		stop:        make(chan struct{}),
 		lease:       &atomic.Value{},
+		leaseTime:   opts.leaseTime,
+		renewalTime: opts.renewalTime,
 		leaderKey:   opts.key,
 		leaderValue: opts.value,
 	}
@@ -86,21 +99,19 @@ func (l *LeaderShip) getLease() *clientv3.Lease {
 	if ls == nil {
 		return nil
 	}
+
 	return ls.(*clientv3.Lease)
 }
 
-func (l *LeaderShip) GetNotifier() <-chan NewRole {
-	return l.notifier
-}
-
-func (l *LeaderShip) Campaign() bool {
+func (l *LeaderShip) campaign() bool {
+	// creat a new lease with 10s, record it within LeaderShip
 	ls := clientv3.NewLease(l.client)
 	l.setLease(&ls)
 
-	ctx, cancel := context.WithTimeout(l.client.Ctx(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(l.client.Ctx(), 5*time.Second)
 	defer cancel()
 
-	grantResp, err := ls.Grant(ctx, 10 /* 10 seconds */)
+	grantResp, err := ls.Grant(ctx, int64(l.leaseTime) /* 10 seconds by default */)
 	if err != nil {
 		log.Error("failed to grant lease")
 
@@ -108,12 +119,15 @@ func (l *LeaderShip) Campaign() bool {
 	}
 	l.leaseID = grantResp.ID
 
-	resp, err := l.client.Txn(ctx).If(clientv3.Compare(clientv3.CreateRevision(l.leaderKey), "=", 0)).
+	// try to compaign
+	resp, err := l.client.Txn(ctx).
+		If(clientv3.Compare(clientv3.CreateRevision(l.leaderKey), "=", 0)).
 		Then(clientv3.OpPut(l.leaderKey, l.leaderValue, clientv3.WithLease(grantResp.ID))).
 		Commit()
 	if err != nil || !resp.Succeeded {
 		log.Debug("failed to campaign leader")
-		ls.Close()
+		_ = ls.Close()
+
 		return false
 	}
 
@@ -122,64 +136,76 @@ func (l *LeaderShip) Campaign() bool {
 	return true
 }
 
-func (l *LeaderShip) LoadLeaderFromEtcd() error {
-	resp, err := l.client.Get(context.TODO(), l.leaderKey)
-	if err != nil {
-		return err
-	}
-	if resp.Count == 0 {
-		return errors.New("")
-	}
-
-	return nil
-}
-
-func (l *LeaderShip) IsLeader() bool {
-	return GetMetaServerLeader() == l.leaderValue
-}
-
-func (l *LeaderShip) GetMetaServerLeader() string {
-	return l.leaderValue
-}
-
 func (l *LeaderShip) keepLeader() {
-	ticker := time.NewTicker(time.Second * 5)
+	ticker := time.NewTicker(time.Duration(l.renewalTime) * time.Second)
 	defer ticker.Stop()
 
 	for {
-		if l.LoadLeaderFromEtcd(); !l.IsLeader() {
+		l.currentLeader.Store(l.leaderValue)
+
+		select {
+		case <-ticker.C:
+		case <-l.stop:
+			return
+		}
+
+		// in case of the leader key was delete by accident but the lease still there
+		if l.loadLeaderFromKv(); !l.IsMetaServerLeader() {
 			l.notifier <- NewRole{Role: BecameFollower}
 			return
 		}
 
-		ctx := context.TODO()
-		_, err := l.client.KeepAliveOnce(ctx, l.leaseID)
+		_, err := l.client.KeepAliveOnce(context.TODO(), l.leaseID)
 		if err != nil {
 			log.Info("failed to keep alive leadership lease")
 			l.notifier <- NewRole{Role: BecameFollower}
 
 			return
 		}
+
 		log.Info(color.GreenString("keep leader successfully."))
-		select {
-		case <-ticker.C:
-		case <-l.stop:
-			return
-		}
 	}
+}
+
+func (l *LeaderShip) loadLeaderFromKv() error {
+	resp, err := l.client.Get(context.TODO(), l.leaderKey)
+	if err != nil {
+		return err
+	}
+
+	if resp.Count == 0 {
+		return errors.New("")
+	}
+
+	l.currentLeader.Store(string(resp.Kvs[0].Value))
+
+	return nil
+}
+
+func (l *LeaderShip) GetNotifier() <-chan NewRole {
+	return l.notifier
+}
+
+func (l *LeaderShip) IsMetaServerLeader() bool {
+	return l.GetMetaServerLeader() == l.leaderValue
+}
+
+func (l *LeaderShip) GetMetaServerLeader() string {
+	return l.currentLeader.Load().(string)
 }
 
 func (l *LeaderShip) Start() {
 	go func() {
-		ticker := time.NewTicker(time.Second * 5)
+		ticker := time.NewTicker(time.Duration(l.renewalTime) * time.Second)
 		defer ticker.Stop()
 
 		for {
-			success := l.Campaign()
+			success := l.campaign()
 			if success {
 				l.keepLeader()
+			} else {
+				_ = l.loadLeaderFromKv()
 			}
-			_ = l.LoadLeaderFromEtcd()
 
 			select {
 			case <-ticker.C:
@@ -212,15 +238,12 @@ func (l *LeaderShip) Start() {
 
 func (l *LeaderShip) Stop() error {
 	close(l.stop)
+
 	return nil
 }
 
-func (l *LeaderShip) Reset() {
-}
-
 var (
-	leaderShip     *LeaderShip
-	leaderShipOnce sync.Once
+	leaderShip *LeaderShip
 )
 
 func GetLeaderShip() *LeaderShip {
@@ -232,6 +255,8 @@ func MustInitLeaderShip(client *clientv3.Client, leaderFunc, followerFunc func()
 		client:       client,
 		key:          "metaserver-leader",
 		value:        config.GetConfiguration().ServerAddr,
+		leaseTime:    10,
+		renewalTime:  5,
 		LeaderFunc:   leaderFunc,
 		FollowerFunc: followerFunc,
 	}

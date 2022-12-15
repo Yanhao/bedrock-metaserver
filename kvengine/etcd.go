@@ -31,7 +31,9 @@ func GetEtcdNode() *EtcdNode {
 }
 
 func GetEtcdClient() *client.Client {
-	// FIXME: check first
+	if GetEtcdNode() == nil || GetEtcdNode().client == nil {
+		panic("etcd is not init!")
+	}
 	return GetEtcdNode().client
 }
 
@@ -77,6 +79,8 @@ func (en *EtcdNode) Start() error {
 		return errors.New("start etcd timeout")
 	}
 
+	en.etcdServer = e
+
 	en.client, err = client.New(client.Config{
 		Endpoints:   []string{config.MsConfig.EtcdClientAddr.String()},
 		DialTimeout: config.MsConfig.EtcdClientTimeout,
@@ -92,7 +96,15 @@ func (en *EtcdNode) Start() error {
 }
 
 func (en *EtcdNode) Stop() error {
-	en.etcdServer.Close()
+	en.etcdServer.Server.Stop()
+
+	select {
+	case <-en.etcdServer.Server.StopNotify():
+		log.Info("embed etcd is stop")
+	case <-time.After(time.Minute):
+		log.Error("failed to stop embed etcd")
+		return errors.New("stop etcd timeout")
+	}
 
 	return nil
 }

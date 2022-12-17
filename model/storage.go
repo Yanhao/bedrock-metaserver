@@ -19,7 +19,9 @@ type Storage struct {
 
 func (s *Storage) Copy() *Storage {
 	var ret Storage
-	copier.Copy(&ret, s)
+	if err := copier.Copy(&ret, s); err != nil {
+		panic(err)
+	}
 
 	return &ret
 }

@@ -13,7 +13,7 @@ const (
 	LiveStatusOffline
 )
 
-const DATASERVER_OVERLOAD_PERCENT = 0.9
+const DataServerOverloadPercent = 0.9
 
 type DataServer struct {
 	Ip              string
@@ -33,13 +33,15 @@ func (d *DataServer) Addr() string {
 
 func (d *DataServer) Copy() *DataServer {
 	var ret DataServer
-	copier.Copy(&ret, d)
+	if err := copier.Copy(&ret, d); err != nil {
+		panic(err)
+	}
 
 	return &ret
 }
 
 func (d *DataServer) IsOverLoaded() bool {
-	return d.UsedPercent() > DATASERVER_OVERLOAD_PERCENT
+	return d.UsedPercent() > DataServerOverloadPercent
 }
 
 func (d *DataServer) UsedPercent() float64 {

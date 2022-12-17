@@ -14,7 +14,7 @@ import (
 
 	"sr.ht/moyanhao/bedrock-metaserver/bg_task"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
-	"sr.ht/moyanhao/bedrock-metaserver/kvengine"
+	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 	"sr.ht/moyanhao/bedrock-metaserver/service"
@@ -132,9 +132,9 @@ func main() {
 	fmt.Println("init logging ...")
 	defer log.Fini()
 
-	kvengine.MustStartEmbedEtcd()
+	kv_engine.MustStartEmbedEtcd()
 
-	kvengine.MustInitLeaderShip(kvengine.GetEtcdClient(), runAsLeader, runAsFollower)
+	kv_engine.MustInitLeaderShip(kv_engine.GetEtcdClient(), runAsLeader, runAsFollower)
 
 	StartGrpcServer()
 

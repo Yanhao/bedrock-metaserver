@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal/dto"
-	"sr.ht/moyanhao/bedrock-metaserver/kvengine"
+	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
@@ -52,7 +52,7 @@ func shardRangeInStorageKey(storageID model.StorageID, key []byte) string {
 }
 
 func KvGetShard(shardID model.ShardID) (*model.Shard, error) {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 
 	resp, err := ec.KV.Get(context.Background(), shardKey(shardID))
 	if err != nil || resp.Count == 0 {
@@ -115,7 +115,7 @@ func KvPutShard(shard *model.Shard) error {
 		ops = append(ops, client.OpPut(keys[i], values[i]))
 	}
 
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	_, err = ec.Txn(context.Background()).If().Then(ops...).Commit()
 	if err != nil {
 		log.Warn("failed to store shard to etcd, shard=%v", shard)
@@ -137,7 +137,7 @@ func KvDeleteShard(shard *model.Shard) error {
 		ops = append(ops, client.OpDelete(key))
 	}
 
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	_, err := ec.Txn(context.Background()).If().Then(ops...).Commit()
 	if err != nil {
 		return err
@@ -147,7 +147,7 @@ func KvDeleteShard(shard *model.Shard) error {
 }
 
 func KvGetShardsInStorage(storageID model.StorageID) ([]model.ShardID, error) {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 
 	resp, err := ec.Get(context.Background(), shardInStoragePrefixKey(storageID), client.WithPrefix())
 	if err != nil {
@@ -170,7 +170,7 @@ func KvGetShardsInStorage(storageID model.StorageID) ([]model.ShardID, error) {
 
 // FIXME: consider support specify count
 func KvGetShardIDsInDataServer(addr string) ([]model.ShardID, error) {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 
 	resp, err := ec.Get(context.Background(), shardInDataServerPrefixKey(addr), client.WithPrefix())
 	if err != nil {
@@ -193,7 +193,7 @@ func KvGetShardIDsInDataServer(addr string) ([]model.ShardID, error) {
 
 func KvPutShardInDataServer(addr string, id model.ShardID, ts int64) error {
 	key := shardInDataServerKey(addr, id)
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 
 	_, err := ec.Put(context.Background(), key, strconv.FormatInt(ts, 10))
 	if err != nil {
@@ -204,7 +204,7 @@ func KvPutShardInDataServer(addr string, id model.ShardID, ts int64) error {
 }
 
 func KvGetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, error) {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 
 	resp, err := ec.Get(context.Background(), shardRangeInStorageKey(storageID, key), client.WithPrefix())
 	if err != nil {
@@ -226,7 +226,7 @@ func KvGetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, er
 func KvPutShardIDByKey(storageID model.StorageID, key []byte, shardID model.ShardID) error {
 	value := fmt.Sprintf("0x%016x", shardID)
 
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 
 	_, err := ec.Put(context.Background(), shardRangeInStorageKey(storageID, key), value)
 	if err != nil {
@@ -236,14 +236,14 @@ func KvPutShardIDByKey(storageID model.StorageID, key []byte, shardID model.Shar
 	return nil
 }
 
-func KvRmoveShardRangeByKey(storageID model.StorageID, key []byte) error {
-	ec := kvengine.GetEtcdClient()
-	_, err := ec.Delete(context.Background(), string(key))
+func KvRemoveShardRangeByKey(storageID model.StorageID, key []byte) error {
+	ec := kv_engine.GetEtcdClient()
+	_, err := ec.Delete(context.Background(), shardRangeInStorageKey(storageID, key))
 	return err
 }
 
 func KvAddShardInDataServer(addr string, id model.ShardID) error {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	key := shardInDataServerKey(addr, id)
 
 	_, err := ec.Put(context.Background(), key, "0")
@@ -255,7 +255,7 @@ func KvAddShardInDataServer(addr string, id model.ShardID) error {
 }
 
 func KvRemoveShardInDataServer(addr string, id model.ShardID) error {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	key := shardInDataServerKey(addr, id)
 
 	_, err := ec.Delete(context.Background(), key)

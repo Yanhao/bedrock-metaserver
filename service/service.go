@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"sr.ht/moyanhao/bedrock-metaserver/kvengine"
+	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
@@ -29,8 +29,8 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *HeartBeatRequest) (*em
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.HeartBeat(ctx, req)
 	}
@@ -78,8 +78,8 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesReq
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.GetShardRoutes(ctx, req)
 	}
@@ -122,8 +122,8 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *CreateStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.CreateStorage(ctx, req)
 	}
@@ -162,8 +162,8 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *DeleteStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.DeleteStorage(ctx, req)
 	}
@@ -197,8 +197,8 @@ func (m *MetaService) UndeleteStorage(ctx context.Context, req *UndeleteStorageR
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.UndeleteStorage(ctx, req)
 	}
@@ -221,8 +221,8 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *RenameStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.RenameStorage(ctx, req)
 	}
@@ -245,8 +245,8 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *ResizeStorageReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.ResizeStorage(ctx, req)
 	}
@@ -279,8 +279,8 @@ func (m *MetaService) GetStorages(ctx context.Context, req *GetStoragesRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.GetStorages(ctx, req)
 	}
@@ -320,8 +320,8 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *AddDataServerReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.AddDataServer(ctx, req)
 	}
@@ -351,8 +351,8 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *RemoveDataServe
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.RemoveDataServer(ctx, req)
 	}
@@ -390,8 +390,8 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *ListDataServerReq
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.ListDataServer(ctx, req)
 	}
@@ -399,7 +399,7 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *ListDataServerReq
 	resp := &ListDataServerResponse{}
 
 	dm := manager.GetDataServerManager()
-	dss := dm.DataServersCopy()
+	dss := dm.GetDataServersCopy()
 	log.Info("copied dataservers: %#v", dss)
 
 	for _, ds := range dss {
@@ -435,8 +435,8 @@ func (m *MetaService) UpdateDataServer(ctx context.Context, req *UpdateDataServe
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.UpdateDataServer(ctx, req)
 	}
@@ -452,8 +452,8 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *ShardInfoRequest) (*Sh
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.ShardInfo(ctx, req)
 	}
@@ -499,8 +499,8 @@ func (m *MetaService) CreateShard(ctx context.Context, req *CreateShardRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.CreateShard(ctx, req)
 	}
@@ -545,8 +545,8 @@ func (m *MetaService) RemoveShard(ctx context.Context, req *RemoveShardRequest) 
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.RemoveShard(ctx, req)
 	}
@@ -570,8 +570,8 @@ func (m *MetaService) GetShardIDByKey(ctx context.Context, req *GetShardIDByKeyR
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.GetShardIDByKey(ctx, req)
 	}
@@ -630,8 +630,8 @@ func (m *MetaService) AllocateTxIDs(ctx context.Context, req *AllocateTxIDsReque
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !kvengine.GetLeaderShip().IsMetaServerLeader() {
-		leader := kvengine.GetLeaderShip().GetMetaServerLeader()
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := GetMetaServerConns().GetClient(leader)
 		return mscli.AllocateTxIDs(ctx, req)
 	}

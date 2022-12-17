@@ -1,4 +1,4 @@
-package kvengine
+package kv_engine
 
 import (
 	"context"
@@ -150,7 +150,7 @@ func (l *LeaderShip) keepLeader() {
 		}
 
 		// in case of the leader key was delete by accident but the lease still there
-		if l.loadLeaderFromKv(); !l.IsMetaServerLeader() {
+		if l.loadLeaderFromKv() == nil && !l.IsMetaServerLeader() {
 			l.notifier <- NewRole{Role: BecameFollower}
 			return
 		}

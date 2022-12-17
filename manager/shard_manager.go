@@ -201,8 +201,8 @@ func (sm *ShardManager) RemoveShardReplicates(shardID model.ShardID, addrs []str
 	return sm.putShard(shard)
 }
 
-func (sm *ShardManager) RmoveShardRnageByKey(storageID model.StorageID, key []byte) error {
-	return dao.KvRmoveShardRangeByKey(storageID, key)
+func (sm *ShardManager) RemoveShardRangeByKey(storageID model.StorageID, key []byte) error {
+	return dao.KvRemoveShardRangeByKey(storageID, key)
 }
 
 func (sm *ShardManager) GetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, error) {
@@ -273,7 +273,7 @@ func (sm *ShardManager) ReSelectLeader(shardID model.ShardID, ops ...shardOpFunc
 		return nil
 	}
 
-	replicates := []string{}
+	var replicates []string
 	for addr := range shard.Replicates {
 		if addr != newLeader {
 			replicates = append(replicates, addr)

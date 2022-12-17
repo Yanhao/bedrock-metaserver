@@ -10,7 +10,7 @@ import (
 	"go.uber.org/atomic"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal/dao"
-	"sr.ht/moyanhao/bedrock-metaserver/kvengine"
+	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
@@ -82,7 +82,7 @@ func (sm *StorageManager) ClearCache() {
 }
 
 func (sm *StorageManager) LoadLastStorageId() error {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), KvLastStorageIDkey)
 	if err != nil {
 		log.Error("failed load last storage id from etcd, err: %v", err)
@@ -103,7 +103,7 @@ func (sm *StorageManager) LoadLastStorageId() error {
 
 func (sm *StorageManager) SaveLastStorageId() error {
 	sID := sm.lastStorageID.Load()
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 
 	_, err := ec.Put(context.Background(), KvLastStorageIDkey, strconv.FormatUint(sID, 10))
 	if err != nil {

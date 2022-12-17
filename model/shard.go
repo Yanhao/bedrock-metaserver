@@ -33,7 +33,9 @@ func (sd *Shard) ID() ShardID {
 
 func (sd *Shard) Copy() *Shard {
 	var ret Shard
-	copier.Copy(&ret, sd)
+	if err := copier.Copy(&ret, sd); err != nil {
+		panic(err)
+	}
 
 	return &ret
 }

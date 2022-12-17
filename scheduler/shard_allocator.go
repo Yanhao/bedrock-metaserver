@@ -17,19 +17,19 @@ import (
 )
 
 const (
-	MAX_ALLOCATE_TIMES = 6
-	MAX_VALUE_SIZE     = 1024
+	MaxAllocateTimes = 6
+	MaxValueSize     = 1024
 )
 
 var (
-	MIN_KEY = []byte{0x0}
-	MAX_KEY = []byte{}
+	MinKey = []byte{0x0}
+	MaxKey = []byte{}
 )
 
 func init() {
-	MAX_KEY = make([]byte, 512, 512)
-	for i := range MAX_KEY {
-		MAX_KEY[i] = 0xFF
+	MaxKey = make([]byte, 512, 512)
+	for i := range MaxKey {
+		MaxKey[i] = 0xFF
 	}
 }
 
@@ -57,7 +57,7 @@ func generateViableDataServer(selected []string) []string {
 	var ret []string
 
 	dm := manager.GetDataServerManager()
-	dataservers := dm.DataServersCopy()
+	dataservers := dm.GetDataServersCopy()
 
 outer:
 	for addr, ds := range dataservers {
@@ -117,7 +117,7 @@ func (sa *ShardAllocator) AllocatorNewStorage(name string, rangeCount uint32) (*
 		return nil, err
 	}
 
-	if err := manager.GetShardManager().PutShardIDByKey(storage.ID, MAX_KEY, model.GenerateShardID(storage.ID, 0)); err != nil {
+	if err := manager.GetShardManager().PutShardIDByKey(storage.ID, MaxKey, model.GenerateShardID(storage.ID, 0)); err != nil {
 		return nil, err
 	}
 
@@ -146,7 +146,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 
 	sm := manager.GetShardManager()
 
-	for i, times := count, MAX_ALLOCATE_TIMES; i > 0 && times > 0; {
+	for i, times := count, MaxAllocateTimes; i > 0 && times > 0; {
 		log.Info("i: %v, times: %v", i, times)
 		viableDataServers := generateViableDataServer(selectedDataServers)
 		if len(viableDataServers) < i {
@@ -201,8 +201,8 @@ func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32)
 			return err
 		}
 
-		shard.RangeKeyMax = MAX_KEY
-		shard.RangeKeyMin = MIN_KEY
+		shard.RangeKeyMax = MaxKey
+		shard.RangeKeyMin = MinKey
 
 		err = sm.PutShard(shard)
 		if err != nil {
@@ -274,7 +274,7 @@ func (sa *ShardAllocator) MergeShardByKey(storageID model.StorageID, key []byte)
 		return err
 	}
 
-	if shard.ValueSize() > MAX_VALUE_SIZE/2 {
+	if shard.ValueSize() > MaxValueSize/2 {
 		return nil
 	}
 
@@ -292,7 +292,7 @@ func (sa *ShardAllocator) MergeShardByKey(storageID model.StorageID, key []byte)
 		return err
 	}
 
-	if prevShard.ValueSize() < MAX_VALUE_SIZE/2 {
+	if prevShard.ValueSize() < MaxValueSize/2 {
 		return sa.doMergeShard(shard, prevShard)
 	}
 
@@ -310,7 +310,7 @@ func (sa *ShardAllocator) MergeShardByKey(storageID model.StorageID, key []byte)
 		return err
 	}
 
-	if nextShard.ValueSize() < MAX_VALUE_SIZE/2 {
+	if nextShard.ValueSize() < MaxValueSize/2 {
 		return sa.doMergeShard(shard, nextShard)
 	}
 
@@ -336,7 +336,7 @@ func (sa *ShardAllocator) doMergeShard(aShard, bShard *model.Shard) error {
 
 	shm.PutShard(aShard)
 
-	shm.RmoveShardRnageByKey(aShard.SID, aShard.RangeKeyMax)
+	shm.RemoveShardRangeByKey(aShard.SID, aShard.RangeKeyMax)
 
 	return nil
 }

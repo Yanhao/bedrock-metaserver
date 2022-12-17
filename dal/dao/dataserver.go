@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal/dto"
-	"sr.ht/moyanhao/bedrock-metaserver/kvengine"
+	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
@@ -40,7 +40,7 @@ func dataServerInIdcPrefixKey(idc string) string {
 }
 
 func KvGetDataServer(addr string) (*model.DataServer, error) {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	resp, err := ec.KV.Get(context.Background(), dataServerKey(addr))
 	if err != nil || resp.Count == 0 {
 		return nil, ErrNoSuchShard
@@ -104,7 +104,7 @@ func KvPutDataServer(dataserver *model.DataServer) error {
 		return err
 	}
 
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	_, err = ec.Put(context.Background(), dataServerKey(dataserver.Addr()), string(value))
 	if err != nil {
 		log.Warn("failed to save dataserver to etcd, dataserver=%v", dataserver)
@@ -115,7 +115,7 @@ func KvPutDataServer(dataserver *model.DataServer) error {
 }
 
 func KvDeleteDataServer(addr string) error {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	_, err := ec.Delete(context.Background(), dataServerKey(addr))
 	if err != nil {
 		log.Warn("failed to delete dataserver from kv")

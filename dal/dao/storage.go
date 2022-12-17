@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal/dto"
-	"sr.ht/moyanhao/bedrock-metaserver/kvengine"
+	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
@@ -35,7 +35,7 @@ func deletedStorageKey(storageID model.StorageID) string {
 }
 
 func KvGetStorage(storageID model.StorageID) (*model.Storage, error) {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), storageKey(storageID))
 	if err != nil {
 		log.Warn("failed get storage from etcd, storageID=%d", storageID)
@@ -69,7 +69,7 @@ func KvGetStorage(storageID model.StorageID) (*model.Storage, error) {
 }
 
 func KvGetStorageByName(name string) (*model.Storage, error) {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), storageByNameKey(name))
 	if err != nil {
 		log.Warn("failed get storage id by name, err: %v", err)
@@ -109,7 +109,7 @@ func KvPutStorage(storage *model.Storage) error {
 		return err
 	}
 
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	_, err = ec.Put(context.Background(), storageKey(storage.ID), string(value))
 	if err != nil {
 		log.Warn("failed to save storage to etcd, storage=%v", storage)
@@ -137,7 +137,7 @@ func KvDeleteStorage(storageID model.StorageID) error {
 		ops = append(ops, client.OpDelete(key, client.WithPrefix()))
 	}
 
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	_, err := ec.Txn(context.Background()).If().Then(ops...).Commit()
 	if err != nil {
 		log.Warn("failed to delete storage from etcd, storage=%d", storageID)
@@ -150,7 +150,7 @@ func KvDeleteStorage(storageID model.StorageID) error {
 func KvPutDeletedStorageID(sID model.StorageID) error {
 	key := deletedStorageKey(sID)
 
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	_, err := ec.Put(context.TODO(), key, "")
 	if err != nil {
 		return err
@@ -162,7 +162,7 @@ func KvPutDeletedStorageID(sID model.StorageID) error {
 func KvDelDeletedStorageID(sID model.StorageID) error {
 	key := deletedStorageKey(sID)
 
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	_, err := ec.Delete(context.TODO(), key)
 	if err != nil {
 		return err

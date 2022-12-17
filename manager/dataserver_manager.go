@@ -14,7 +14,7 @@ import (
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal/dao"
 	"sr.ht/moyanhao/bedrock-metaserver/dal/dto"
-	"sr.ht/moyanhao/bedrock-metaserver/kvengine"
+	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
@@ -55,7 +55,7 @@ func (dm *DataServerManager) ClearCache() {
 }
 
 func (dm *DataServerManager) LoadDataServersFromKv() error {
-	ec := kvengine.GetEtcdClient()
+	ec := kv_engine.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), dao.KvPrefixDataServer, client.WithPrefix())
 	if err != nil {
 		log.Warn("failed to get dataserver from etcd")
@@ -148,7 +148,7 @@ func (dm *DataServerManager) IsDataServerExists(addr string) bool {
 	return ok
 }
 
-func (dm *DataServerManager) DataServersCopy() map[string]*model.DataServer {
+func (dm *DataServerManager) GetDataServersCopy() map[string]*model.DataServer {
 	dm.dataServersLock.RLock()
 	defer dm.dataServersLock.RUnlock()
 

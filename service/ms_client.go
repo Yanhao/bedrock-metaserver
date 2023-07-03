@@ -3,7 +3,7 @@ package service
 import (
 	"sync"
 
-	cache "github.com/hashicorp/golang-lru"
+	cache "github.com/hashicorp/golang-lru/v2"
 	grpc "google.golang.org/grpc"
 
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
@@ -18,16 +18,11 @@ type MetaServerApi struct {
 const MaxConnections int = 10
 
 type Connections struct {
-	connCaches *cache.Cache
+	connCaches *cache.Cache[string, MetaServerApi]
 }
 
 func NewConnections(cap int) *Connections {
-	c, err := cache.NewWithEvict(cap, func(key, value interface{}) {
-		cli, ok := value.(MetaServerApi)
-		if !ok {
-			return
-		}
-
+	c, err := cache.NewWithEvict(cap, func(key string, cli MetaServerApi) {
 		cli.grpcConn.Close()
 	})
 
@@ -57,7 +52,7 @@ func NewMetaServerApi(addr string) (*MetaServerApi, error) {
 func (cns *Connections) GetClient(addr string) (MetaServiceClient, error) {
 	cli, ok := cns.connCaches.Get(addr)
 	if ok {
-		return cli.(MetaServerApi).client, nil
+		return cli.client, nil
 	}
 
 	newApi, err := NewMetaServerApi(addr)

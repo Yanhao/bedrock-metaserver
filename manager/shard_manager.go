@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	cache "github.com/hashicorp/golang-lru"
+	cache "github.com/hashicorp/golang-lru/v2"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal"
 	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
@@ -15,11 +15,11 @@ import (
 )
 
 type ShardManager struct {
-	shardsCache *cache.Cache
+	shardsCache *cache.Cache[model.ShardID, *model.Shard]
 }
 
 func NewShardManager() *ShardManager {
-	c, err := cache.New(102400)
+	c, err := cache.New[model.ShardID, *model.Shard](102400)
 	if err != nil {
 		panic("create cache failed")
 	}
@@ -83,7 +83,7 @@ func (sm *ShardManager) CreateNewShardByIDs(storageID model.StorageID, shardISN 
 func (sm *ShardManager) GetShard(shardID model.ShardID) (*model.Shard, error) {
 	v, ok := sm.shardsCache.Get(shardID)
 	if ok {
-		return v.(*model.Shard), nil
+		return v, nil
 	}
 
 	shard, err := dal.KvGetShard(shardID)

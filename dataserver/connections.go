@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	cache "github.com/hashicorp/golang-lru"
+	cache "github.com/hashicorp/golang-lru/v2"
 
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
@@ -12,16 +12,11 @@ import (
 const MaxConnections int = 10000
 
 type Connections struct {
-	connCaches *cache.Cache
+	connCaches *cache.Cache[string, DsApi]
 }
 
 func NewConnections(cap int) *Connections {
-	c, err := cache.NewWithEvict(cap, func(key, value interface{}) {
-		cli, ok := value.(DsApi)
-		if !ok {
-			return
-		}
-
+	c, err := cache.NewWithEvict(cap, func(key string, cli DsApi) {
 		cli.Close()
 	})
 	if err != nil {

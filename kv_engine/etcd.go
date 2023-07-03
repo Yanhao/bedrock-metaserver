@@ -45,14 +45,14 @@ func NewEtcdNode(config *config.Configuration) *EtcdNode {
 	cfg.Name = config.EtcdName
 	cfg.InitialCluster = cfg.InitialClusterFromName(cfg.Name)
 
-	cfg.LCUrls = []url.URL{*config.EtcdClientAddr}
-	cfg.LPUrls = []url.URL{*config.EtcdPeerAddr}
+	cfg.ListenClientUrls = []url.URL{*config.EtcdClientAddr}
+	cfg.ListenPeerUrls = []url.URL{*config.EtcdPeerAddr}
 	// cfg.LogOutput = config.LogFile
 	cfg.LogLevel = "info"
 	cfg.InitialCluster = config.EtcdClusterPeers
 
-	cfg.ACUrls = cfg.LCUrls
-	cfg.APUrls = cfg.LPUrls
+	cfg.AdvertiseClientUrls = cfg.ListenClientUrls
+	cfg.AdvertisePeerUrls = cfg.ListenPeerUrls
 
 	cfg.QuotaBackendBytes = 0
 

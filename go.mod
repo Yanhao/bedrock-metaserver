@@ -2,11 +2,9 @@ module sr.ht/moyanhao/bedrock-metaserver
 
 go 1.20
 
-// replace github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.6
-
 require (
 	github.com/fatih/color v1.15.0
-	github.com/hashicorp/golang-lru v0.5.4
+	github.com/hashicorp/golang-lru/v2 v2.0.4
 	github.com/jinzhu/copier v0.3.5
 	github.com/pelletier/go-toml v1.9.5
 	go.etcd.io/etcd/client/v3 v3.5.9

@@ -2,10 +2,13 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
+	"runtime/debug"
 	"time"
 
 	"github.com/jinzhu/copier"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -77,7 +80,8 @@ func (d *DataServer) Addr() string {
 func (d *DataServer) Copy() *DataServer {
 	var ret DataServer
 	if err := copier.Copy(&ret, d); err != nil {
-		panic(err)
+		log.Error("err: %v stack:%s", err, string(debug.Stack()))
+		panic(fmt.Sprintf("copy dataserver struct failed, err: %v", err))
 	}
 
 	return &ret

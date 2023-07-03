@@ -2,9 +2,12 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/jinzhu/copier"
+	log "github.com/sirupsen/logrus"
 )
 
 type StorageID uint32
@@ -23,7 +26,8 @@ type Storage struct {
 func (s *Storage) Copy() *Storage {
 	var ret Storage
 	if err := copier.Copy(&ret, s); err != nil {
-		panic(err)
+		log.Error("err: %v stack:%s", err, string(debug.Stack()))
+		panic(fmt.Sprintf("copy storage struct failed, err: %v", err))
 	}
 
 	return &ret

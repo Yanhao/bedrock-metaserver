@@ -129,7 +129,6 @@ func main() {
 
 	mustInitLog()
 	fmt.Println("init logging ...")
-
 	kv_engine.MustStartEmbedEtcd()
 
 	kv_engine.MustInitLeaderShip(kv_engine.GetEtcdClient(), runAsLeader, runAsFollower)

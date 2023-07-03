@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"sync"
 
 	cache "github.com/hashicorp/golang-lru/v2"
@@ -26,7 +27,7 @@ func NewConnections(cap int) *Connections {
 	})
 
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("init metaserver client failed, err: %v", err))
 	}
 
 	return &Connections{

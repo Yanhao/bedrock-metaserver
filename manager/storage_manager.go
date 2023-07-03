@@ -153,6 +153,9 @@ func (sm *StorageManager) GetStorageByName(name string) (*model.Storage, error) 
 	if err != nil {
 		return nil, err
 	}
+	if st == nil {
+		return nil, nil
+	}
 
 	s := st.Copy()
 	sm.storageCache[s.ID] = s

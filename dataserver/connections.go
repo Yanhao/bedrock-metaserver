@@ -2,6 +2,7 @@ package dataserver
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	cache "github.com/hashicorp/golang-lru/v2"
@@ -19,7 +20,7 @@ func NewConnections(cap int) *Connections {
 		cli.Close()
 	})
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("init dataserver client failed, err: %v", err))
 	}
 
 	return &Connections{

@@ -3,6 +3,8 @@ package kv_engine
 import (
 	"context"
 	"errors"
+	"fmt"
+	"runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -265,7 +267,8 @@ func MustInitLeaderShip(client *clientv3.Client, leaderFunc, followerFunc func()
 
 	l, err := NewLeaderShip(opts)
 	if err != nil {
-		panic(err)
+		log.Error("err: %v stack:%s", err, string(debug.Stack()))
+		panic(fmt.Sprintf("init leadership failed, err: %v", err))
 	}
 
 	l.Start()

@@ -2,10 +2,13 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
+	"runtime/debug"
 	"time"
 
 	"github.com/jinzhu/copier"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -81,7 +84,8 @@ func (sd *Shard) ID() ShardID {
 func (sd *Shard) Copy() *Shard {
 	var ret Shard
 	if err := copier.Copy(&ret, sd); err != nil {
-		panic(err)
+		log.Error("err: %v stack:%s", err, string(debug.Stack()))
+		panic(fmt.Sprintf("copy shard struct failed, err: %v", err))
 	}
 
 	return &ret

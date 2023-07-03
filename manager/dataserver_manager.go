@@ -93,6 +93,8 @@ func (dm *DataServerManager) AddDataServer(ip, port string) error {
 		LastHeartBeatTs: time.Now(),
 		CreateTs:        time.Now(),
 		Status:          model.LiveStatusActive,
+		Free:            1024000, // FIXME:
+		Capacity:        1024000, // FIXME:
 	}
 
 	err := dal.KvPutDataServer(dataserver)

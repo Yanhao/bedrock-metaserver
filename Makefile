@@ -1,6 +1,7 @@
 default: metaserver mscli
 
 metaserver: cmd/server/metaserver.go
+	make -C proto
 	cp proto/metaserver.pb.go service/
 	cp proto/metaserver_grpc.pb.go service/
 
@@ -16,5 +17,6 @@ mscli: cmd/client/mscli.go
 
 clean:
 	rm -f metaserver mscli
+	make clean -C proto
 
 .PHONY: clean proto metaserver mscli

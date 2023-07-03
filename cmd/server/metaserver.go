@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"sr.ht/moyanhao/bedrock-metaserver/bg_task"
@@ -19,7 +20,6 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 	"sr.ht/moyanhao/bedrock-metaserver/service"
 	"sr.ht/moyanhao/bedrock-metaserver/utils"
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 func runAsFollower() {
@@ -106,7 +106,6 @@ func StartGrpcServer() {
 
 func main() {
 	configFile := flag.String("config", "", "specify the configuration file")
-	logFile := flag.String("log", "", "specify the log file")
 	help := flag.Bool("help", false, "display this help information")
 
 	flag.Parse()
@@ -128,9 +127,8 @@ func main() {
 	utils.SetupHttpPprof()
 	fmt.Println("setup http pprof ...")
 
-	log.MustInitLogFile(*logFile)
+	mustInitLog()
 	fmt.Println("init logging ...")
-	defer log.Fini()
 
 	kv_engine.MustStartEmbedEtcd()
 
@@ -139,4 +137,8 @@ func main() {
 	StartGrpcServer()
 
 	log.Info("metaserver stop here")
+}
+
+func mustInitLog() {
+	log.SetLevel(log.InfoLevel)
 }

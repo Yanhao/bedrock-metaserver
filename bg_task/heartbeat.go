@@ -4,11 +4,12 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"sr.ht/moyanhao/bedrock-metaserver/config"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 // make sure the following data no need to be locked

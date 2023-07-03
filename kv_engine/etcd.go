@@ -6,10 +6,11 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	client "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
+
 	"sr.ht/moyanhao/bedrock-metaserver/config"
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 type EtcdNode struct {

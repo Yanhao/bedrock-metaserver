@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
+	log "github.com/sirupsen/logrus"
 )
 
 type Rebalancer struct {

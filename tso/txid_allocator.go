@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 const (

@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	client "go.etcd.io/etcd/client/v3"
 
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 const (

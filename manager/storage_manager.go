@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal"
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 const (

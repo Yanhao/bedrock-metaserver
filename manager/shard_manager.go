@@ -7,11 +7,11 @@ import (
 	"time"
 
 	cache "github.com/hashicorp/golang-lru/v2"
+	log "github.com/sirupsen/logrus"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal"
 	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 type ShardManager struct {

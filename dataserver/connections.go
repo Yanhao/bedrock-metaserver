@@ -5,8 +5,7 @@ import (
 	"sync"
 
 	cache "github.com/hashicorp/golang-lru/v2"
-
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
+	log "github.com/sirupsen/logrus"
 )
 
 const MaxConnections int = 10000

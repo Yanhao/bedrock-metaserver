@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	log "github.com/sirupsen/logrus"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"sr.ht/moyanhao/bedrock-metaserver/config"
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 const (

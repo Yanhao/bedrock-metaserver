@@ -4,9 +4,8 @@ import (
 	"sync"
 
 	cache "github.com/hashicorp/golang-lru/v2"
+	log "github.com/sirupsen/logrus"
 	grpc "google.golang.org/grpc"
-
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 type MetaServerApi struct {

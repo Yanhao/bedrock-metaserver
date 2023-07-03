@@ -3,9 +3,10 @@ package scheduler
 import (
 	"errors"
 
+	log "github.com/sirupsen/logrus"
+
 	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
-	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
 )
 
 func ClearDataserver(addr string) error {

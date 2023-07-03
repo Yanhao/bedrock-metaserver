@@ -1,4 +1,4 @@
-package dao
+package dal
 
 import (
 	"context"
@@ -7,10 +7,7 @@ import (
 	"strings"
 
 	client "go.etcd.io/etcd/client/v3"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"sr.ht/moyanhao/bedrock-metaserver/dal/dto"
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
@@ -46,9 +43,10 @@ func KvGetStorage(storageID model.StorageID) (*model.Storage, error) {
 		return nil, fmt.Errorf("expected only one storage , found %d", resp.Count)
 	}
 
-	pbStorage := &dto.Storage{}
+	var storage model.Storage
 	for _, kv := range resp.Kvs {
-		err := proto.Unmarshal(kv.Value, pbStorage)
+
+		err := storage.UnmarshalJSON(kv.Value)
 		if err != nil {
 			log.Warn("failed to decode storage")
 
@@ -57,15 +55,7 @@ func KvGetStorage(storageID model.StorageID) (*model.Storage, error) {
 
 		break
 	}
-	return &model.Storage{
-		ID:           model.StorageID(pbStorage.Id),
-		Name:         pbStorage.Name,
-		IsDeleted:    pbStorage.IsDeleted,
-		DeleteTs:     pbStorage.DeletedTs.AsTime(),
-		CreateTs:     pbStorage.CreateTs.AsTime(),
-		RecycleTs:    pbStorage.RecycleTs.AsTime(),
-		LastShardISN: model.ShardISN(pbStorage.LastShardIndex),
-	}, nil
+	return &storage, nil
 }
 
 func KvGetStorageByName(name string) (*model.Storage, error) {
@@ -93,17 +83,7 @@ func KvGetStorageByName(name string) (*model.Storage, error) {
 }
 
 func KvPutStorage(storage *model.Storage) error {
-	pbStorage := &dto.Storage{
-		Id:             uint64(storage.ID),
-		Name:           storage.Name,
-		IsDeleted:      storage.IsDeleted,
-		DeletedTs:      timestamppb.New(storage.DeleteTs),
-		CreateTs:       timestamppb.New(storage.CreateTs),
-		RecycleTs:      timestamppb.New(storage.RecycleTs),
-		LastShardIndex: uint32(storage.LastShardISN),
-	}
-
-	value, err := proto.Marshal(pbStorage)
+	value, err := storage.MarshalJSON()
 	if err != nil {
 		log.Warn("failed to encode storage to pb, storage=%v", storage)
 		return err

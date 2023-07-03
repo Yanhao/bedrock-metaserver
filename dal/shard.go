@@ -1,4 +1,4 @@
-package dao
+package dal
 
 import (
 	"context"
@@ -7,10 +7,7 @@ import (
 	"strconv"
 
 	client "go.etcd.io/etcd/client/v3"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"sr.ht/moyanhao/bedrock-metaserver/dal/dto"
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
@@ -63,40 +60,19 @@ func KvGetShard(shardID model.ShardID) (*model.Shard, error) {
 		return nil, errors.New("")
 	}
 
-	pbShard := &dto.Shard{}
+	var shard model.Shard
 	for _, item := range resp.Kvs {
-		err := proto.Unmarshal(item.Value, pbShard)
+		err := shard.UnmarshalJSON(item.Value)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	shard := &model.Shard{}
-	shard.ISN = model.ShardISN(pbShard.Isn)
-	for _, rep := range pbShard.Replicates {
-		shard.Replicates[rep] = struct{}{}
-	}
-	shard.ReplicaUpdateTs = pbShard.ReplicaUpdateTs.AsTime()
-	shard.Leader = pbShard.Leader
-	shard.RangeKeyMax = pbShard.RangeKeyMax
-	shard.RangeKeyMin = pbShard.RangeKeyMin
-
-	return shard, nil
+	return &shard, nil
 }
 
 func KvPutShard(shard *model.Shard) error {
-	pbShard := &dto.Shard{
-		Isn:             uint32(shard.ISN),
-		ReplicaUpdateTs: timestamppb.New(shard.ReplicaUpdateTs),
-		Leader:          shard.Leader,
-		RangeKeyMax:     shard.RangeKeyMax,
-		RangeKeyMin:     shard.RangeKeyMin,
-	}
-	for _, rep := range pbShard.Replicates {
-		shard.Replicates[rep] = struct{}{}
-	}
-
-	value, err := proto.Marshal(pbShard)
+	value, err := shard.MarshalJSON()
 	if err != nil {
 		log.Warn("failed to encode shard to pb, shard=%v", shard)
 		return err

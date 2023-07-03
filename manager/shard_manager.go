@@ -8,7 +8,7 @@ import (
 
 	cache "github.com/hashicorp/golang-lru"
 
-	"sr.ht/moyanhao/bedrock-metaserver/dal/dao"
+	"sr.ht/moyanhao/bedrock-metaserver/dal"
 	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
@@ -70,7 +70,7 @@ func (sm *ShardManager) CreateNewShardByIDs(storageID model.StorageID, shardISN 
 		Replicates:      map[string]struct{}{},
 	}
 
-	err := dao.KvPutShard(shard)
+	err := dal.KvPutShard(shard)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (sm *ShardManager) GetShard(shardID model.ShardID) (*model.Shard, error) {
 		return v.(*model.Shard), nil
 	}
 
-	shard, err := dao.KvGetShard(shardID)
+	shard, err := dal.KvGetShard(shardID)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (sm *ShardManager) PutShard(shard *model.Shard) error {
 }
 
 func (sm *ShardManager) putShard(shard *model.Shard) error {
-	err := dao.KvPutShard(shard)
+	err := dal.KvPutShard(shard)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (sm *ShardManager) ShardDelete(shardID model.ShardID) error {
 		}
 	}
 
-	err = dao.KvDeleteShard(shard)
+	err = dal.KvDeleteShard(shard)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (sm *ShardManager) AddShardReplicates(shardID model.ShardID, addrs []string
 	}
 
 	for _, addr := range addrs {
-		if err := dao.KvAddShardInDataServer(addr, shardID); err != nil {
+		if err := dal.KvAddShardInDataServer(addr, shardID); err != nil {
 			return err
 		}
 	}
@@ -193,7 +193,7 @@ func (sm *ShardManager) RemoveShardReplicates(shardID model.ShardID, addrs []str
 	}
 
 	for _, addr := range addrs {
-		if err := dao.KvRemoveShardInDataServer(addr, shardID); err != nil {
+		if err := dal.KvRemoveShardInDataServer(addr, shardID); err != nil {
 			return err
 		}
 	}
@@ -202,27 +202,27 @@ func (sm *ShardManager) RemoveShardReplicates(shardID model.ShardID, addrs []str
 }
 
 func (sm *ShardManager) RemoveShardRangeByKey(storageID model.StorageID, key []byte) error {
-	return dao.KvRemoveShardRangeByKey(storageID, key)
+	return dal.KvRemoveShardRangeByKey(storageID, key)
 }
 
 func (sm *ShardManager) GetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, error) {
-	return dao.KvGetShardIDByKey(storageID, key)
+	return dal.KvGetShardIDByKey(storageID, key)
 }
 
 func (sm *ShardManager) PutShardIDByKey(storageID model.StorageID, key []byte, shardID model.ShardID) error {
-	return dao.KvPutShardIDByKey(storageID, key, shardID)
+	return dal.KvPutShardIDByKey(storageID, key, shardID)
 }
 
 func (sm *ShardManager) GetShardIDsInDataServer(addr string) ([]model.ShardID, error) {
-	return dao.KvGetShardIDsInDataServer(addr)
+	return dal.KvGetShardIDsInDataServer(addr)
 }
 
 func (sm *ShardManager) UpdateShardInDataServer(addr string, id model.ShardID, ts int64) error {
-	return dao.KvPutShardInDataServer(addr, id, ts)
+	return dal.KvPutShardInDataServer(addr, id, ts)
 }
 
 func (sm *ShardManager) GetShardIDsInStorage(storageID model.StorageID) ([]model.ShardID, error) {
-	return dao.KvGetShardsInStorage(storageID)
+	return dal.KvGetShardsInStorage(storageID)
 }
 
 type shardOption struct {
@@ -293,5 +293,5 @@ func (sm *ShardManager) ReSelectLeader(shardID model.ShardID, ops ...shardOpFunc
 
 	shard.ChangeLeader(newLeader)
 
-	return dao.KvPutShard(shard)
+	return dal.KvPutShard(shard)
 }

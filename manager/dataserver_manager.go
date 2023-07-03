@@ -10,10 +10,8 @@ import (
 
 	"github.com/jinzhu/copier"
 	client "go.etcd.io/etcd/client/v3"
-	"google.golang.org/protobuf/proto"
 
-	"sr.ht/moyanhao/bedrock-metaserver/dal/dao"
-	"sr.ht/moyanhao/bedrock-metaserver/dal/dto"
+	"sr.ht/moyanhao/bedrock-metaserver/dal"
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
@@ -56,7 +54,7 @@ func (dm *DataServerManager) ClearCache() {
 
 func (dm *DataServerManager) LoadDataServersFromKv() error {
 	ec := kv_engine.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), dao.KvPrefixDataServer, client.WithPrefix())
+	resp, err := ec.Get(context.Background(), dal.KvPrefixDataServer, client.WithPrefix())
 	if err != nil {
 		log.Warn("failed to get dataserver from etcd")
 		return err
@@ -66,22 +64,15 @@ func (dm *DataServerManager) LoadDataServersFromKv() error {
 	defer dm.dataServersLock.Unlock()
 
 	for _, kv := range resp.Kvs {
-		pbDataServer := &dto.DataServer{}
+		var dataserver model.DataServer
 
-		err := proto.Unmarshal(kv.Value, pbDataServer)
+		err := dataserver.UnmarshalJSON(kv.Value)
 		if err != nil {
 			log.Warn("failed to decode dataserver from pb")
 			return err
 		}
 
-		dataserver := &model.DataServer{
-			Ip:   pbDataServer.Ip,
-			Port: pbDataServer.Port,
-		}
-		log.Info("load dataserver: %v", dataserver.Addr())
-
-		addr := dataserver.Addr()
-		dm.dataServers[addr] = dataserver
+		dm.dataServers[dataserver.Addr()] = &dataserver
 	}
 
 	log.Info("load dataservers: %#v", dm.dataServers)
@@ -104,7 +95,7 @@ func (dm *DataServerManager) AddDataServer(ip, port string) error {
 		Status:          model.LiveStatusActive,
 	}
 
-	err := dao.KvPutDataServer(dataserver)
+	err := dal.KvPutDataServer(dataserver)
 	if err != nil {
 		log.Error("failed put dataserver %v to kv", dataserver.Addr())
 		return err
@@ -125,7 +116,7 @@ func (dm *DataServerManager) RemoveDataServer(addr string) error {
 
 	delete(dm.dataServers, addr)
 
-	return dao.KvDeleteDataServer(addr)
+	return dal.KvDeleteDataServer(addr)
 }
 
 func (dm *DataServerManager) GetDataServer(addr string) (*model.DataServer, error) {
@@ -183,7 +174,7 @@ func (dm *DataServerManager) UpdateSyncTs(addr string, syncTs int64) error {
 
 	d.LastSyncTs = uint64(syncTs)
 
-	go dao.KvPutDataServer(d.Copy())
+	go dal.KvPutDataServer(d.Copy())
 
 	return nil
 }
@@ -199,7 +190,7 @@ func (dm *DataServerManager) MarkInactive(addr string) error {
 
 	d.Status = model.LiveStatusInactive
 
-	go dao.KvPutDataServer(d.Copy())
+	go dal.KvPutDataServer(d.Copy())
 
 	return nil
 }
@@ -218,7 +209,7 @@ func (dm *DataServerManager) MarkActive(addr string, isHeartBeat bool) error {
 		d.LastHeartBeatTs = time.Now()
 	}
 
-	go dao.KvPutDataServer(d.Copy())
+	go dal.KvPutDataServer(d.Copy())
 
 	return nil
 }
@@ -234,7 +225,7 @@ func (dm *DataServerManager) MarkOffline(addr string) error {
 
 	d.Status = model.LiveStatusInactive
 
-	go dao.KvPutDataServer(d.Copy())
+	go dal.KvPutDataServer(d.Copy())
 
 	return nil
 }

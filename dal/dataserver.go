@@ -1,17 +1,11 @@
-package dao
+package dal
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"strings"
-	"time"
 
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"sr.ht/moyanhao/bedrock-metaserver/dal/dto"
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
@@ -50,55 +44,19 @@ func KvGetDataServer(addr string) (*model.DataServer, error) {
 		return nil, errors.New("")
 	}
 
-	pbDataServer := &dto.DataServer{}
+	var dataserver model.DataServer
 	for _, item := range resp.Kvs {
-		err := proto.Unmarshal(item.Value, pbDataServer)
+		err := dataserver.UnmarshalJSON(item.Value)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	hostStr, portStr, err := net.SplitHostPort(addr)
-	if err != nil {
-		log.Warn("parse address failed, err: %v", err)
-	}
-
-	dataServer := &model.DataServer{
-		Ip:              hostStr,
-		Port:            portStr,
-		Free:            pbDataServer.GetFree(),
-		Capacity:        pbDataServer.GetCapacity(),
-		Status:          model.LiveStatusActive,
-		LastHeartBeatTs: time.Time{},
-		LastSyncTs:      pbDataServer.GetLastSyncTs(),
-	}
-
-	return dataServer, nil
+	return &dataserver, nil
 }
 
 func KvPutDataServer(dataserver *model.DataServer) error {
-	var status dto.DataServer_LiveStatus
-	if dataserver.Status == model.LiveStatusActive {
-		status = dto.DataServer_ACTIVE
-	} else if dataserver.Status == model.LiveStatusInactive {
-		status = dto.DataServer_INACTIVE
-	} else if dataserver.Status == model.LiveStatusOffline {
-		status = dto.DataServer_OFFLINE
-	}
-
-	pbDataServer := &dto.DataServer{
-		Ip:       dataserver.Ip,
-		Port:     dataserver.Port,
-		Free:     dataserver.Free,
-		Capacity: dataserver.Capacity,
-
-		LastHeartbeatTs: timestamppb.New(dataserver.LastHeartBeatTs),
-
-		Status:     status,
-		LastSyncTs: dataserver.LastSyncTs,
-	}
-
-	value, err := proto.Marshal(pbDataServer)
+	value, err := dataserver.MarshalJSON()
 	if err != nil {
 		log.Warn("failed to encode dataserver to pb, dataserver=%v", dataserver)
 		return err

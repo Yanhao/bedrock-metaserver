@@ -9,7 +9,7 @@ import (
 
 	"go.uber.org/atomic"
 
-	"sr.ht/moyanhao/bedrock-metaserver/dal/dao"
+	"sr.ht/moyanhao/bedrock-metaserver/dal"
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/utils/log"
@@ -57,7 +57,7 @@ func GetStorageManager() *StorageManager {
 }
 
 func (sm *StorageManager) putStorage(st *model.Storage) error {
-	err := dao.KvPutStorage(st)
+	err := dal.KvPutStorage(st)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (sm *StorageManager) GetStorage(id model.StorageID) (*model.Storage, error)
 		return v.Copy(), nil
 	}
 
-	st, err := dao.KvGetStorage(id)
+	st, err := dal.KvGetStorage(id)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (sm *StorageManager) GetStorageByName(name string) (*model.Storage, error) 
 		return v.Copy(), nil
 	}
 
-	st, err := dao.KvGetStorageByName(name)
+	st, err := dal.KvGetStorageByName(name)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func (sm *StorageManager) StorageDelete(storageID model.StorageID, recycleAfter 
 		return err
 	}
 
-	return dao.KvPutDeletedStorageID(storageID)
+	return dal.KvPutDeletedStorageID(storageID)
 }
 
 func (sm *StorageManager) StorageUndelete(storageID model.StorageID) error {
@@ -242,11 +242,11 @@ func (sm *StorageManager) StorageUndelete(storageID model.StorageID) error {
 		return err
 	}
 
-	return dao.KvDelDeletedStorageID(storageID)
+	return dal.KvDelDeletedStorageID(storageID)
 }
 
 func (sm *StorageManager) StorageRealDelete(storageID model.StorageID) error {
-	shardIDs, err := dao.KvGetShardsInStorage(storageID)
+	shardIDs, err := dal.KvGetShardsInStorage(storageID)
 	if err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func (sm *StorageManager) StorageRealDelete(storageID model.StorageID) error {
 		}
 	}
 
-	err = dao.KvDeleteStorage(storageID)
+	err = dal.KvDeleteStorage(storageID)
 	if err != nil {
 		return err
 	}

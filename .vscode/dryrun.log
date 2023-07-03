@@ -1,0 +1,12 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/bytedance/code/bedrock/bedrock-metaserver'
+cp proto/metaserver.pb.go service/
+cp proto/metaserver_grpc.pb.go service/
+cp proto/dataserver.pb.go dataserver/
+cp proto/dataserver_grpc.pb.go dataserver/
+rm -f proto/*.cc proto/*.h
+go build -race cmd/server/metaserver.go
+rm -f proto/*.cc proto/*.h
+go build cmd/client/mscli.go
+make: Leaving directory `/Users/bytedance/code/bedrock/bedrock-metaserver'
+ 

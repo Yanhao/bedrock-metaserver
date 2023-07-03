@@ -1,10 +1,13 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/jinzhu/copier"
 )
+
+type StorageID uint32
 
 type Storage struct {
 	ID           StorageID
@@ -24,4 +27,45 @@ func (s *Storage) Copy() *Storage {
 	}
 
 	return &ret
+}
+
+// 自定义 MarshalJSON 方法，将 time.Time 字段转换为 Unix 时间戳进行序列化
+func (s *Storage) MarshalJSON() ([]byte, error) {
+	type Alias Storage
+
+	return json.Marshal(&struct {
+		DeleteTs  int64 `json:"deleteTs"`
+		RecycleTs int64 `json:"recycleTs"`
+		CreateTs  int64 `json:"createTs"`
+		*Alias
+	}{
+		DeleteTs:  s.DeleteTs.Unix(),
+		RecycleTs: s.RecycleTs.Unix(),
+		CreateTs:  s.CreateTs.Unix(),
+		Alias:     (*Alias)(s),
+	})
+}
+
+// 自定义 UnmarshalJSON 方法，将 Unix 时间戳转换为 time.Time 字段进行反序列化
+func (s *Storage) UnmarshalJSON(data []byte) error {
+	type Alias Storage
+
+	aux := &struct {
+		DeleteTs  int64 `json:"deleteTs"`
+		RecycleTs int64 `json:"recycleTs"`
+		CreateTs  int64 `json:"createTs"`
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	s.DeleteTs = time.Unix(aux.DeleteTs, 0)
+	s.RecycleTs = time.Unix(aux.RecycleTs, 0)
+	s.CreateTs = time.Unix(aux.CreateTs, 0)
+
+	return nil
 }

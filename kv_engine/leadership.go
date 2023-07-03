@@ -77,14 +77,16 @@ func NewLeaderShip(opts LeaderShipOption) (*LeaderShip, error) {
 	}
 
 	ret := &LeaderShip{
-		notifier:    make(chan NewRole, 128),
-		client:      opts.client,
-		stop:        make(chan struct{}),
-		lease:       &atomic.Value{},
-		leaseTime:   opts.leaseTime,
-		renewalTime: opts.renewalTime,
-		leaderKey:   opts.key,
-		leaderValue: opts.value,
+		notifier:     make(chan NewRole, 128),
+		client:       opts.client,
+		stop:         make(chan struct{}),
+		lease:        &atomic.Value{},
+		leaseTime:    opts.leaseTime,
+		renewalTime:  opts.renewalTime,
+		leaderKey:    opts.key,
+		leaderValue:  opts.value,
+		leaderFunc:   opts.LeaderFunc,
+		followerFunc: opts.FollowerFunc,
 	}
 
 	return ret, nil

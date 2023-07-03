@@ -14,3 +14,4 @@ client_timeout = 3
 [server]
 addr = "0.0.0.0:1082"
 pprof_addr = "0.0.0.0:6062"
+enable_heartbeat_checker = false

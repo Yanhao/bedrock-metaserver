@@ -140,5 +140,6 @@ func main() {
 }
 
 func mustInitLog() {
+	// log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
 }

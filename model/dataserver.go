@@ -22,16 +22,16 @@ const DataServerOverloadPercent = 0.9
 type LiveStatus int
 
 type DataServer struct {
-	Ip              string
-	Port            string
-	Capacity        uint64
-	Free            uint64
-	LastHeartBeatTs time.Time
-	CreateTs        time.Time
-	DeleteTs        time.Time
-	Status          LiveStatus
-	LastSyncTs      uint64
-	Idc             string
+	Ip              string     `json:"ip"`
+	Port            string     `json:"port"`
+	Capacity        uint64     `json:"capacity"`
+	Free            uint64     `json:"free"`
+	LastHeartBeatTs time.Time  `json:"last_heart_beat_ts"`
+	CreateTs        time.Time  `json:"create_ts"`
+	DeleteTs        time.Time  `json:"delete_ts"`
+	Status          LiveStatus `json:"status"`
+	LastSyncTs      uint64     `json:"last_sync_ts"`
+	Idc             string     `json:"idc"`
 }
 
 // 自定义 MarshalJSON 方法，将 time.Time 字段转换为 Unix 时间戳进行序列化
@@ -39,9 +39,9 @@ func (ds *DataServer) MarshalJSON() ([]byte, error) {
 	type Alias DataServer
 
 	return json.Marshal(&struct {
-		LastHeartBeatTs int64 `json:"lastHeartBeatTs"`
-		CreateTs        int64 `json:"createTs"`
-		DeleteTs        int64 `json:"deleteTs"`
+		LastHeartBeatTs int64 `json:"last_heart_beat_ts"`
+		CreateTs        int64 `json:"create_ts"`
+		DeleteTs        int64 `json:"delete_ts"`
 		*Alias
 	}{
 		LastHeartBeatTs: ds.LastHeartBeatTs.Unix(),
@@ -54,9 +54,9 @@ func (ds *DataServer) MarshalJSON() ([]byte, error) {
 func (ds *DataServer) UnmarshalJSON(data []byte) error {
 	type Alias DataServer
 	aux := &struct {
-		LastHeartBeatTs int64 `json:"lastHeartBeatTs"`
-		CreateTs        int64 `json:"createTs"`
-		DeleteTs        int64 `json:"deleteTs"`
+		LastHeartBeatTs int64 `json:"last_heart_beat_ts"`
+		CreateTs        int64 `json:"create_ts"`
+		DeleteTs        int64 `json:"delete_ts"`
 		*Alias
 	}{
 		Alias: (*Alias)(ds),
@@ -80,7 +80,7 @@ func (d *DataServer) Addr() string {
 func (d *DataServer) Copy() *DataServer {
 	var ret DataServer
 	if err := copier.Copy(&ret, d); err != nil {
-		log.Error("err: %v stack:%s", err, string(debug.Stack()))
+		log.Errorf("err: %v stack:%s", err, string(debug.Stack()))
 		panic(fmt.Sprintf("copy dataserver struct failed, err: %v", err))
 	}
 

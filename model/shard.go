@@ -17,17 +17,17 @@ type (
 )
 
 type Shard struct {
-	ISN             ShardISN // internal serial number
-	SID             StorageID
-	Replicates      map[string]struct{}
-	ReplicaUpdateTs time.Time
-	IsDeleted       bool
-	DeleteTs        time.Time
-	CreateTs        time.Time
-	Leader          string
-	LeaderChangeTs  time.Time
-	RangeKeyMax     []byte
-	RangeKeyMin     []byte
+	ISN             ShardISN            `json:"isn"` // internal serial number
+	SID             StorageID           `json:"sid"`
+	Replicates      map[string]struct{} `json:"replicates"`
+	ReplicaUpdateTs time.Time           `json:"replica_update_ts"`
+	IsDeleted       bool                `json:"is_deleted"`
+	DeleteTs        time.Time           `json:"delete_ts"`
+	CreateTs        time.Time           `json:"create_ts"`
+	Leader          string              `json:"leader"`
+	LeaderChangeTs  time.Time           `json:"leader_change_ts"`
+	RangeKeyMax     []byte              `json:"range_key_max"`
+	RangeKeyMin     []byte              `json:"range_key_min"`
 }
 
 func GenerateShardID(storageID StorageID, shardISN ShardISN) ShardID {
@@ -39,10 +39,10 @@ func GenerateShardID(storageID StorageID, shardISN ShardISN) ShardID {
 func (s *Shard) MarshalJSON() ([]byte, error) {
 	type Alias Shard
 	return json.Marshal(&struct {
-		ReplicaUpdateTs int64 `json:"replicaUpdateTs"`
-		DeleteTs        int64 `json:"deleteTs"`
-		CreateTs        int64 `json:"createTs"`
-		LeaderChangeTs  int64 `json:"leaderChangeTs"`
+		ReplicaUpdateTs int64 `json:"replica_update_ts"`
+		DeleteTs        int64 `json:"delete_ts"`
+		CreateTs        int64 `json:"create_ts"`
+		LeaderChangeTs  int64 `json:"leader_change_ts"`
 		*Alias
 	}{
 		ReplicaUpdateTs: s.ReplicaUpdateTs.Unix(),
@@ -56,10 +56,10 @@ func (s *Shard) MarshalJSON() ([]byte, error) {
 func (s *Shard) UnmarshalJSON(data []byte) error {
 	type Alias Shard
 	aux := &struct {
-		ReplicaUpdateTs int64 `json:"replicaUpdateTs"`
-		DeleteTs        int64 `json:"deleteTs"`
-		CreateTs        int64 `json:"createTs"`
-		LeaderChangeTs  int64 `json:"leaderChangeTs"`
+		ReplicaUpdateTs int64 `json:"replica_update_ts"`
+		DeleteTs        int64 `json:"delete_ts"`
+		CreateTs        int64 `json:"create_ts"`
+		LeaderChangeTs  int64 `json:"leader_change_ts"`
 		*Alias
 	}{
 		Alias: (*Alias)(s),
@@ -84,7 +84,7 @@ func (sd *Shard) ID() ShardID {
 func (sd *Shard) Copy() *Shard {
 	var ret Shard
 	if err := copier.Copy(&ret, sd); err != nil {
-		log.Error("err: %v stack:%s", err, string(debug.Stack()))
+		log.Errorf("err: %v stack:%s", err, string(debug.Stack()))
 		panic(fmt.Sprintf("copy shard struct failed, err: %v", err))
 	}
 

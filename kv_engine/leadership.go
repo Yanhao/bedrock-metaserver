@@ -267,7 +267,7 @@ func MustInitLeaderShip(client *clientv3.Client, leaderFunc, followerFunc func()
 
 	l, err := NewLeaderShip(opts)
 	if err != nil {
-		log.Error("err: %v stack:%s", err, string(debug.Stack()))
+		log.Errorf("err: %v stack:%s", err, string(debug.Stack()))
 		panic(fmt.Sprintf("init leadership failed, err: %v", err))
 	}
 

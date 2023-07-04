@@ -57,7 +57,7 @@ func (cns *Connections) GetClient(addr string) (MetaServiceClient, error) {
 
 	newApi, err := NewMetaServerApi(addr)
 	if err != nil {
-		log.Error("failed to create metaserver client, addr: %s, err: %v", addr, err)
+		log.Errorf("failed to create metaserver client, addr: %s, err: %v", addr, err)
 		return nil, err
 	}
 

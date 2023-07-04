@@ -67,7 +67,7 @@ func NewEtcdNode(config *config.Configuration) *EtcdNode {
 func (en *EtcdNode) Start() error {
 	e, err := embed.StartEtcd(en.config)
 	if err != nil {
-		log.Error("failed to start embed etcd node, err: %v", err)
+		log.Errorf("failed to start embed etcd node, err: %v", err)
 		return err
 	}
 
@@ -89,7 +89,7 @@ func (en *EtcdNode) Start() error {
 	})
 
 	if err != nil {
-		log.Error("failed to create clientv3, err: %v", err)
+		log.Errorf("failed to create clientv3, err: %v", err)
 		return err
 	}
 

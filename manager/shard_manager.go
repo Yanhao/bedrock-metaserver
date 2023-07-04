@@ -124,7 +124,7 @@ func (sm *ShardManager) ShardDelete(shardID model.ShardID) error {
 
 		err := dataServerCli.DeleteShard(uint64(shardID))
 		if err != nil {
-			log.Warn("failed to delete shard from dataserver, err: %v", err)
+			log.Warnf("failed to delete shard from dataserver, err: %v", err)
 			return err
 		}
 	}
@@ -240,7 +240,7 @@ func WithLeader(addr string) shardOpFunc {
 func (sm *ShardManager) ReSelectLeader(shardID model.ShardID, ops ...shardOpFunc) error {
 	shard, err := sm.GetShard(shardID)
 	if err != nil {
-		log.Error("%v", err)
+		log.Errorf("get shard failed, err: %v", err)
 		return err
 	}
 
@@ -264,12 +264,12 @@ func (sm *ShardManager) ReSelectLeader(shardID model.ShardID, ops ...shardOpFunc
 
 		newLeader = candidates[rand.Intn(len(candidates))]
 	}
-	log.Info("new shard leader: %v", newLeader)
+	log.Infof("new shard leader: %v", newLeader)
 
 	conns := dataserver.GetDataServerConns()
 	dataSerCli, err := conns.GetApiClient(newLeader)
 	if err != nil {
-		log.Error("failed to get connection, err: %v", err)
+		log.Errorf("failed to get connection, err: %v", err)
 		return nil
 	}
 
@@ -281,13 +281,13 @@ func (sm *ShardManager) ReSelectLeader(shardID model.ShardID, ops ...shardOpFunc
 	}
 	err = dataSerCli.TransferShardLeader(uint64(shard.ID()), replicates)
 	if err != nil {
-		log.Error("failed to transfer leader, err: %v", err)
+		log.Errorf("failed to transfer leader, err: %v", err)
 		return err
 	}
 
 	shard, err = sm.GetShard(shardID)
 	if err != nil {
-		log.Error("failed to get shard, err: %v", err)
+		log.Errorf("failed to get shard, err: %v", err)
 		return nil
 	}
 

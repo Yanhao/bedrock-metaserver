@@ -85,7 +85,7 @@ func (sm *StorageManager) LoadLastStorageId() error {
 	ec := kv_engine.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), KvLastStorageIDkey)
 	if err != nil {
-		log.Error("failed load last storage id from etcd, err: %v", err)
+		log.Errorf("failed load last storage id from etcd, err: %v", err)
 		return err
 	}
 
@@ -179,13 +179,13 @@ func (sm *StorageManager) FetchAddStorageLastISN(id model.StorageID) (model.Shar
 		return 0, err
 	}
 
-	log.Info("shard isn: 0x%08x", ret)
+	log.Infof("shard isn: 0x%08x", ret)
 	return ret, nil
 }
 
 func (sm *StorageManager) CreateNewStorage(name string) (*model.Storage, error) {
 	id := sm.lastStorageID.Inc()
-	log.Info("new storage id, %v", id)
+	log.Infof("new storage id, %v", id)
 
 	err := sm.SaveLastStorageId()
 	if err != nil {

@@ -75,7 +75,7 @@ func (dm *DataServerManager) LoadDataServersFromKv() error {
 		dm.dataServers[dataserver.Addr()] = &dataserver
 	}
 
-	log.Info("load dataservers: %#v", dm.dataServers)
+	log.Infof("load dataservers: %#v", dm.dataServers)
 
 	return nil
 }
@@ -83,7 +83,7 @@ func (dm *DataServerManager) LoadDataServersFromKv() error {
 func (dm *DataServerManager) AddDataServer(ip, port string) error {
 	addr := net.JoinHostPort(ip, port)
 	if dm.IsDataServerExists(addr) {
-		log.Warn("dataserver %v already in the cluster", addr)
+		log.Warnf("dataserver %v already in the cluster", addr)
 		return fmt.Errorf("%s already in the cluster", addr)
 	}
 
@@ -99,7 +99,7 @@ func (dm *DataServerManager) AddDataServer(ip, port string) error {
 
 	err := dal.KvPutDataServer(dataserver)
 	if err != nil {
-		log.Error("failed put dataserver %v to kv", dataserver.Addr())
+		log.Errorf("failed put dataserver %v to kv", dataserver.Addr())
 		return err
 	}
 
@@ -145,7 +145,7 @@ func (dm *DataServerManager) GetDataServersCopy() map[string]*model.DataServer {
 	dm.dataServersLock.RLock()
 	defer dm.dataServersLock.RUnlock()
 
-	log.Info("dataservers: %#v", dm.dataServers)
+	log.Infof("dataservers: %#v", dm.dataServers)
 	ret := make(map[string]*model.DataServer)
 
 	copier.CopyWithOption(&ret, dm.dataServers, copier.Option{IgnoreEmpty: true, DeepCopy: true})

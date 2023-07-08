@@ -35,7 +35,7 @@ func KvGetStorage(storageID model.StorageID) (*model.Storage, error) {
 	ec := kv_engine.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), storageKey(storageID))
 	if err != nil {
-		log.Warn("failed get storage from etcd, storageID=%d", storageID)
+		log.Warnf("failed get storage from etcd, storageID=%d", storageID)
 		return nil, err
 	}
 
@@ -62,7 +62,7 @@ func KvGetStorageByName(name string) (*model.Storage, error) {
 	ec := kv_engine.GetEtcdClient()
 	resp, err := ec.Get(context.Background(), storageByNameKey(name))
 	if err != nil {
-		log.Warn("failed get storage id by name, err: %v", err)
+		log.Warnf("failed get storage id by name, err: %v", err)
 		return nil, err
 	}
 
@@ -75,7 +75,7 @@ func KvGetStorageByName(name string) (*model.Storage, error) {
 	storageIDStr := resp.Kvs[0].Value
 	storageID, err := strconv.ParseUint(string(storageIDStr), 10, 32)
 	if err != nil {
-		log.Warn("failed to parse storage id, err: %v", err)
+		log.Warnf("failed to parse storage id, err: %v", err)
 		return nil, err
 	}
 
@@ -85,21 +85,21 @@ func KvGetStorageByName(name string) (*model.Storage, error) {
 func KvPutStorage(storage *model.Storage) error {
 	value, err := storage.MarshalJSON()
 	if err != nil {
-		log.Warn("failed to encode storage to pb, storage=%v", storage)
+		log.Warnf("failed to encode storage to pb, storage=%v", storage)
 		return err
 	}
 
 	ec := kv_engine.GetEtcdClient()
 	_, err = ec.Put(context.Background(), storageKey(storage.ID), string(value))
 	if err != nil {
-		log.Warn("failed to save storage to etcd, storage=%v", storage)
+		log.Warnf("failed to save storage to etcd, storage=%v", storage)
 		return err
 	}
 
 	storageIDStr := strconv.FormatUint(uint64(storage.ID), 10)
 	_, err = ec.Put(context.Background(), storageByNameKey(storage.Name), storageIDStr)
 	if err != nil {
-		log.Warn("failed to save storage name, err: %v", err)
+		log.Warnf("failed to save storage name, err: %v", err)
 		return err
 	}
 
@@ -120,7 +120,7 @@ func KvDeleteStorage(storageID model.StorageID) error {
 	ec := kv_engine.GetEtcdClient()
 	_, err := ec.Txn(context.Background()).If().Then(ops...).Commit()
 	if err != nil {
-		log.Warn("failed to delete storage from etcd, storage=%d", storageID)
+		log.Warnf("failed to delete storage from etcd, storage=%d", storageID)
 		return err
 	}
 

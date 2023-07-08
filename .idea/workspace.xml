@@ -5,13 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b1268240-6886-4de5-bf9f-ce84ab65be16" name="变更" comment="">
-      <change beforePath="$PROJECT_DIR$/proto" beforeDir="false" afterPath="$PROJECT_DIR$/proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/dataserver.pb.cc" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/dataserver.pb.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/metaserver.pb.cc" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/metaserver.pb.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/proxy.pb.cc" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/proxy.pb.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/bg_task/heartbeat.go" beforeDir="false" afterPath="$PROJECT_DIR$/bg_task/heartbeat.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmd/server/metaserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/server/metaserver.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dal/dataserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/dal/dataserver.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dal/shard.go" beforeDir="false" afterPath="$PROJECT_DIR$/dal/shard.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dal/storage.go" beforeDir="false" afterPath="$PROJECT_DIR$/dal/storage.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dataserver/connections.go" beforeDir="false" afterPath="$PROJECT_DIR$/dataserver/connections.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dataserver/dataserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/dataserver/dataserver.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/shard.go" beforeDir="false" afterPath="$PROJECT_DIR$/model/shard.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scheduler/clear_dataserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/scheduler/clear_dataserver.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scheduler/shard_allocator.go" beforeDir="false" afterPath="$PROJECT_DIR$/scheduler/shard_allocator.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/service/service.go" beforeDir="false" afterPath="$PROJECT_DIR$/service/service.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tso/txid_allocator.go" beforeDir="false" afterPath="$PROJECT_DIR$/tso/txid_allocator.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,7 +41,7 @@
     <option name="stateVersion" value="1" />
   </component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="CurrentFile" />
+    <option name="selectedTabId" value="ProjectErrors" />
   </component>
   <component name="ProjectId" id="27IXFLvMwwQAuY6P1m5uAzqlz88" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
@@ -55,6 +60,7 @@
     "WebServerToolWindowFactoryState": "false",
     "configurable..is.expanded": "false",
     "configurable.GoLibrariesConfigurable.is.expanded": "true",
+    "git-widget-placeholder": "master",
     "go.import.settings.migrated": "true",
     "go.sdk.automatically.set": "true",
     "last_opened_file_path": "/Users/bytedance",
@@ -63,6 +69,25 @@
     "run.code.analysis.last.selected.profile": "pProject Default"
   }
 }]]></component>
+  <component name="RunManager">
+    <configuration default="true" type="GoApplicationRunConfiguration" factoryName="Go Application">
+      <module name="bedrock-metaserver" />
+      <working_directory value="$PROJECT_DIR$" />
+      <kind value="FILE" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="GoTestRunConfiguration" factoryName="Go Test">
+      <module name="bedrock-metaserver" />
+      <working_directory value="$PROJECT_DIR$" />
+      <kind value="DIRECTORY" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <method v="2" />
+    </configuration>
+  </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="应用程序级" UseSingleDictionary="true" transferred="true" />
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />

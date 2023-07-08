@@ -47,31 +47,31 @@ func runAsLeader() {
 
 	err := dm.LoadDataServersFromKv()
 	if err != nil {
-		log.Error("failed to load dataservers from etcd, err: %v", err)
+		log.Errorf("failed to load dataservers from etcd, err: %v", err)
 	}
 	log.Info("load dataservers from kv ...")
 
 	err = bg_task.GetHeartBeater().Start()
 	if err != nil {
-		log.Error("failed to start heartbeater, err: %v", err)
+		log.Errorf("failed to start heartbeater, err: %v", err)
 	}
 	log.Info("start heartbeater ...")
 
 	err = scheduler.GetRebalance().Start()
 	if err != nil {
-		log.Error("failed to start rebalance, err: %v", err)
+		log.Errorf("failed to start rebalance, err: %v", err)
 	}
 	log.Info("start rebalance ...")
 
 	err = scheduler.GetChecker().Start()
 	if err != nil {
-		log.Error("failed to start checker, err: %v", err)
+		log.Errorf("failed to start checker, err: %v", err)
 	}
 	log.Info("start checker ...")
 
 	err = bg_task.GetGarbageCleaner().Start()
 	if err != nil {
-		log.Error("failed to start garbage cleaner, err: %v")
+		log.Errorf("failed to start garbage cleaner, err: %v", err)
 	}
 	log.Info("start garbage cleaner ...")
 
@@ -83,7 +83,7 @@ func runAsLeader() {
 
 	err = manager.GetStorageManager().LoadLastStorageId()
 	if err != nil {
-		log.Error("failed to load last storage id from kv, err: %v", err)
+		log.Errorf("failed to load last storage id from kv, err: %v", err)
 	}
 }
 
@@ -98,7 +98,7 @@ func StartGrpcServer() {
 	grpcServer := grpc.NewServer(opts...)
 	service.RegisterMetaServiceServer(grpcServer, &service.MetaService{})
 
-	log.Info("start grpc server at %s", lis.Addr().String())
+	log.Infof("start grpc server at %s", lis.Addr().String())
 	if err := grpcServer.Serve(lis); err != nil {
 		panic("failed to start grpc server")
 	}

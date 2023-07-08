@@ -67,7 +67,7 @@ func (ds *DataServerApi) CreateShard(shardID uint64) error {
 
 	resp, err := ds.client.CreateShard(context.TODO(), req)
 	if err != nil || resp == nil {
-		log.Error("failed to create shard, err: %v", err)
+		log.Errorf("failed to create shard, err: %v", err)
 		return err
 	}
 

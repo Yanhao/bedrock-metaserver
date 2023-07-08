@@ -94,7 +94,7 @@ outer:
 func randomSelect(dataServers []string) string {
 	length := len(dataServers)
 	if length == 0 {
-		log.Warn("input dataserver is empty")
+		log.Warnf("input dataserver is empty")
 		return ""
 	}
 
@@ -146,20 +146,20 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 	sm := manager.GetShardManager()
 
 	for i, times := count, MaxAllocateTimes; i > 0 && times > 0; {
-		log.Info("i: %v, times: %v", i, times)
+		log.Infof("i: %v, times: %v", i, times)
 		viableDataServers := generateViableDataServer(selectedDataServers)
 		if len(viableDataServers) < i {
 			return nil, errors.New("dataserver is not enough to allocate shard")
 		}
 
 		server := randomSelect(viableDataServers)
-		log.Info("allocate shard: 0x%016x on dataserver: %s", shardID, server)
+		log.Infof("allocate shard: 0x%016x on dataserver: %s", shardID, server)
 
 		dataServerCli, _ := conns.GetApiClient(server)
 
 		err := dataServerCli.CreateShard(uint64(shardID))
 		if err != nil {
-			log.Warn("failed to create shard from dataserver %v, err: %v", server, err)
+			log.Warnf("failed to create shard from dataserver %v, err: %v", server, err)
 
 			times--
 			continue
@@ -182,11 +182,11 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 
 	err := sm.ReSelectLeader(shardID)
 	if err != nil {
-		log.Error("failed to select leader of shard, shard id: 0x016%x, err: %v", shardID, err)
+		log.Errorf("failed to select leader of shard, shard id: 0x016%x, err: %v", shardID, err)
 		return selectedDataServers, err
 	}
 
-	log.Info("successfully create new shard replicate: shard_id: 0x%016x, addr: %v", shardID, selectedDataServers)
+	log.Infof("successfully create new shard replicate: shard_id: 0x%016x, addr: %v", shardID, selectedDataServers)
 
 	return selectedDataServers, nil
 }
@@ -208,7 +208,7 @@ func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32)
 			return err
 		}
 
-		log.Info("new shard, id: 0x%016x", shard.ID())
+		log.Infof("new shard, id: 0x%016x", shard.ID())
 
 		_, err = sa.AllocateShardReplicates(shard.ID(), DefaultReplicatesCount)
 		if err != nil {
@@ -225,7 +225,7 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 	sm := manager.GetShardManager()
 	shard, err := sm.GetShard(shardID)
 	if err != nil {
-		log.Warn("failed to get shard, err: %v", err)
+		log.Warnf("failed to get shard, err: %v", err)
 		return err
 	}
 
@@ -250,7 +250,7 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 		return err
 	}
 
-	log.Info("new shard, id: 0x%016x", newShard.ID())
+	log.Infof("new shard, id: 0x%016x", newShard.ID())
 
 	_, err = sa.AllocateShardReplicates(newShard.ID(), DefaultReplicatesCount)
 	if err != nil {

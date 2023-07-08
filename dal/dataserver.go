@@ -59,14 +59,14 @@ func KvGetDataServer(addr string) (*model.DataServer, error) {
 func KvPutDataServer(dataserver *model.DataServer) error {
 	value, err := dataserver.MarshalJSON()
 	if err != nil {
-		log.Warn("failed to encode dataserver to pb, dataserver=%v", dataserver)
+		log.Warnf("failed to encode dataserver to pb, dataserver=%v", dataserver)
 		return err
 	}
 
 	ec := kv_engine.GetEtcdClient()
 	_, err = ec.Put(context.Background(), dataServerKey(dataserver.Addr()), string(value))
 	if err != nil {
-		log.Warn("failed to save dataserver to etcd, dataserver=%v", dataserver)
+		log.Warnf("failed to save dataserver to etcd, dataserver=%v", dataserver)
 		return err
 	}
 

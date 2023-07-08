@@ -46,12 +46,14 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *HeartBeatRequest) (*em
 }
 
 func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*RouteRecord, error) {
+	log.Infof("getUpdateRoute, shardID: %v, ts: %v", shardID, ts)
 	sm := manager.GetShardManager()
 	shard, err := sm.GetShard(shardID)
 	if err != nil {
 		log.Errorf("get shard failed, shardID: %d, err: %v", shardID, err)
 		return nil, status.Errorf(codes.Internal, "get shard failed")
 	}
+	log.Infof("shard: %#v", shard)
 
 	if shard.ReplicaUpdateTs.After(ts) {
 		route := &RouteRecord{
@@ -67,11 +69,12 @@ func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*RouteRecord, error) 
 		return route, nil
 	}
 
+	log.Infof("getUpdateRoute returns nil, nil")
 	return nil, nil
 }
 
 func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesRequest) (*GetShardRoutesResponse, error) {
-	log.Infof("req: %v", req.GetShardRange())
+	log.Infof("req: %v", req)
 	err := GetShardRoutesParamCheck(req)
 	if err != nil {
 		log.Warnf("GetShardRoutes: invalid arguments, err: %v", err)

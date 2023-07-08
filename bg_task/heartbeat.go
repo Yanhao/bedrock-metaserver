@@ -140,12 +140,12 @@ func (hb *HeartBeater) doHandleHeartBeat() {
 }
 
 func repairDataInServer(server *model.DataServer) {
-	log.Info("start repair data in dataserver: %s", server.Addr())
+	log.Infof("start repair data in dataserver: %s", server.Addr())
 	return // FIXME: remove this line
 
 	err := scheduler.ClearDataserver(server.Addr())
 	if err != nil {
-		log.Error("failed to clear data in dataserver %v, err: %v", server.Addr(), err)
+		log.Errorf("failed to clear data in dataserver %v, err: %v", server.Addr(), err)
 
 		return
 	}
@@ -156,5 +156,5 @@ func repairDataInServer(server *model.DataServer) {
 	// FIXME: protect by lock
 	delete(OfflineDataServers, server.Addr())
 
-	log.Info("successfully repair data in dataserver: %s", server.Addr())
+	log.Infof("successfully repair data in dataserver: %s", server.Addr())
 }

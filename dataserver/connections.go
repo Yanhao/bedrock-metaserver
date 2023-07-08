@@ -40,7 +40,7 @@ func (cns *Connections) GetApiClient(addr string) (DsApi, error) {
 
 	newCli, err := NewDataServerApi(addr)
 	if err != nil {
-		log.Error("failed to create dataserver client, addr: %s, err: %v", addr, err)
+		log.Errorf("failed to create dataserver client, addr: %s, err: %v", addr, err)
 		return nil, err
 	}
 

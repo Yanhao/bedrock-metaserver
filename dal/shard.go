@@ -74,7 +74,7 @@ func KvGetShard(shardID model.ShardID) (*model.Shard, error) {
 func KvPutShard(shard *model.Shard) error {
 	value, err := shard.MarshalJSON()
 	if err != nil {
-		log.Warn("failed to encode shard to pb, shard=%v", shard)
+		log.Warnf("failed to encode shard to pb, shard=%v", shard)
 		return err
 	}
 
@@ -94,7 +94,7 @@ func KvPutShard(shard *model.Shard) error {
 	ec := kv_engine.GetEtcdClient()
 	_, err = ec.Txn(context.Background()).If().Then(ops...).Commit()
 	if err != nil {
-		log.Warn("failed to store shard to etcd, shard=%v", shard)
+		log.Warnf("failed to store shard to etcd, shard=%v", shard)
 		return err
 
 	}

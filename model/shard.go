@@ -54,6 +54,7 @@ func (s *Shard) MarshalJSON() ([]byte, error) {
 }
 
 func (s *Shard) UnmarshalJSON(data []byte) error {
+	log.Infof("json: %s", string(data))
 	type Alias Shard
 	aux := &struct {
 		ReplicaUpdateTs int64 `json:"replica_update_ts"`
@@ -73,6 +74,8 @@ func (s *Shard) UnmarshalJSON(data []byte) error {
 	s.DeleteTs = time.Unix(aux.DeleteTs, 0)
 	s.CreateTs = time.Unix(aux.CreateTs, 0)
 	s.LeaderChangeTs = time.Unix(aux.LeaderChangeTs, 0)
+
+	log.Infof("data: %#v", s)
 
 	return nil
 }

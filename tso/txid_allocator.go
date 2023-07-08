@@ -100,14 +100,14 @@ func (t *TxIDsAllocator) AllocateOne(withLock bool) (uint64, error) {
 
 	data, err := json.Marshal(tsov)
 	if err != nil {
-		log.Error("failed to marshal tosValue data, err: %v", err)
+		log.Errorf("failed to marshal tosValue data, err: %v", err)
 		return 0, err
 	}
 
 	ec := kv_engine.GetEtcdClient()
 	_, err = ec.Put(context.TODO(), TXID_KEY, string(data))
 	if err != nil {
-		log.Error("failed to put tso value, err: %v", err)
+		log.Errorf("failed to put tso value, err: %v", err)
 		return 0, err
 	}
 

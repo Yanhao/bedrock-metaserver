@@ -17,7 +17,7 @@ func ClearDataserver(addr string) error {
 	sm := manager.GetShardManager()
 	shardIDs, err := sm.GetShardIDsInDataServer(addr)
 	if err != nil {
-		log.Error("GetShardsInDataServer failed, err: %v", err)
+		log.Errorf("GetShardsInDataServer failed, err: %v", err)
 		return errors.New("GetShardsInDataServer failed")
 	}
 
@@ -39,7 +39,7 @@ func ClearDataserver(addr string) error {
 
 		err = dataServerCli.CreateShard(uint64(shardID))
 		if err != nil {
-			log.Error("CreateShard failed, err: %v", err)
+			log.Errorf("CreateShard failed, err: %v", err)
 			return err
 		}
 
@@ -58,7 +58,7 @@ func ClearDataserver(addr string) error {
 		dsTobeClearedCli, _ := conns.GetApiClient(addr)
 		err = dsTobeClearedCli.DeleteShard(uint64(shardID))
 		if err != nil {
-			log.Warn("DeleteShard failed, err: %v", err)
+			log.Warnf("DeleteShard failed, err: %v", err)
 		}
 
 		err = sm.RemoveShardReplicates(shardID, []string{addr})

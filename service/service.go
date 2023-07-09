@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"io"
 	"net"
 	"time"
 
@@ -593,9 +594,54 @@ func (m *MetaService) GetShardIDByKey(ctx context.Context, req *GetShardIDByKeyR
 }
 
 func (m *MetaService) SyncShardInDataServer(reqStream MetaService_SyncShardInDataServerServer) error {
+	log.Info("sync shard in dataserver ...")
+
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+
+		targetStream, err := mscli.SyncShardInDataServer(context.Background())
+		if err != nil {
+			log.Errorf("Failed to create stream to target node: %v", err)
+			return err
+		}
+		defer targetStream.CloseSend()
+		log.Infof("create sync shard request stream to %v", leader)
+
+		for {
+			req, err := reqStream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Errorf("sync shard in dataserver, stream receive failed, err: %v", err)
+				return status.Error(codes.Internal, err.Error())
+			}
+
+			err = targetStream.Send(req)
+			if err != nil {
+				log.Errorf("Failed to send message to target node: %v", err)
+				return err
+			}
+		}
+
+		resp, err := targetStream.CloseAndRecv()
+		if err != nil {
+			log.Errorf("Failed to receive response from target node: %v", err)
+			return err
+		}
+
+		return reqStream.SendAndClose(resp)
+	}
+
 	for {
 		req, err := reqStream.Recv()
+		if err == io.EOF {
+			break
+		}
+
 		if err != nil {
+			log.Errorf("sync shard in dataserver, stream receive failed, err: %v", err)
 			return status.Error(codes.Internal, err.Error())
 		}
 
@@ -608,15 +654,18 @@ func (m *MetaService) SyncShardInDataServer(reqStream MetaService_SyncShardInDat
 		for _, shard := range shards {
 			err := manager.GetShardManager().UpdateShardInDataServer(req.GetDataserverAddr(), model.ShardID(shard.GetShardId()), syncTs)
 			if err != nil {
-				return err
+				log.Errorf("update shard in dataserver failed, err: %v", err)
+				return status.Errorf(codes.Internal, "%v", err)
 			}
 		}
 
 		if req.GetIsLastPiece() {
 			dsm := manager.GetDataServerManager()
-			err = dsm.UpdateSyncTs(req.GetDataserverAddr(), syncTs)
+			dsAddr := req.GetDataserverAddr()
+			err = dsm.UpdateSyncTs(dsAddr, syncTs)
 			if err != nil {
-				return err
+				log.Errorf("update shard sync timestamp failed, dataserver address: %v, err: %v", dsAddr, err)
+				return status.Errorf(codes.Internal, "%v", err)
 			}
 		}
 	}

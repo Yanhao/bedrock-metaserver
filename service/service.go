@@ -75,7 +75,8 @@ func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*RouteRecord, error) 
 }
 
 func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesRequest) (*GetShardRoutesResponse, error) {
-	log.Infof("req: %v", req)
+	log.Infof("GetShardRoutes request: %v", req)
+
 	err := GetShardRoutesParamCheck(req)
 	if err != nil {
 		log.Warnf("GetShardRoutes: invalid arguments, err: %v", err)
@@ -95,7 +96,7 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesReq
 		begin := req.GetShardRange().StartShardId
 		end := begin + req.GetShardRange().Offset
 
-		log.Infof("req: shard_id: 0x%016x, end: %v", begin, end)
+		log.Infof("req: shard_id: 0x%016x, end: 0x%016x", begin, end)
 
 		for shardID := begin; shardID <= end; shardID++ {
 			route, err := getUpdatedRoute(model.ShardID(shardID), ts)
@@ -119,6 +120,38 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *GetShardRoutesReq
 	return resp, nil
 }
 
+func (m *MetaService) GetStorageShards(ctx context.Context, req *GetStorageShardsRequest) (*GetStorageShardsResponse, error) {
+	log.Infof("GetStorageShards request: %v", req)
+
+	err := GetStorageShardsParamCheck(req)
+	if err != nil {
+		log.Warnf("GetStorageShards: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if !kv_engine.GetLeaderShip().IsMetaServerLeader() {
+		leader := kv_engine.GetLeaderShip().GetMetaServerLeader()
+		mscli, _ := GetMetaServerConns().GetClient(leader)
+		return mscli.GetStorageShards(ctx, req)
+	}
+
+	resp := &GetStorageShardsResponse{}
+
+	sm := manager.GetStorageManager()
+	shardsAndRange, err := sm.GetStorageShards(model.StorageID(req.StorageId))
+	if err != nil {
+		return resp, status.Errorf(codes.Internal, "get storage shards failed, err: %v", err)
+	}
+
+	for _, s := range shardsAndRange {
+		resp.Shards = append(resp.Shards, &GetStorageShardsResponse_ShardIDAndRange{
+			ShardId:    uint64(s.ShardID),
+			RangeStart: s.RangeStart,
+		})
+	}
+
+	return resp, nil
+}
 func (m *MetaService) CreateStorage(ctx context.Context, req *CreateStorageRequest) (*CreateStorageResponse, error) {
 	err := CreateStorageParamCheck(req)
 	if err != nil {

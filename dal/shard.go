@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	ErrNoSuchShard = errors.New("")
+	ErrNoSuchShard = errors.New("no such shard")
 )
 
 const (
@@ -42,6 +42,10 @@ func shardInDataServerKey(addr string, shardID model.ShardID) string {
 
 func shardInStorageKey(storageID model.StorageID, shardID model.ShardISN) string {
 	return fmt.Sprintf("%s0x%08x", shardInStoragePrefixKey(storageID), shardID)
+}
+
+func shardRangeInStoragePrefix(storageID model.StorageID) string {
+	return fmt.Sprintf("%s0x%08x/", KvPrefixShardRangeByStorage, storageID)
 }
 
 func shardRangeInStorageKey(storageID model.StorageID, key []byte) string {
@@ -179,6 +183,7 @@ func KvPutShardInDataServer(addr string, id model.ShardID, ts int64) error {
 	return nil
 }
 
+// zrange
 func KvGetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, error) {
 	ec := kv_engine.GetEtcdClient()
 
@@ -199,6 +204,7 @@ func KvGetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, er
 	return shardID, nil
 }
 
+// zadd
 func KvPutShardIDByKey(storageID model.StorageID, key []byte, shardID model.ShardID) error {
 	value := fmt.Sprintf("0x%016x", shardID)
 
@@ -212,10 +218,42 @@ func KvPutShardIDByKey(storageID model.StorageID, key []byte, shardID model.Shar
 	return nil
 }
 
+// zrembyscore
 func KvRemoveShardRangeByKey(storageID model.StorageID, key []byte) error {
 	ec := kv_engine.GetEtcdClient()
 	_, err := ec.Delete(context.Background(), shardRangeInStorageKey(storageID, key))
 	return err
+}
+
+type ShardIDAndRange struct {
+	ShardID    model.ShardID
+	RangeStart []byte
+}
+
+func KvGetAllShardSetBySID(storageID model.StorageID) ([]ShardIDAndRange, error) {
+	ec := kv_engine.GetEtcdClient()
+	keyPrefix := shardRangeInStoragePrefix(storageID)
+	resp, err := ec.Get(context.Background(), keyPrefix, client.WithPrefix())
+	if err != nil {
+		log.Errorf("get key with prefix failed, err: %v", err)
+		return nil, err
+	}
+
+	var ret []ShardIDAndRange
+	for _, kv := range resp.Kvs {
+		var shardID uint64
+		_, _ = fmt.Sscanf(string(kv.Value), "0x%016x", &shardID)
+
+		var rangeStart string
+		_, _ = fmt.Sscanf(string(kv.Key), keyPrefix+"/%s", &rangeStart)
+
+		ret = append(ret, ShardIDAndRange{
+			ShardID:    model.ShardID(shardID),
+			RangeStart: []byte(rangeStart),
+		})
+	}
+
+	return ret, nil
 }
 
 func KvAddShardInDataServer(addr string, id model.ShardID) error {

@@ -281,3 +281,7 @@ func (sm *StorageManager) StorageRename(storageID model.StorageID, name string) 
 
 	return sm.putStorage(storage)
 }
+
+func (sm *StorageManager) GetStorageShards(storageID model.StorageID) ([]dal.ShardIDAndRange, error) {
+	return dal.KvGetAllShardSetBySID(storageID)
+}

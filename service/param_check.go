@@ -12,6 +12,10 @@ func GetShardRoutesParamCheck(req *GetShardRoutesRequest) error {
 	return nil
 }
 
+func GetStorageShardsParamCheck(req *GetStorageShardsRequest) error {
+	return nil
+}
+
 func CreateStorageParamCheck(req *CreateStorageRequest) error {
 	return nil
 }

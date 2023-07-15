@@ -184,24 +184,26 @@ func KvPutShardInDataServer(addr string, id model.ShardID, ts int64) error {
 }
 
 // zrange
-func KvGetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, error) {
+func KvGetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, []byte /* range start */, error) {
 	ec := kv_engine.GetEtcdClient()
 
 	resp, err := ec.Get(context.Background(), shardRangeInStorageKey(storageID, key), client.WithPrefix())
 	if err != nil {
-		return 0, err
+		return 0, []byte{}, err
 	}
 
 	if resp.Count == 0 {
-		return 0, errors.New("no such key")
+		return 0, []byte{}, errors.New("no such key")
 	}
 
 	kv := resp.Kvs[0]
 
 	var shardID model.ShardID
 	_, _ = fmt.Sscanf("0x%016x", string(kv.Value), &shardID)
+	var rangeStart string
+	_, _ = fmt.Sscanf(string(kv.Key), shardRangeInStoragePrefix(storageID)+"/%s", &rangeStart)
 
-	return shardID, nil
+	return shardID, []byte(rangeStart), nil
 }
 
 // zadd

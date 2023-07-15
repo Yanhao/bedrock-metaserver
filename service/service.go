@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"sr.ht/moyanhao/bedrock-metaserver/dal"
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
@@ -152,6 +153,7 @@ func (m *MetaService) GetStorageShards(ctx context.Context, req *GetStorageShard
 
 	return resp, nil
 }
+
 func (m *MetaService) CreateStorage(ctx context.Context, req *CreateStorageRequest) (*CreateStorageResponse, error) {
 	err := CreateStorageParamCheck(req)
 	if err != nil {
@@ -615,13 +617,13 @@ func (m *MetaService) GetShardIDByKey(ctx context.Context, req *GetShardIDByKeyR
 
 	resp := &GetShardIDByKeyResponse{}
 
-	sm := manager.GetShardManager()
-	shardID, err := sm.GetShardIDByKey(model.StorageID(req.StorageId), req.Key)
+	shardID, rangeStart, err := dal.KvGetShardIDByKey(model.StorageID(req.StorageId), req.Key)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get storage, err: %v", err)
 	}
 
 	resp.ShardId = uint64(shardID)
+	resp.RangeStart = rangeStart
 
 	return resp, nil
 }

@@ -206,7 +206,8 @@ func (sm *ShardManager) RemoveShardRangeByKey(storageID model.StorageID, key []b
 }
 
 func (sm *ShardManager) GetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, error) {
-	return dal.KvGetShardIDByKey(storageID, key)
+	shardID, _, err := dal.KvGetShardIDByKey(storageID, key)
+	return shardID, err
 }
 
 func (sm *ShardManager) PutShardIDByKey(storageID model.StorageID, key []byte, shardID model.ShardID) error {

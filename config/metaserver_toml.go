@@ -13,7 +13,6 @@ type Configuration struct {
 	EtcdName          string
 	EtcdDataDir       string
 	EtcdWalDir        string
-	EtcdServerPort    uint16
 	EtcdPreVote       bool
 	EtcdPeerAddr      *url.URL
 	EtcdClientAddr    *url.URL
@@ -57,7 +56,6 @@ func loadConfigFromFile(filePath string) (*Configuration, error) {
 	ret.EtcdName = c.Get("etcd.name").(string)
 	ret.EtcdDataDir = c.Get("etcd.data_dir").(string)
 	ret.EtcdWalDir = c.Get("etcd.wal_dir").(string)
-	ret.EtcdServerPort = uint16(c.Get("etcd.port").(int64))
 	ret.EtcdPreVote = c.Get("etcd.prevote").(bool)
 
 	etcdPeerAddrStr := c.Get("etcd.raft_addr").(string)
@@ -69,7 +67,7 @@ func loadConfigFromFile(filePath string) (*Configuration, error) {
 	ret.EtcdClusterPeers = c.Get("etcd.peers").(string)
 	ret.EtcdClientTimeout = time.Duration(c.Get("etcd.client_timeout").(int64)) * time.Second
 
-	ret.LogFile = c.Get("log_file").(string)
+	ret.LogFile = c.Get("server.log_file").(string)
 	ret.ServerAddr = c.Get("server.addr").(string)
 	ret.PprofListenAddr = c.Get("server.pprof_addr").(string)
 	ret.EnableHeartBeatChecker = c.Get("server.enable_heartbeat_checker").(bool)

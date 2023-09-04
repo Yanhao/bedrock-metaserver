@@ -1,9 +1,6 @@
-log_file = "log"
-
 [etcd]
 name = "etcd-1"
 data_dir = "data"
-port = 1000
 wal_dir = "data/wal"
 prevote = true
 peers = "etcd-1=http://0.0.0.0:2380,etcd-2=http://0.0.0.0:2480,etcd-3=http://0.0.0.0:2580"
@@ -13,3 +10,6 @@ client_timeout = 3
 
 [server]
 addr = "0.0.0.0:1080"
+log_file = "metaserver.log"
+enable_heartbeat_checker = false
+pprof_addr = "0.0.0.0:6063"

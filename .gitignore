@@ -1,4 +1,5 @@
 /metaserver
+/bedrock-metaserver
 /mscli
 .DS_Store
 *.md.tmp

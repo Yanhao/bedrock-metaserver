@@ -1,4 +1,4 @@
-package service
+package metaserver
 
 import (
 	"fmt"

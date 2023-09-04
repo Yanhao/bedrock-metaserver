@@ -5,7 +5,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
+	"sr.ht/moyanhao/bedrock-metaserver/clients/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 )
 

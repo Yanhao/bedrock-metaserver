@@ -9,8 +9,8 @@ import (
 	cache "github.com/hashicorp/golang-lru/v2"
 	log "github.com/sirupsen/logrus"
 
+	"sr.ht/moyanhao/bedrock-metaserver/clients/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/dal"
-	"sr.ht/moyanhao/bedrock-metaserver/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 )
 

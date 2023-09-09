@@ -105,9 +105,8 @@ const (
 	DefaultReplicatesCount = 3
 )
 
-func (sa *ShardAllocator) AllocatorNewStorage(name string, rangeCount uint32) (*model.Storage, error) {
-	sm := manager.GetStorageManager()
-	storage, err := sm.CreateNewStorage(name)
+func (sa *ShardAllocator) AllocateNewStorage(name string, rangeCount uint32) (*model.Storage, error) {
+	storage, err := manager.GetStorageManager().CreateNewStorage(name)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +121,6 @@ func (sa *ShardAllocator) AllocatorNewStorage(name string, rangeCount uint32) (*
 
 	splitLoopCount := uint32(math.Sqrt(float64(rangeCount)))
 	for i := 0; i < int(splitLoopCount); i++ {
-
 		shardIDs, err := manager.GetShardManager().GetShardIDsInStorage(storage.ID)
 		if err != nil {
 			return nil, err
@@ -142,8 +140,6 @@ func (sa *ShardAllocator) AllocatorNewStorage(name string, rangeCount uint32) (*
 func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count int) ([]string, error) {
 	var selectedDataServers []string
 	conns := dataserver.GetDataServerConns()
-
-	sm := manager.GetShardManager()
 
 	for i, times := count, MaxAllocateTimes; i > 0 && times > 0; {
 		log.Infof("i: %v, times: %v", i, times)
@@ -165,7 +161,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 			continue
 		}
 
-		err = sm.AddShardReplicates(shardID, []string{server})
+		err = manager.GetShardManager().AddShardReplicates(shardID, []string{server})
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +176,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 		return selectedDataServers, errors.New("not enough replicates")
 	}
 
-	err := sm.ReSelectLeader(shardID)
+	err := manager.GetShardManager().ReSelectLeader(shardID)
 	if err != nil {
 		log.Errorf("failed to select leader of shard, shard id: 0x016%x, err: %v", shardID, err)
 		return selectedDataServers, err
@@ -192,10 +188,8 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 }
 
 func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32) error {
-	sm := manager.GetShardManager()
-
-	for i := count; i > 0; {
-		shard, err := sm.CreateNewShard(storageID)
+	for i := count; i > 0; i-- {
+		shard, err := manager.GetShardManager().CreateNewShard(storageID)
 		if err != nil {
 			return err
 		}
@@ -203,7 +197,7 @@ func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32)
 		shard.RangeKeyMax = MaxKey
 		shard.RangeKeyMin = MinKey
 
-		err = sm.PutShard(shard)
+		err = manager.GetShardManager().PutShard(shard)
 		if err != nil {
 			return err
 		}
@@ -214,16 +208,13 @@ func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32)
 		if err != nil {
 			return err
 		}
-
-		i--
 	}
 
 	return nil
 }
 
 func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
-	sm := manager.GetShardManager()
-	shard, err := sm.GetShard(shardID)
+	shard, err := manager.GetShardManager().GetShard(shardID)
 	if err != nil {
 		log.Warnf("failed to get shard, err: %v", err)
 		return err
@@ -231,7 +222,7 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 
 	middleKey := shard.SplitShardRangeKey()
 
-	newShard, err := sm.CreateNewShard(shard.SID)
+	newShard, err := manager.GetShardManager().CreateNewShard(shard.SID)
 	if err != nil {
 		return err
 	}
@@ -240,12 +231,12 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 	newShard.RangeKeyMin = middleKey
 	newShard.RangeKeyMax = shard.RangeKeyMin
 
-	err = sm.PutShard(shard)
+	err = manager.GetShardManager().PutShard(shard)
 	if err != nil {
 		return err
 	}
 
-	err = sm.PutShard(newShard)
+	err = manager.GetShardManager().PutShard(newShard)
 	if err != nil {
 		return err
 	}

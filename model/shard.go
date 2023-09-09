@@ -26,8 +26,8 @@ type Shard struct {
 	CreateTs        time.Time           `json:"create_ts"`
 	Leader          string              `json:"leader"`
 	LeaderChangeTs  time.Time           `json:"leader_change_ts"`
-	RangeKeyMax     []byte              `json:"range_key_max"`
-	RangeKeyMin     []byte              `json:"range_key_min"`
+	RangeKeyStart   []byte              `json:"range_key_start"`
+	RangeKeyEnd     []byte              `json:"range_key_end"`
 }
 
 func GenerateShardID(storageID StorageID, shardISN ShardISN) ShardID {
@@ -109,8 +109,8 @@ func (sd *Shard) SplitShardRangeKey() []byte {
 	min := big.NewInt(0)
 	max := big.NewInt(0)
 
-	max.SetBytes(sd.RangeKeyMax)
-	min.SetBytes(sd.RangeKeyMin)
+	max.SetBytes(sd.RangeKeyEnd)
+	min.SetBytes(sd.RangeKeyStart)
 
 	tmp := big.NewInt(0)
 	tmp = tmp.Sub(max, min)

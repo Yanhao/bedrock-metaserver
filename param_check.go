@@ -14,7 +14,7 @@ func GetShardRoutesParamCheck(req *metaserver.GetShardRoutesRequest) error {
 	return nil
 }
 
-func GetStorageShardsParamCheck(req *metaserver.GetStorageShardsRequest) error {
+func ScanStorageShardsParamCheck(req *metaserver.ScanStorageShardsRequest) error {
 	return nil
 }
 
@@ -67,10 +67,6 @@ func CreateShardParamCheck(req *metaserver.CreateShardRequest) error {
 }
 
 func RemoveShardParamCheck(req *metaserver.RemoveShardRequest) error {
-	return nil
-}
-
-func GetShardIDByKeyParamCheck(req *metaserver.GetShardIDByKeyRequest) error {
 	return nil
 }
 

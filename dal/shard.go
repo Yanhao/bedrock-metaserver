@@ -230,12 +230,13 @@ func KvRemoveShardRangeByKey(storageID model.StorageID, key []byte) error {
 type ShardIDAndRange struct {
 	ShardID    model.ShardID
 	RangeStart []byte
+	RangeEnd   []byte
 }
 
-func KvGetAllShardSetBySID(storageID model.StorageID) ([]ShardIDAndRange, error) {
+func KvScanShardsBySID(storageID model.StorageID, rangeStart []byte) ([]ShardIDAndRange, error) {
 	ec := kv_engine.GetEtcdClient()
-	keyPrefix := shardRangeInStoragePrefix(storageID)
-	resp, err := ec.Get(context.Background(), keyPrefix, client.WithPrefix())
+	keyPrefix := shardRangeInStorageKey(storageID, rangeStart)
+	resp, err := ec.Get(context.Background(), keyPrefix, client.WithPrefix(), client.WithLimit(100))
 	if err != nil {
 		log.Errorf("get key with prefix failed, err: %v", err)
 		return nil, err
@@ -246,12 +247,16 @@ func KvGetAllShardSetBySID(storageID model.StorageID) ([]ShardIDAndRange, error)
 		var shardID uint64
 		_, _ = fmt.Sscanf(string(kv.Value), "0x%016x", &shardID)
 
-		var rangeStart string
-		_, _ = fmt.Sscanf(string(kv.Key), keyPrefix+"/%s", &rangeStart)
+		shard, err :=
+			KvGetShard(model.ShardID(shardID))
+		if err != nil {
+			return nil, err
+		}
 
 		ret = append(ret, ShardIDAndRange{
 			ShardID:    model.ShardID(shardID),
-			RangeStart: []byte(rangeStart),
+			RangeStart: []byte(shard.RangeKeyStart),
+			RangeEnd:   []byte(shard.RangeKeyEnd),
 		})
 	}
 

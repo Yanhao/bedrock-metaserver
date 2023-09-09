@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net"
@@ -13,7 +14,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/clients/metaserver"
-	"sr.ht/moyanhao/bedrock-metaserver/dal"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/role"
@@ -94,62 +94,50 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *metaserver.GetSha
 	resp := &metaserver.GetShardRoutesResponse{}
 
 	ts := req.GetTimestamp().AsTime()
-	if req.GetShardRange() != nil {
-		begin := req.GetShardRange().StartShardId
-		end := begin + req.GetShardRange().Offset
-
-		log.Infof("req: shard_id: 0x%016x, end: 0x%016x", begin, end)
-
-		for shardID := begin; shardID <= end; shardID++ {
-			route, err := getUpdatedRoute(model.ShardID(shardID), ts)
-			if err != nil {
-				return nil, err
-			}
-
-			resp.Routes = append(resp.Routes, route)
+	for _, shardID := range req.GetShardIds() {
+		route, err := getUpdatedRoute(model.ShardID(shardID), ts)
+		if err != nil {
+			return nil, err
 		}
-	} else if req.GetShardsList() != nil {
-		for _, shardID := range req.GetShardsList().GetShardIds() {
-			route, err := getUpdatedRoute(model.ShardID(shardID), ts)
-			if err != nil {
-				return nil, err
-			}
 
-			resp.Routes = append(resp.Routes, route)
-		}
+		resp.Routes = append(resp.Routes, route)
 	}
 
 	return resp, nil
 }
 
-func (m *MetaService) GetStorageShards(ctx context.Context, req *metaserver.GetStorageShardsRequest) (*metaserver.GetStorageShardsResponse, error) {
-	log.Infof("GetStorageShards request: %v", req)
+func (m *MetaService) ScanStorageShards(ctx context.Context, req *metaserver.ScanStorageShardsRequest) (*metaserver.ScanStorageShardsResponse, error) {
+	log.Infof("ScanStorageShards request: %v", req)
 
-	err := GetStorageShardsParamCheck(req)
+	err := ScanStorageShardsParamCheck(req)
 	if err != nil {
-		log.Warnf("GetStorageShards: invalid arguments, err: %v", err)
+		log.Warnf("ScanStorageShards: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
 		leader := role.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.GetStorageShards(ctx, req)
+		return mscli.ScanStorageShards(ctx, req)
 	}
 
-	resp := &metaserver.GetStorageShardsResponse{}
+	resp := &metaserver.ScanStorageShardsResponse{}
 
-	sm := manager.GetStorageManager()
-	shardsAndRange, err := sm.GetStorageShards(model.StorageID(req.StorageId))
+	shardsAndRange, err := manager.GetStorageManager().ScanStorageShards(model.StorageID(req.StorageId), req.RangeStart)
 	if err != nil {
 		return resp, status.Errorf(codes.Internal, "get storage shards failed, err: %v", err)
 	}
 
 	for _, s := range shardsAndRange {
-		resp.Shards = append(resp.Shards, &metaserver.GetStorageShardsResponse_ShardIDAndRange{
+		resp.Shards = append(resp.Shards, &metaserver.ScanStorageShardsResponse_ShardIDAndRange{
 			ShardId:    uint64(s.ShardID),
 			RangeStart: s.RangeStart,
+			RangeEnd:   s.RangeEnd,
 		})
+	}
+
+	if bytes.Equal(resp.Shards[len(resp.Shards)-1].RangeEnd, scheduler.MaxKey) {
+		resp.IsEnd = true
 	}
 
 	return resp, nil
@@ -599,31 +587,6 @@ func (m *MetaService) RemoveShard(ctx context.Context, req *metaserver.RemoveSha
 		log.Warnf("failed to mark delete for shard, err: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to mark delete for shard, err: %v", err)
 	}
-
-	return resp, nil
-}
-
-func (m *MetaService) GetShardIDByKey(ctx context.Context, req *metaserver.GetShardIDByKeyRequest) (*metaserver.GetShardIDByKeyResponse, error) {
-	if err := GetShardIDByKeyParamCheck(req); err != nil {
-		log.Warnf("GetShardIDByKey: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
-	}
-
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.GetShardIDByKey(ctx, req)
-	}
-
-	resp := &metaserver.GetShardIDByKeyResponse{}
-
-	shardID, rangeStart, err := dal.KvGetShardIDByKey(model.StorageID(req.StorageId), req.Key)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get storage, err: %v", err)
-	}
-
-	resp.ShardId = uint64(shardID)
-	resp.RangeStart = rangeStart
 
 	return resp, nil
 }

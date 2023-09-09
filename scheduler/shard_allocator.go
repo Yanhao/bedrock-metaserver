@@ -194,8 +194,8 @@ func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32)
 			return err
 		}
 
-		shard.RangeKeyMax = MaxKey
-		shard.RangeKeyMin = MinKey
+		shard.RangeKeyEnd = MaxKey
+		shard.RangeKeyStart = MinKey
 
 		err = manager.GetShardManager().PutShard(shard)
 		if err != nil {
@@ -227,9 +227,9 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 		return err
 	}
 
-	shard.RangeKeyMax = middleKey
-	newShard.RangeKeyMin = middleKey
-	newShard.RangeKeyMax = shard.RangeKeyMin
+	shard.RangeKeyEnd = middleKey
+	newShard.RangeKeyStart = middleKey
+	newShard.RangeKeyEnd = shard.RangeKeyStart
 
 	err = manager.GetShardManager().PutShard(shard)
 	if err != nil {
@@ -269,7 +269,7 @@ func (sa *ShardAllocator) MergeShardByKey(storageID model.StorageID, key []byte)
 	}
 
 	max := big.NewInt(0)
-	max.SetBytes(shard.RangeKeyMin)
+	max.SetBytes(shard.RangeKeyStart)
 	max.Sub(max, big.NewInt(2))
 
 	prevMaxKey := max.Bytes()
@@ -287,7 +287,7 @@ func (sa *ShardAllocator) MergeShardByKey(storageID model.StorageID, key []byte)
 	}
 
 	min := big.NewInt(0)
-	min.SetBytes(shard.RangeKeyMax)
+	min.SetBytes(shard.RangeKeyEnd)
 	min.Add(min, big.NewInt(1))
 
 	nexMinKey := min.Bytes()
@@ -308,7 +308,7 @@ func (sa *ShardAllocator) MergeShardByKey(storageID model.StorageID, key []byte)
 }
 
 func (sa *ShardAllocator) doMergeShard(aShard, bShard *model.Shard) error {
-	aShard.RangeKeyMax = bShard.RangeKeyMax
+	aShard.RangeKeyEnd = bShard.RangeKeyEnd
 
 	conns := dataserver.GetDataServerConns()
 	aDs, _ := conns.GetApiClient(aShard.Leader)
@@ -326,7 +326,7 @@ func (sa *ShardAllocator) doMergeShard(aShard, bShard *model.Shard) error {
 
 	shm.PutShard(aShard)
 
-	shm.RemoveShardRangeByKey(aShard.SID, aShard.RangeKeyMax)
+	shm.RemoveShardRangeByKey(aShard.SID, aShard.RangeKeyEnd)
 
 	return nil
 }

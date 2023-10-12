@@ -227,13 +227,13 @@ func KvRemoveShardRangeByKey(storageID model.StorageID, key []byte) error {
 	return err
 }
 
-type ShardIDAndRange struct {
+type ShardRange struct {
 	ShardID    model.ShardID
 	RangeStart []byte
 	RangeEnd   []byte
 }
 
-func KvScanShardsBySID(storageID model.StorageID, rangeStart []byte) ([]ShardIDAndRange, error) {
+func KvScanShardsBySID(storageID model.StorageID, rangeStart []byte) ([]ShardRange, error) {
 	ec := kv_engine.GetEtcdClient()
 	keyPrefix := shardRangeInStorageKey(storageID, rangeStart)
 	resp, err := ec.Get(context.Background(), keyPrefix, client.WithPrefix(), client.WithLimit(100))
@@ -242,7 +242,7 @@ func KvScanShardsBySID(storageID model.StorageID, rangeStart []byte) ([]ShardIDA
 		return nil, err
 	}
 
-	var ret []ShardIDAndRange
+	var ret []ShardRange
 	for _, kv := range resp.Kvs {
 		var shardID uint64
 		_, _ = fmt.Sscanf(string(kv.Value), "0x%016x", &shardID)
@@ -253,7 +253,7 @@ func KvScanShardsBySID(storageID model.StorageID, rangeStart []byte) ([]ShardIDA
 			return nil, err
 		}
 
-		ret = append(ret, ShardIDAndRange{
+		ret = append(ret, ShardRange{
 			ShardID:    model.ShardID(shardID),
 			RangeStart: []byte(shard.RangeKeyStart),
 			RangeEnd:   []byte(shard.RangeKeyEnd),

@@ -282,6 +282,6 @@ func (sm *StorageManager) StorageRename(storageID model.StorageID, name string) 
 	return sm.putStorage(storage)
 }
 
-func (sm *StorageManager) ScanStorageShards(storageID model.StorageID, rangeStart []byte) ([]dal.ShardIDAndRange, error) {
+func (sm *StorageManager) ScanShardRange(storageID model.StorageID, rangeStart []byte) ([]dal.ShardRange, error) {
 	return dal.KvScanShardsBySID(storageID, rangeStart)
 }

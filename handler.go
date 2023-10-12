@@ -48,7 +48,7 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *metaserver.HeartBeatRe
 	return &emptypb.Empty{}, nil
 }
 
-func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*metaserver.RouteRecord, error) {
+func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*metaserver.ShardRoute, error) {
 	log.Infof("getUpdateRoute, shardID: %v, ts: %v", shardID, ts)
 	sm := manager.GetShardManager()
 	shard, err := sm.GetShard(shardID)
@@ -59,7 +59,7 @@ func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*metaserver.RouteReco
 	log.Infof("shard: %#v", shard)
 
 	if shard.ReplicaUpdateTs.After(ts) {
-		route := &metaserver.RouteRecord{
+		route := &metaserver.ShardRoute{
 			ShardId:    uint64(shardID),
 			LeaderAddr: shard.Leader,
 		}
@@ -76,7 +76,7 @@ func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*metaserver.RouteReco
 	return nil, nil
 }
 
-func (m *MetaService) GetShardRoutes(ctx context.Context, req *metaserver.GetShardRoutesRequest) (*metaserver.GetShardRoutesResponse, error) {
+func (m *MetaService) GetShardRoutes(ctx context.Context, req *metaserver.GetShardRouteRequest) (*metaserver.GetShardRouteResponse, error) {
 	log.Infof("GetShardRoutes request: %v", req)
 
 	err := GetShardRoutesParamCheck(req)
@@ -88,10 +88,10 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *metaserver.GetSha
 	if !role.GetLeaderShip().IsMetaServerLeader() {
 		leader := role.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.GetShardRoutes(ctx, req)
+		return mscli.GetShardRoute(ctx, req)
 	}
 
-	resp := &metaserver.GetShardRoutesResponse{}
+	resp := &metaserver.GetShardRouteResponse{}
 
 	ts := req.GetTimestamp().AsTime()
 	for _, shardID := range req.GetShardIds() {
@@ -106,7 +106,7 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *metaserver.GetSha
 	return resp, nil
 }
 
-func (m *MetaService) ScanStorageShards(ctx context.Context, req *metaserver.ScanStorageShardsRequest) (*metaserver.ScanStorageShardsResponse, error) {
+func (m *MetaService) ScanStorageShards(ctx context.Context, req *metaserver.ScanShardRangeRequest) (*metaserver.ScanShardRangeResponse, error) {
 	log.Infof("ScanStorageShards request: %v", req)
 
 	err := ScanStorageShardsParamCheck(req)
@@ -118,25 +118,25 @@ func (m *MetaService) ScanStorageShards(ctx context.Context, req *metaserver.Sca
 	if !role.GetLeaderShip().IsMetaServerLeader() {
 		leader := role.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.ScanStorageShards(ctx, req)
+		return mscli.ScanShardRange(ctx, req)
 	}
 
-	resp := &metaserver.ScanStorageShardsResponse{}
+	resp := &metaserver.ScanShardRangeResponse{}
 
-	shardsAndRange, err := manager.GetStorageManager().ScanStorageShards(model.StorageID(req.StorageId), req.RangeStart)
+	shardsAndRange, err := manager.GetStorageManager().ScanShardRange(model.StorageID(req.StorageId), req.RangeStart)
 	if err != nil {
 		return resp, status.Errorf(codes.Internal, "get storage shards failed, err: %v", err)
 	}
 
 	for _, s := range shardsAndRange {
-		resp.Shards = append(resp.Shards, &metaserver.ScanStorageShardsResponse_ShardIDAndRange{
+		resp.Ranges = append(resp.Ranges, &metaserver.ScanShardRangeResponse_ShardRange{
 			ShardId:    uint64(s.ShardID),
 			RangeStart: s.RangeStart,
 			RangeEnd:   s.RangeEnd,
 		})
 	}
 
-	if bytes.Equal(resp.Shards[len(resp.Shards)-1].RangeEnd, scheduler.MaxKey) {
+	if bytes.Equal(resp.Ranges[len(resp.Ranges)-1].RangeEnd, scheduler.MaxKey) {
 		resp.IsEnd = true
 	}
 
@@ -298,7 +298,7 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *metaserver.ResizeS
 	return resp, nil
 }
 
-func (m *MetaService) GetStorages(ctx context.Context, req *metaserver.GetStoragesRequest) (*metaserver.GetStoragesResponse, error) {
+func (m *MetaService) StorageInfo(ctx context.Context, req *metaserver.StorageInfoRequest) (*metaserver.StorageInfoResponse, error) {
 	log.Infof("GetStorages: req: %v", req)
 	err := GetStoragesParamCheck(req)
 	if err != nil {
@@ -309,10 +309,10 @@ func (m *MetaService) GetStorages(ctx context.Context, req *metaserver.GetStorag
 	if !role.GetLeaderShip().IsMetaServerLeader() {
 		leader := role.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.GetStorages(ctx, req)
+		return mscli.StorageInfo(ctx, req)
 	}
 
-	resp := &metaserver.GetStoragesResponse{}
+	resp := &metaserver.StorageInfoResponse{}
 
 	for _, id := range req.Ids {
 		st, err := manager.GetStorageManager().GetStorage(model.StorageID(id))
@@ -674,7 +674,7 @@ func (m *MetaService) SyncShardInDataServer(reqStream metaserver.MetaService_Syn
 	return nil
 }
 
-func (m *MetaService) AllocateTxIDs(ctx context.Context, req *metaserver.AllocateTxIDsRequest) (*metaserver.AllocateTxIDsResponse, error) {
+func (m *MetaService) AllocateTxIDs(ctx context.Context, req *metaserver.AllocateTxidsRequest) (*metaserver.AllocateTxidsResponse, error) {
 	if err := AllocateTxIDsParamCheck(req); err != nil {
 		log.Warnf("AllocateTxID: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
@@ -683,17 +683,17 @@ func (m *MetaService) AllocateTxIDs(ctx context.Context, req *metaserver.Allocat
 	if !role.GetLeaderShip().IsMetaServerLeader() {
 		leader := role.GetLeaderShip().GetMetaServerLeader()
 		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.AllocateTxIDs(ctx, req)
+		return mscli.AllocateTxids(ctx, req)
 	}
 
-	resp := &metaserver.AllocateTxIDsResponse{}
+	resp := &metaserver.AllocateTxidsResponse{}
 
 	txIDs, err := tso.GetTxIDAllocator().Allocate(req.Count)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
-	resp.TxIds = txIDs
+	resp.Txids = txIDs
 
 	return resp, nil
 }

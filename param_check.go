@@ -10,11 +10,11 @@ func HeartBeatParamCheck(req *metaserver.HeartBeatRequest) error {
 	return nil
 }
 
-func GetShardRoutesParamCheck(req *metaserver.GetShardRoutesRequest) error {
+func GetShardRoutesParamCheck(req *metaserver.GetShardRouteRequest) error {
 	return nil
 }
 
-func ScanStorageShardsParamCheck(req *metaserver.ScanStorageShardsRequest) error {
+func ScanStorageShardsParamCheck(req *metaserver.ScanShardRangeRequest) error {
 	return nil
 }
 
@@ -38,7 +38,7 @@ func ResizeStorageParamCheck(req *metaserver.ResizeStorageRequest) error {
 	return nil
 }
 
-func GetStoragesParamCheck(req *metaserver.GetStoragesRequest) error {
+func GetStoragesParamCheck(req *metaserver.StorageInfoRequest) error {
 	return nil
 }
 
@@ -70,6 +70,6 @@ func RemoveShardParamCheck(req *metaserver.RemoveShardRequest) error {
 	return nil
 }
 
-func AllocateTxIDsParamCheck(req *metaserver.AllocateTxIDsRequest) error {
+func AllocateTxIDsParamCheck(req *metaserver.AllocateTxidsRequest) error {
 	return nil
 }

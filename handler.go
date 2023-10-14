@@ -143,6 +143,22 @@ func (m *MetaService) ScanStorageShards(ctx context.Context, req *metaserver.Sca
 	return resp, nil
 }
 
+func (m *MetaService) Info(ctx context.Context, req *metaserver.InfoRequest) (*metaserver.InfoResponse, error) {
+	log.Infof("Info request: %v", req)
+
+	err := InfoParamCheck(req)
+	if err != nil {
+		log.Warnf("Info: invalid arguments, err: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	resp := &metaserver.InfoResponse{}
+
+	resp.LeaderAddr = role.GetLeaderShip().GetMetaServerLeader()
+
+	return resp, nil
+}
+
 func (m *MetaService) CreateStorage(ctx context.Context, req *metaserver.CreateStorageRequest) (*metaserver.CreateStorageResponse, error) {
 	err := CreateStorageParamCheck(req)
 	if err != nil {

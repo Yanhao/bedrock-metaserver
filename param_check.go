@@ -18,6 +18,10 @@ func ScanStorageShardsParamCheck(req *metaserver.ScanShardRangeRequest) error {
 	return nil
 }
 
+func InfoParamCheck(req *metaserver.InfoRequest) error {
+	return nil
+}
+
 func CreateStorageParamCheck(req *metaserver.CreateStorageRequest) error {
 	return nil
 }

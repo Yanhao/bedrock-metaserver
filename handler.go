@@ -573,7 +573,7 @@ func (m *MetaService) CreateShard(ctx context.Context, req *metaserver.CreateSha
 
 	sa := scheduler.GetShardAllocator()
 	// replicates, err := sa.AllocateShardReplicates(shard.ID, 3)
-	_, err = sa.AllocateShardReplicates(shard.ID(), scheduler.DefaultReplicatesCount)
+	_, err = sa.AllocateShardReplicates(shard.ID(), scheduler.DefaultReplicatesCount, req.RangeStart, req.RangeEnd)
 	if err != nil {
 		log.Warnf("failed to allocate shard replicates, err: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to allocate replicates, err: %v", err)

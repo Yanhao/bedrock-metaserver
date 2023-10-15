@@ -11,7 +11,7 @@ import (
 
 type DsApi interface {
 	DeleteShard(shardID uint64) error
-	CreateShard(shardID uint64) error
+	CreateShard(shardID uint64, minKey, maxKey []byte) error
 
 	// TransferShard(shardID uint64, toAddr string) error
 	// PullShardData(shardID uint64, leader string) error
@@ -53,16 +53,18 @@ func (ds *DataServerApi) Close() {
 	_ = ds.grpcConn.Close()
 }
 
-func (ds *DataServerApi) CreateShard(shardID uint64) error {
+func (ds *DataServerApi) CreateShard(shardID uint64, minKey, maxKey []byte) error {
 	now := timestamppb.Now()
 
 	req := &CreateShardRequest{
 		ShardId:         shardID,
 		CreateTs:        now,
+		Replicates:      []string{},
+		ReplicaUpdateTs: now,
 		Leader:          "",
 		LeaderChangeTs:  now,
-		ReplicaUpdateTs: now,
-		Replicates:      []string{},
+		MinKey:          minKey,
+		MaxKey:          maxKey,
 	}
 
 	resp, err := ds.client.CreateShard(context.TODO(), req)

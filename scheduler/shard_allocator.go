@@ -137,7 +137,7 @@ func (sa *ShardAllocator) AllocateNewStorage(name string, rangeCount uint32) (*m
 	return storage, nil
 }
 
-func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count int) ([]string, error) {
+func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count int, minKey, maxKey []byte) ([]string, error) {
 	var selectedDataServers []string
 	conns := dataserver.GetDataServerConns()
 
@@ -153,7 +153,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 
 		dataServerCli, _ := conns.GetApiClient(server)
 
-		err := dataServerCli.CreateShard(uint64(shardID))
+		err := dataServerCli.CreateShard(uint64(shardID), minKey, maxKey)
 		if err != nil {
 			log.Warnf("failed to create shard from dataserver %v, err: %v", server, err)
 
@@ -189,24 +189,37 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 
 func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32) error {
 	for i := count; i > 0; i-- {
-		shard, err := manager.GetShardManager().CreateNewShard(storageID)
+		shardIds, err := manager.GetShardManager().GetShardIDsInStorage(storageID)
 		if err != nil {
 			return err
 		}
 
-		shard.RangeKeyEnd = MaxKey
-		shard.RangeKeyStart = MinKey
+		if len(shardIds) == 0 {
+			shard, err := manager.GetShardManager().CreateNewShard(storageID)
+			if err != nil {
+				return err
+			}
 
-		err = manager.GetShardManager().PutShard(shard)
-		if err != nil {
-			return err
+			shard.RangeKeyEnd = MaxKey
+			shard.RangeKeyStart = MinKey
+
+			err = manager.GetShardManager().PutShard(shard)
+			if err != nil {
+				return err
+			}
+
+			log.Infof("new shard, id: 0x%016x", shard.ID())
+
+			_, err = sa.AllocateShardReplicates(shard.ID(), DefaultReplicatesCount, MinKey, MaxKey)
+			if err != nil {
+				return err
+			}
 		}
 
-		log.Infof("new shard, id: 0x%016x", shard.ID())
-
-		_, err = sa.AllocateShardReplicates(shard.ID(), DefaultReplicatesCount)
-		if err != nil {
-			return err
+		for _, shardID := range shardIds {
+			if err := sa.SplitShard(shardID); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -243,7 +256,7 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 
 	log.Infof("new shard, id: 0x%016x", newShard.ID())
 
-	_, err = sa.AllocateShardReplicates(newShard.ID(), DefaultReplicatesCount)
+	_, err = sa.AllocateShardReplicates(newShard.ID(), DefaultReplicatesCount, newShard.RangeKeyStart, newShard.RangeKeyEnd)
 	if err != nil {
 		return err
 	}

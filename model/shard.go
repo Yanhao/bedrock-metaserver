@@ -106,17 +106,11 @@ func (sd *Shard) ValueSize() uint64 {
 }
 
 func (sd *Shard) SplitShardRangeKey() []byte {
-	min := big.NewInt(0)
-	max := big.NewInt(0)
+	min := big.NewInt(0).SetBytes(sd.RangeKeyStart)
+	max := big.NewInt(0).SetBytes(sd.RangeKeyEnd)
 
-	max.SetBytes(sd.RangeKeyEnd)
-	min.SetBytes(sd.RangeKeyStart)
+	mid := big.NewInt(0).Add(min, max)
+	mid = mid.Div(mid, big.NewInt(2))
 
-	tmp := big.NewInt(0)
-	tmp = tmp.Sub(max, min)
-	tmp = tmp.Div(tmp, big.NewInt(2))
-
-	min.Add(min, tmp)
-
-	return min.Bytes()
+	return mid.Bytes()
 }

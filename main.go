@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"time"
 
@@ -36,10 +38,31 @@ func startGrpcServer() {
 	}
 }
 
+type CustomFormatter struct{}
+
+func (f *CustomFormatter) Format(entry *log.Entry) ([]byte, error) {
+	var (
+		file string
+		line int
+	)
+
+	if entry.HasCaller() {
+		file = entry.Caller.File
+		line = entry.Caller.Line
+	}
+
+	_, filename := filepath.Split(file)
+	log := fmt.Sprintf("%s %s %s:%d - %s\n",
+		entry.Time.Format(time.RFC3339), strings.ToUpper(entry.Level.String()), filename, line, entry.Message)
+
+	return []byte(log), nil
+}
+
 func mustInitLog() {
 	// log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
 	log.SetReportCaller(true)
+	log.SetFormatter(&CustomFormatter{})
 }
 
 func main() {
@@ -52,21 +75,22 @@ func main() {
 		os.Exit(-1)
 	}
 
+	mustInitLog()
+
 	rand.Seed(time.Now().UnixNano())
 
-	fmt.Println("metaserver starting ...")
+	log.Info("metaserver starting ...")
 
 	config.MustLoadConfig(*configFile)
-	fmt.Println("loadding configruation ...")
+	log.Info("loadding configruation ...")
 
 	utils.SetupStackTrap()
-	fmt.Println("setup stack trap routine ...")
+	log.Info("setup stack trap routine ...")
 
 	utils.SetupHttpPprof()
-	fmt.Println("setup http pprof ...")
+	log.Info("setup http pprof ...")
 
-	mustInitLog()
-	fmt.Println("init logging ...")
+	log.Info("init logging ...")
 	kv_engine.MustStartEmbedEtcd()
 
 	role.MustInitLeaderShip(kv_engine.GetEtcdClient(), role.RunAsLeader, role.RunAsFollower)

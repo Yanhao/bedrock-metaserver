@@ -49,7 +49,7 @@ func NewEtcdNode(config *config.Configuration) *EtcdNode {
 	cfg.ListenClientUrls = []url.URL{*config.EtcdClientAddr}
 	cfg.ListenPeerUrls = []url.URL{*config.EtcdPeerAddr}
 	// cfg.LogOutput = config.LogFile
-	cfg.LogLevel = "info"
+	cfg.LogLevel = "warn"
 	cfg.InitialCluster = config.EtcdClusterPeers
 
 	cfg.AdvertiseClientUrls = cfg.ListenClientUrls

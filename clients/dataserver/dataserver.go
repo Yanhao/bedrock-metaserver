@@ -17,7 +17,7 @@ type DsApi interface {
 	// PullShardData(shardID uint64, leader string) error
 	TransferShardLeader(shardID uint64, replicates []string) error
 
-	SplitShard(shardID uint64) error
+	SplitShard(shardID, newShardID uint64) error
 	MergeShard(aShardID uint64, bShardID uint64) error
 	MigrateShard(shardID uint64, targetShardID uint64, targetAddress string) error
 
@@ -104,9 +104,10 @@ func (ds *DataServerApi) TransferShardLeader(shardID uint64, replicates []string
 	return nil
 }
 
-func (ds *DataServerApi) SplitShard(shardID uint64) error {
+func (ds *DataServerApi) SplitShard(shardID, newShardID uint64) error {
 	req := &SplitShardRequest{
 		ShardId: shardID,
+		NewShardId: newShardID,
 	}
 
 	resp, err := ds.client.SplitShard(context.TODO(), req)

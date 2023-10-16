@@ -256,9 +256,15 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 
 	log.Infof("new shard, id: 0x%016x", newShard.ID())
 
-	_, err = sa.AllocateShardReplicates(newShard.ID(), DefaultReplicatesCount, newShard.RangeKeyStart, newShard.RangeKeyEnd)
-	if err != nil {
-		return err
+	for replicateAddr := range shard.Replicates {
+		dataServerCli, err := dataserver.GetDataServerConns().GetApiClient(replicateAddr)
+		if err != nil {
+			return err
+		}
+
+		if err := dataServerCli.SplitShard(uint64(shard.ID()), uint64(newShard.ID())); err != nil {
+			return err
+		}
 	}
 
 	return nil

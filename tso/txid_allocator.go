@@ -45,14 +45,21 @@ func GetTxIDAllocator() *TxIDsAllocator {
 func NewTxIDsAllocator() *TxIDsAllocator {
 	ec := kv_engine.GetEtcdClient()
 	resp, err := ec.KV.Get(context.Background(), TXID_KEY)
-	if err != nil || resp.Count != 1 {
+	if err != nil {
 		panic(fmt.Sprintf("get /txid key failed, err: %v", err))
 	}
 
 	var tsov tsoValue
-	err = json.Unmarshal(resp.Kvs[0].Value, &tsov)
-	if err != nil {
-		panic(fmt.Sprintf("unmashal tosValue failed, err: %v", err))
+	if resp.Count == 0 {
+		tsov = tsoValue{
+			TxId: 0,
+		}
+
+	} else {
+		err = json.Unmarshal(resp.Kvs[0].Value, &tsov)
+		if err != nil {
+			panic(fmt.Sprintf("unmashal tosValue failed, err: %v", err))
+		}
 	}
 
 	return &TxIDsAllocator{

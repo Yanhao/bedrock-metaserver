@@ -76,7 +76,7 @@ func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*metaserver.ShardRout
 	return nil, nil
 }
 
-func (m *MetaService) GetShardRoutes(ctx context.Context, req *metaserver.GetShardRouteRequest) (*metaserver.GetShardRouteResponse, error) {
+func (m *MetaService) GetShardRoute(ctx context.Context, req *metaserver.GetShardRouteRequest) (*metaserver.GetShardRouteResponse, error) {
 	log.Infof("GetShardRoutes request: %v", req)
 
 	err := GetShardRoutesParamCheck(req)
@@ -106,12 +106,12 @@ func (m *MetaService) GetShardRoutes(ctx context.Context, req *metaserver.GetSha
 	return resp, nil
 }
 
-func (m *MetaService) ScanStorageShards(ctx context.Context, req *metaserver.ScanShardRangeRequest) (*metaserver.ScanShardRangeResponse, error) {
-	log.Infof("ScanStorageShards request: %v", req)
+func (m *MetaService) ScanShardRange(ctx context.Context, req *metaserver.ScanShardRangeRequest) (*metaserver.ScanShardRangeResponse, error) {
+	log.Infof("ScanShardRange request: %v", req)
 
 	err := ScanStorageShardsParamCheck(req)
 	if err != nil {
-		log.Warnf("ScanStorageShards: invalid arguments, err: %v", err)
+		log.Warnf("ScanShardRange: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
@@ -128,6 +128,7 @@ func (m *MetaService) ScanStorageShards(ctx context.Context, req *metaserver.Sca
 		return resp, status.Errorf(codes.Internal, "get storage shards failed, err: %v", err)
 	}
 
+
 	for _, s := range shardsAndRange {
 		resp.Ranges = append(resp.Ranges, &metaserver.ScanShardRangeResponse_ShardRange{
 			ShardId:    uint64(s.ShardID),
@@ -135,8 +136,9 @@ func (m *MetaService) ScanStorageShards(ctx context.Context, req *metaserver.Sca
 			RangeEnd:   s.RangeEnd,
 		})
 	}
+	log.Infof("resp: %v", resp)
 
-	if bytes.Equal(resp.Ranges[len(resp.Ranges)-1].RangeEnd, scheduler.MaxKey) {
+	if  len(resp.Ranges) == 0 || bytes.Equal(resp.Ranges[len(resp.Ranges)-1].RangeEnd, scheduler.MaxKey) {
 		resp.IsEnd = true
 	}
 
@@ -144,7 +146,7 @@ func (m *MetaService) ScanStorageShards(ctx context.Context, req *metaserver.Sca
 }
 
 func (m *MetaService) Info(ctx context.Context, req *metaserver.InfoRequest) (*metaserver.InfoResponse, error) {
-	log.Infof("Info request: %v", req)
+	log.Infof("Info request")
 
 	err := InfoParamCheck(req)
 	if err != nil {
@@ -690,7 +692,7 @@ func (m *MetaService) SyncShardInDataServer(reqStream metaserver.MetaService_Syn
 	return nil
 }
 
-func (m *MetaService) AllocateTxIDs(ctx context.Context, req *metaserver.AllocateTxidsRequest) (*metaserver.AllocateTxidsResponse, error) {
+func (m *MetaService) AllocateTxids(ctx context.Context, req *metaserver.AllocateTxidsRequest) (*metaserver.AllocateTxidsResponse, error) {
 	if err := AllocateTxIDsParamCheck(req); err != nil {
 		log.Warnf("AllocateTxID: invalid arguments, err: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())

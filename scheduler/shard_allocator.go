@@ -26,7 +26,7 @@ var (
 )
 
 func init() {
-	MaxKey = make([]byte, 512)
+	MaxKey = make([]byte, 128)
 	for i := range MaxKey {
 		MaxKey[i] = 0xFF
 	}

@@ -10,10 +10,6 @@ func HeartBeatParamCheck(req *metaserver.HeartBeatRequest) error {
 	return nil
 }
 
-func GetShardRoutesParamCheck(req *metaserver.GetShardRouteRequest) error {
-	return nil
-}
-
 func ScanStorageShardsParamCheck(req *metaserver.ScanShardRangeRequest) error {
 	return nil
 }

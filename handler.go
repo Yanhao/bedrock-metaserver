@@ -48,64 +48,6 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *metaserver.HeartBeatRe
 	return &emptypb.Empty{}, nil
 }
 
-func getUpdatedRoute(shardID model.ShardID, ts time.Time) (*metaserver.ShardRoute, error) {
-	log.Infof("getUpdateRoute, shardID: %v, ts: %v", shardID, ts)
-	sm := manager.GetShardManager()
-	shard, err := sm.GetShard(shardID)
-	if err != nil {
-		log.Errorf("get shard failed, shardID: %d, err: %v", shardID, err)
-		return nil, status.Errorf(codes.Internal, "get shard failed")
-	}
-	log.Infof("shard: %#v", shard)
-
-	if shard.ReplicaUpdateTs.After(ts) {
-		route := &metaserver.ShardRoute{
-			ShardId:    uint64(shardID),
-			LeaderAddr: shard.Leader,
-		}
-		for rep := range shard.Replicates {
-			route.Addrs = append(route.Addrs, rep)
-		}
-
-		log.Infof("route: %v", route)
-
-		return route, nil
-	}
-
-	log.Infof("getUpdateRoute returns nil, nil")
-	return nil, nil
-}
-
-func (m *MetaService) GetShardRoute(ctx context.Context, req *metaserver.GetShardRouteRequest) (*metaserver.GetShardRouteResponse, error) {
-	log.Infof("GetShardRoutes request: %v", req)
-
-	err := GetShardRoutesParamCheck(req)
-	if err != nil {
-		log.Warnf("GetShardRoutes: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
-	}
-
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.GetShardRoute(ctx, req)
-	}
-
-	resp := &metaserver.GetShardRouteResponse{}
-
-	ts := req.GetTimestamp().AsTime()
-	for _, shardID := range req.GetShardIds() {
-		route, err := getUpdatedRoute(model.ShardID(shardID), ts)
-		if err != nil {
-			return nil, err
-		}
-
-		resp.Routes = append(resp.Routes, route)
-	}
-
-	return resp, nil
-}
-
 func (m *MetaService) ScanShardRange(ctx context.Context, req *metaserver.ScanShardRangeRequest) (*metaserver.ScanShardRangeResponse, error) {
 	log.Infof("ScanShardRange request: %v", req)
 
@@ -128,17 +70,18 @@ func (m *MetaService) ScanShardRange(ctx context.Context, req *metaserver.ScanSh
 		return resp, status.Errorf(codes.Internal, "get storage shards failed, err: %v", err)
 	}
 
-
 	for _, s := range shardsAndRange {
 		resp.Ranges = append(resp.Ranges, &metaserver.ScanShardRangeResponse_ShardRange{
 			ShardId:    uint64(s.ShardID),
 			RangeStart: s.RangeStart,
 			RangeEnd:   s.RangeEnd,
+			LeaderAddr: s.LeaderAddr,
+			Addrs:      s.Addrs,
 		})
 	}
 	log.Infof("resp: %v", resp)
 
-	if  len(resp.Ranges) == 0 || bytes.Equal(resp.Ranges[len(resp.Ranges)-1].RangeEnd, scheduler.MaxKey) {
+	if len(resp.Ranges) == 0 || bytes.Equal(resp.Ranges[len(resp.Ranges)-1].RangeEnd, scheduler.MaxKey) {
 		resp.IsEnd = true
 	}
 

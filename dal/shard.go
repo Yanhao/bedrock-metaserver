@@ -231,6 +231,8 @@ type ShardRange struct {
 	ShardID    model.ShardID
 	RangeStart []byte
 	RangeEnd   []byte
+	LeaderAddr string
+	Addrs      []string
 }
 
 func KvScanShardsBySID(storageID model.StorageID, rangeStart []byte) ([]ShardRange, error) {
@@ -253,10 +255,17 @@ func KvScanShardsBySID(storageID model.StorageID, rangeStart []byte) ([]ShardRan
 			return nil, err
 		}
 
+		var addrs []string
+		for rep := range shard.Replicates {
+			addrs = append(addrs, rep)
+		}
+
 		ret = append(ret, ShardRange{
 			ShardID:    model.ShardID(shardID),
 			RangeStart: []byte(shard.RangeKeyStart),
 			RangeEnd:   []byte(shard.RangeKeyEnd),
+			LeaderAddr: shard.Leader,
+			Addrs:      addrs,
 		})
 	}
 

@@ -21,17 +21,31 @@ const DataServerOverloadPercent = 0.9
 
 type LiveStatus int
 
+type ShardIDAndSize struct {
+	ID   ShardID `json:"id"`
+	Size int64   `json:"size"`
+}
+
+type ShardIDAndQps struct {
+	ID  ShardID `json:"id"`
+	QPS int64   `json:"qps"`
+}
+
 type DataServer struct {
 	Ip              string     `json:"ip"`
 	Port            string     `json:"port"`
 	Capacity        uint64     `json:"capacity"`
-	Free            uint64     `json:"free"`
+	FreeCapacity    uint64     `json:"free_capacity"`
 	LastHeartBeatTs time.Time  `json:"last_heart_beat_ts"`
 	CreateTs        time.Time  `json:"create_ts"`
 	DeleteTs        time.Time  `json:"delete_ts"`
 	Status          LiveStatus `json:"status"`
 	LastSyncTs      uint64     `json:"last_sync_ts"`
 	Idc             string     `json:"idc"`
+	Qps             int64      `json:"qps"`
+
+	BigShards []ShardIDAndSize `json:"big_shards"`
+	HotShards []ShardIDAndQps  `json:"hot_shards"`
 }
 
 // 自定义 MarshalJSON 方法，将 time.Time 字段转换为 Unix 时间戳进行序列化
@@ -96,5 +110,5 @@ func (d *DataServer) UsedPercent() float64 {
 }
 
 func (d *DataServer) Used() uint64 {
-	return d.Capacity - d.Free
+	return d.Capacity - d.FreeCapacity
 }

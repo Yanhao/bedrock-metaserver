@@ -11,6 +11,7 @@ import (
 	"github.com/jinzhu/copier"
 	log "github.com/sirupsen/logrus"
 	client "go.etcd.io/etcd/client/v3"
+	"sr.ht/moyanhao/bedrock-metaserver/clients/metaserver"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal"
 	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
@@ -93,7 +94,7 @@ func (dm *DataServerManager) AddDataServer(ip, port string) error {
 		LastHeartBeatTs: time.Now(),
 		CreateTs:        time.Now(),
 		Status:          model.LiveStatusActive,
-		Free:            1024000, // FIXME:
+		FreeCapacity:    1024000, // FIXME:
 		Capacity:        1024000, // FIXME:
 	}
 
@@ -228,6 +229,38 @@ func (dm *DataServerManager) MarkOffline(addr string) error {
 	d.Status = model.LiveStatusInactive
 
 	go dal.KvPutDataServer(d.Copy())
+
+	return nil
+}
+
+func (dm *DataServerManager) UpdateStatus(req *metaserver.HeartBeatRequest) error {
+	dm.dataServersLock.Lock()
+	defer dm.dataServersLock.Unlock()
+
+	d, ok := dm.dataServers[req.Addr]
+	if !ok {
+		return ErrNoSuchDataServer
+	}
+
+	d.FreeCapacity = req.FreeCapacity
+	d.Qps = int64(req.Qps)
+
+	clear(d.BigShards)
+	clear(d.HotShards)
+
+	for _, s := range req.BigShards {
+		d.BigShards = append(d.BigShards, model.ShardIDAndSize{
+			ID:   model.ShardID(s.ShardId),
+			Size: int64(s.Size),
+		})
+	}
+
+	for _, s := range req.HotShards {
+		d.HotShards = append(d.HotShards, model.ShardIDAndQps{
+			ID:  model.ShardID(s.ShardId),
+			QPS: int64(s.Qps),
+		})
+	}
 
 	return nil
 }

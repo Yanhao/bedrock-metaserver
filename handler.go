@@ -38,8 +38,11 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *metaserver.HeartBeatRe
 		return mscli.HeartBeat(ctx, req)
 	}
 
-	dm := manager.GetDataServerManager()
-	if err := dm.MarkActive(req.GetAddr(), true); err != nil {
+	if err := manager.GetDataServerManager().MarkActive(req.GetAddr(), true); err != nil {
+		return nil, status.Errorf(codes.Internal, "inernal error: %v", err)
+	}
+
+	if err := manager.GetDataServerManager().UpdateStatus(req); err != nil {
 		return nil, status.Errorf(codes.Internal, "inernal error: %v", err)
 	}
 
@@ -396,7 +399,7 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *metaserver.ListDa
 				Ip:              ds.Ip,
 				Port:            ds.Port,
 				Capacity:        ds.Capacity,
-				Free:            ds.Free,
+				Free:            ds.FreeCapacity,
 				LastHeartbeatTs: timestamppb.New(ds.LastHeartBeatTs),
 				Status: func(s model.LiveStatus) string {
 					switch s {

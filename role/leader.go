@@ -34,12 +34,6 @@ func RunAsLeader() {
 	}
 	log.Info("start rebalance ...")
 
-	err = scheduler.GetChecker().Start()
-	if err != nil {
-		log.Errorf("failed to start checker, err: %v", err)
-	}
-	log.Info("start checker ...")
-
 	err = bg_task.GetGarbageCleaner().Start()
 	if err != nil {
 		log.Errorf("failed to start garbage cleaner, err: %v", err)

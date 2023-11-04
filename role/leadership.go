@@ -258,7 +258,7 @@ func MustInitLeaderShip(client *clientv3.Client, leaderFunc, followerFunc func()
 	opts := LeaderShipOption{
 		client:       client,
 		key:          "metaserver-leader",
-		value:        config.GetConfiguration().ServerAddr,
+		value:        config.GetConfig().ServerAddr,
 		leaseTime:    10,
 		renewalTime:  5,
 		LeaderFunc:   leaderFunc,

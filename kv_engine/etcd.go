@@ -26,7 +26,7 @@ var (
 
 func GetEtcdNode() *EtcdNode {
 	etcdNodeOnce.Do(func() {
-		etcdNode = NewEtcdNode(config.GetConfiguration())
+		etcdNode = NewEtcdNode()
 	})
 	return etcdNode
 }
@@ -38,19 +38,23 @@ func GetEtcdClient() *client.Client {
 	return GetEtcdNode().client
 }
 
-func NewEtcdNode(config *config.Configuration) *EtcdNode {
+func NewEtcdNode() *EtcdNode {
+	etcdConfig := config.GetConfig().Etcd
 	cfg := embed.NewConfig()
-	cfg.Dir = config.EtcdDataDir
-	cfg.WalDir = config.EtcdWalDir
+	cfg.Dir = etcdConfig.DataDir
+	cfg.WalDir = etcdConfig.WalDir
 
-	cfg.Name = config.EtcdName
+	cfg.Name = etcdConfig.Name
 	cfg.InitialCluster = cfg.InitialClusterFromName(cfg.Name)
 
-	cfg.ListenClientUrls = []url.URL{*config.EtcdClientAddr}
-	cfg.ListenPeerUrls = []url.URL{*config.EtcdPeerAddr}
+	clientAddrUrl, _ := url.Parse(etcdConfig.ClientAddr)
+	peerAddrUrl, _ := url.Parse(etcdConfig.PeerAddr)
+
+	cfg.ListenClientUrls = []url.URL{*clientAddrUrl}
+	cfg.ListenPeerUrls = []url.URL{*peerAddrUrl}
 	// cfg.LogOutput = config.LogFile
 	cfg.LogLevel = "warn"
-	cfg.InitialCluster = config.EtcdClusterPeers
+	cfg.InitialCluster = etcdConfig.ClusterPeers
 
 	cfg.AdvertiseClientUrls = cfg.ListenClientUrls
 	cfg.AdvertisePeerUrls = cfg.ListenPeerUrls
@@ -82,9 +86,10 @@ func (en *EtcdNode) Start() error {
 
 	en.etcdServer = e
 
+	clientAddrUrl, _ := url.Parse(config.GetConfig().Etcd.ClientAddr)
 	en.client, err = client.New(client.Config{
-		Endpoints:   []string{config.MsConfig.EtcdClientAddr.String()},
-		DialTimeout: config.MsConfig.EtcdClientTimeout,
+		Endpoints:   []string{clientAddrUrl.String()},
+		DialTimeout: time.Duration(config.GetConfig().Etcd.ClientTimeoutSec) * time.Second,
 		TLS:         nil,
 	})
 

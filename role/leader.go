@@ -28,7 +28,7 @@ func RunAsLeader() {
 	}
 	log.Info("start heartbeater ...")
 
-	err = scheduler.GetRebalance().Start()
+	err = scheduler.GetDsSpaceBalancer().Start()
 	if err != nil {
 		log.Errorf("failed to start rebalance, err: %v", err)
 	}

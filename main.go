@@ -22,9 +22,9 @@ import (
 )
 
 func startGrpcServer() {
-	lis, err := net.Listen("tcp", config.MsConfig.ServerAddr)
+	lis, err := net.Listen("tcp", config.GetConfig().ServerAddr)
 	if err != nil {
-		panic(fmt.Sprintf("failed to listen on %v\n", config.MsConfig.ServerAddr))
+		panic(fmt.Sprintf("failed to listen on %v\n", config.GetConfig().ServerAddr))
 	}
 
 	opts := []grpc.ServerOption{}

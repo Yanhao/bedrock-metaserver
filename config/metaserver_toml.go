@@ -2,41 +2,48 @@ package config
 
 import (
 	"errors"
-	"net/url"
 	"os"
-	"time"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 )
 
+type EtcdConfig struct {
+	Name             string `toml:"etcd_name"`
+	DataDir          string `toml:"etcd_data_dir"`
+	WalDir           string `toml:"etcd_wal_dir"`
+	PreVote          bool   `toml:"etcd_pre_vote"`
+	PeerAddr         string `toml:"etcd_peer_addr"`
+	ClientAddr       string `toml:"etcd_client_addr"`
+	ClientTimeoutSec int64  `toml:"etcd_client_timeout_sec"`
+	ClusterPeers     string `toml:"etcd_cluster_peers"`
+}
+
+type SchedulerConfig struct {
+	BigShardSizeThreshold           int64 `toml:"big_shard_size_threshold"`
+	DataserverSpaceBalanceThreshold int64 `toml:"dataserver_space_balance_threshold"`
+}
+
 type Configuration struct {
-	EtcdName          string
-	EtcdDataDir       string
-	EtcdWalDir        string
-	EtcdPreVote       bool
-	EtcdPeerAddr      *url.URL
-	EtcdClientAddr    *url.URL
-	EtcdClientTimeout time.Duration
-	EtcdClusterPeers  string
-
-	ServerAddr             string
-	PprofListenAddr        string
-	LogFile                string
-	EnableHeartBeatChecker bool
+	Etcd                   EtcdConfig      `toml:"etcd"`
+	Scheduler              SchedulerConfig `toml:"scheduler"`
+	ServerAddr             string          `toml:"server_addr"`
+	PprofListenAddr        string          `toml:"pprof_listen_addr"`
+	LogFile                string          `toml:"log_file"`
+	EnableHeartBeatChecker bool            `toml:"enable_heart_beat_checker"`
 }
 
-var MsConfig *Configuration
+var msConfig *Configuration
 
-func GetConfiguration() *Configuration {
-	return MsConfig
+func GetConfig() *Configuration {
+	return msConfig
 }
 
-func loadConfigFromFile(filePath string) (*Configuration, error) {
+func loadConfigFromFile(filePath string) error {
 	ret := &Configuration{}
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return ret, errors.New("failed to open configuration file")
+		return errors.New("failed to open configuration file")
 	}
 	defer f.Close()
 
@@ -44,36 +51,17 @@ func loadConfigFromFile(filePath string) (*Configuration, error) {
 
 	count, err := f.Read(buf)
 	if err != nil {
-		return ret, errors.New("failed to read configuration file")
+		return errors.New("failed to read configuration file")
 	}
 	_ = f.Close()
 
-	c, err := toml.Load(string(buf[:count]))
-	if err != nil {
-		return ret, errors.New("failed to parse toml file")
+	var c Configuration
+	if err := toml.Unmarshal(buf[:count], &c); err != nil {
+		return errors.New("failed to parse toml file")
 	}
 
-	ret.EtcdName = c.Get("etcd.name").(string)
-	ret.EtcdDataDir = c.Get("etcd.data_dir").(string)
-	ret.EtcdWalDir = c.Get("etcd.wal_dir").(string)
-	ret.EtcdPreVote = c.Get("etcd.prevote").(bool)
-
-	etcdPeerAddrStr := c.Get("etcd.raft_addr").(string)
-	ret.EtcdPeerAddr, _ = url.Parse(etcdPeerAddrStr)
-
-	etcdClientAddrStr := c.Get("etcd.client_addr").(string)
-	ret.EtcdClientAddr, _ = url.Parse(etcdClientAddrStr)
-
-	ret.EtcdClusterPeers = c.Get("etcd.peers").(string)
-	ret.EtcdClientTimeout = time.Duration(c.Get("etcd.client_timeout").(int64)) * time.Second
-
-	ret.LogFile = c.Get("server.log_file").(string)
-	ret.ServerAddr = c.Get("server.addr").(string)
-	ret.PprofListenAddr = c.Get("server.pprof_addr").(string)
-	ret.EnableHeartBeatChecker = c.Get("server.enable_heartbeat_checker").(bool)
-
-	MsConfig = ret
-	return MsConfig, nil
+	msConfig = ret
+	return nil
 }
 
 // just panic if there are something wrong
@@ -82,7 +70,7 @@ func validateConfig() {
 }
 
 func MustLoadConfig(configFile string) {
-	if _, err := loadConfigFromFile(configFile); err != nil {
+	if err := loadConfigFromFile(configFile); err != nil {
 		panic("failed to load configuration file")
 	}
 

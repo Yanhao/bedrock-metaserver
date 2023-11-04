@@ -2,6 +2,7 @@ package dal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ const (
 	KvPrefixStorage              = "/storages/"
 	KvPrefixStorageByName        = "/storages_by_name/"
 	KvPrefixMarkDeletedStorageID = "/deleted_storages/"
+	KvLastStorageIDkey           = "/last_storage_id"
 )
 
 func storageKey(storageID model.StorageID) string {
@@ -32,8 +34,7 @@ func deletedStorageKey(storageID model.StorageID) string {
 }
 
 func KvGetStorage(storageID model.StorageID) (*model.Storage, error) {
-	ec := kv_engine.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), storageKey(storageID))
+	resp, err := kv_engine.GetEtcdClient().Get(context.Background(), storageKey(storageID))
 	if err != nil {
 		log.Warnf("failed get storage from etcd, storageID=%d", storageID)
 		return nil, err
@@ -59,8 +60,7 @@ func KvGetStorage(storageID model.StorageID) (*model.Storage, error) {
 }
 
 func KvGetStorageByName(name string) (*model.Storage, error) {
-	ec := kv_engine.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), storageByNameKey(name))
+	resp, err := kv_engine.GetEtcdClient().Get(context.Background(), storageByNameKey(name))
 	if err != nil {
 		log.Warnf("failed get storage id by name, err: %v", err)
 		return nil, err
@@ -89,15 +89,14 @@ func KvPutStorage(storage *model.Storage) error {
 		return err
 	}
 
-	ec := kv_engine.GetEtcdClient()
-	_, err = ec.Put(context.Background(), storageKey(storage.ID), string(value))
+	_, err = kv_engine.GetEtcdClient().Put(context.Background(), storageKey(storage.ID), string(value))
 	if err != nil {
 		log.Warnf("failed to save storage to etcd, storage=%v", storage)
 		return err
 	}
 
 	storageIDStr := strconv.FormatUint(uint64(storage.ID), 10)
-	_, err = ec.Put(context.Background(), storageByNameKey(storage.Name), storageIDStr)
+	_, err = kv_engine.GetEtcdClient().Put(context.Background(), storageByNameKey(storage.Name), storageIDStr)
 	if err != nil {
 		log.Warnf("failed to save storage name, err: %v", err)
 		return err
@@ -117,8 +116,7 @@ func KvDeleteStorage(storageID model.StorageID) error {
 		ops = append(ops, client.OpDelete(key, client.WithPrefix()))
 	}
 
-	ec := kv_engine.GetEtcdClient()
-	_, err := ec.Txn(context.Background()).If().Then(ops...).Commit()
+	_, err := kv_engine.GetEtcdClient().Txn(context.Background()).If().Then(ops...).Commit()
 	if err != nil {
 		log.Warnf("failed to delete storage from etcd, storage=%d", storageID)
 		return err
@@ -130,8 +128,7 @@ func KvDeleteStorage(storageID model.StorageID) error {
 func KvPutDeletedStorageID(sID model.StorageID) error {
 	key := deletedStorageKey(sID)
 
-	ec := kv_engine.GetEtcdClient()
-	_, err := ec.Put(context.TODO(), key, "")
+	_, err := kv_engine.GetEtcdClient().Put(context.TODO(), key, "")
 	if err != nil {
 		return err
 	}
@@ -142,11 +139,34 @@ func KvPutDeletedStorageID(sID model.StorageID) error {
 func KvDelDeletedStorageID(sID model.StorageID) error {
 	key := deletedStorageKey(sID)
 
-	ec := kv_engine.GetEtcdClient()
-	_, err := ec.Delete(context.TODO(), key)
+	_, err := kv_engine.GetEtcdClient().Delete(context.TODO(), key)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func KvGetLastStorageId() (uint64, error) {
+	resp, err := kv_engine.GetEtcdClient().Get(context.Background(), KvLastStorageIDkey)
+	if err != nil {
+		log.Errorf("failed load last storage id from etcd, err: %v", err)
+		return 0, err
+	}
+
+	if len(resp.Kvs) != 1 {
+		return 0, errors.New("wrong kv size")
+	}
+
+	sID, err := strconv.ParseUint(string(resp.Kvs[0].Value), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return sID, nil
+}
+
+func KvPutLastStorageId(sID uint64) error {
+	_, err := kv_engine.GetEtcdClient().Put(context.Background(), KvLastStorageIDkey, strconv.FormatUint(sID, 10))
+	return err
 }

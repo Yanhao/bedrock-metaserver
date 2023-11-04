@@ -36,6 +36,7 @@ func GetShardSizeBalancer() *ShardSizeBalancer {
 func (s *ShardSizeBalancer) Start() error {
 	go func() {
 		ticker := time.NewTicker(time.Second * 10)
+		defer ticker.Stop()
 
 	out:
 		for {

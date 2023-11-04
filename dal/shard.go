@@ -53,9 +53,7 @@ func shardRangeInStorageKey(storageID model.StorageID, key []byte) string {
 }
 
 func KvGetShard(shardID model.ShardID) (*model.Shard, error) {
-	ec := kv_engine.GetEtcdClient()
-
-	resp, err := ec.KV.Get(context.Background(), shardKey(shardID))
+	resp, err := kv_engine.GetEtcdClient().KV.Get(context.Background(), shardKey(shardID))
 	if err != nil || resp.Count == 0 {
 		return nil, ErrNoSuchShard
 	}
@@ -95,8 +93,7 @@ func KvPutShard(shard *model.Shard) error {
 		ops = append(ops, client.OpPut(keys[i], values[i]))
 	}
 
-	ec := kv_engine.GetEtcdClient()
-	_, err = ec.Txn(context.Background()).If().Then(ops...).Commit()
+	_, err = kv_engine.GetEtcdClient().Txn(context.Background()).If().Then(ops...).Commit()
 	if err != nil {
 		log.Warnf("failed to store shard to etcd, shard=%v", shard)
 		return err
@@ -117,8 +114,7 @@ func KvDeleteShard(shard *model.Shard) error {
 		ops = append(ops, client.OpDelete(key))
 	}
 
-	ec := kv_engine.GetEtcdClient()
-	_, err := ec.Txn(context.Background()).If().Then(ops...).Commit()
+	_, err := kv_engine.GetEtcdClient().Txn(context.Background()).If().Then(ops...).Commit()
 	if err != nil {
 		return err
 	}
@@ -127,9 +123,7 @@ func KvDeleteShard(shard *model.Shard) error {
 }
 
 func KvGetShardsInStorage(storageID model.StorageID) ([]model.ShardID, error) {
-	ec := kv_engine.GetEtcdClient()
-
-	resp, err := ec.Get(context.Background(), shardInStoragePrefixKey(storageID), client.WithPrefix())
+	resp, err := kv_engine.GetEtcdClient().Get(context.Background(), shardInStoragePrefixKey(storageID), client.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -150,9 +144,7 @@ func KvGetShardsInStorage(storageID model.StorageID) ([]model.ShardID, error) {
 
 // FIXME: consider support specify count
 func KvGetShardIDsInDataServer(addr string) ([]model.ShardID, error) {
-	ec := kv_engine.GetEtcdClient()
-
-	resp, err := ec.Get(context.Background(), shardInDataServerPrefixKey(addr), client.WithPrefix())
+	resp, err := kv_engine.GetEtcdClient().Get(context.Background(), shardInDataServerPrefixKey(addr), client.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -173,9 +165,8 @@ func KvGetShardIDsInDataServer(addr string) ([]model.ShardID, error) {
 
 func KvPutShardInDataServer(addr string, id model.ShardID, ts int64) error {
 	key := shardInDataServerKey(addr, id)
-	ec := kv_engine.GetEtcdClient()
 
-	_, err := ec.Put(context.Background(), key, strconv.FormatInt(ts, 10))
+	_, err := kv_engine.GetEtcdClient().Put(context.Background(), key, strconv.FormatInt(ts, 10))
 	if err != nil {
 		return err
 	}
@@ -185,9 +176,7 @@ func KvPutShardInDataServer(addr string, id model.ShardID, ts int64) error {
 
 // zrange
 func KvGetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, []byte /* range start */, error) {
-	ec := kv_engine.GetEtcdClient()
-
-	resp, err := ec.Get(context.Background(), shardRangeInStorageKey(storageID, key), client.WithPrefix())
+	resp, err := kv_engine.GetEtcdClient().Get(context.Background(), shardRangeInStorageKey(storageID, key), client.WithPrefix())
 	if err != nil {
 		return 0, []byte{}, err
 	}
@@ -210,9 +199,7 @@ func KvGetShardIDByKey(storageID model.StorageID, key []byte) (model.ShardID, []
 func KvPutShardIDByKey(storageID model.StorageID, key []byte, shardID model.ShardID) error {
 	value := fmt.Sprintf("0x%016x", shardID)
 
-	ec := kv_engine.GetEtcdClient()
-
-	_, err := ec.Put(context.Background(), shardRangeInStorageKey(storageID, key), value)
+	_, err := kv_engine.GetEtcdClient().Put(context.Background(), shardRangeInStorageKey(storageID, key), value)
 	if err != nil {
 		return err
 	}
@@ -222,8 +209,7 @@ func KvPutShardIDByKey(storageID model.StorageID, key []byte, shardID model.Shar
 
 // zrembyscore
 func KvRemoveShardRangeByKey(storageID model.StorageID, key []byte) error {
-	ec := kv_engine.GetEtcdClient()
-	_, err := ec.Delete(context.Background(), shardRangeInStorageKey(storageID, key))
+	_, err := kv_engine.GetEtcdClient().Delete(context.Background(), shardRangeInStorageKey(storageID, key))
 	return err
 }
 
@@ -236,9 +222,8 @@ type ShardRange struct {
 }
 
 func KvScanShardsBySID(storageID model.StorageID, rangeStart []byte) ([]ShardRange, error) {
-	ec := kv_engine.GetEtcdClient()
 	keyPrefix := shardRangeInStorageKey(storageID, rangeStart)
-	resp, err := ec.Get(context.Background(), keyPrefix, client.WithPrefix(), client.WithLimit(100))
+	resp, err := kv_engine.GetEtcdClient().Get(context.Background(), keyPrefix, client.WithPrefix(), client.WithLimit(100))
 	if err != nil {
 		log.Errorf("get key with prefix failed, err: %v", err)
 		return nil, err
@@ -273,10 +258,9 @@ func KvScanShardsBySID(storageID model.StorageID, rangeStart []byte) ([]ShardRan
 }
 
 func KvAddShardInDataServer(addr string, id model.ShardID) error {
-	ec := kv_engine.GetEtcdClient()
 	key := shardInDataServerKey(addr, id)
 
-	_, err := ec.Put(context.Background(), key, "0")
+	_, err := kv_engine.GetEtcdClient().Put(context.Background(), key, "0")
 	if err != nil {
 		return err
 	}
@@ -285,10 +269,9 @@ func KvAddShardInDataServer(addr string, id model.ShardID) error {
 }
 
 func KvRemoveShardInDataServer(addr string, id model.ShardID) error {
-	ec := kv_engine.GetEtcdClient()
 	key := shardInDataServerKey(addr, id)
 
-	_, err := ec.Delete(context.Background(), key)
+	_, err := kv_engine.GetEtcdClient().Delete(context.Background(), key)
 	if err != nil {
 		return err
 	}

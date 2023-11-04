@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -10,11 +9,9 @@ import (
 
 	"github.com/jinzhu/copier"
 	log "github.com/sirupsen/logrus"
-	client "go.etcd.io/etcd/client/v3"
 	"sr.ht/moyanhao/bedrock-metaserver/clients/metaserver"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal"
-	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 )
 
@@ -53,30 +50,20 @@ func (dm *DataServerManager) ClearCache() {
 	dm.dataServers = make(map[string]*model.DataServer)
 }
 
-func (dm *DataServerManager) LoadDataServersFromKv() error {
-	ec := kv_engine.GetEtcdClient()
-	resp, err := ec.Get(context.Background(), dal.KvPrefixDataServer, client.WithPrefix())
+func (dm *DataServerManager) LoadAllDataServers() error {
+	dataservers, err := dal.KvLoadAllDataServers()
 	if err != nil {
-		log.Warn("failed to get dataserver from etcd")
 		return err
 	}
 
 	dm.dataServersLock.Lock()
 	defer dm.dataServersLock.Unlock()
 
-	for _, kv := range resp.Kvs {
-		var dataserver model.DataServer
-
-		err := dataserver.UnmarshalJSON(kv.Value)
-		if err != nil {
-			log.Warn("failed to decode dataserver from pb")
-			return err
-		}
-
-		dm.dataServers[dataserver.Addr()] = &dataserver
+	for _, dataserver := range dataservers {
+		dm.dataServers[dataserver.Addr()] = dataserver
 	}
 
-	log.Infof("load dataservers: %#v", dm.dataServers)
+	log.Infof("load and cache dataservers: %#v", dm.dataServers)
 
 	return nil
 }

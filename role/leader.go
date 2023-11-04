@@ -16,7 +16,7 @@ func RunAsLeader() {
 	dm.ClearCache()
 	log.Info("clear dataserver cache ...")
 
-	err := dm.LoadDataServersFromKv()
+	err := dm.LoadAllDataServers()
 	if err != nil {
 		log.Errorf("failed to load dataservers from etcd, err: %v", err)
 	}
@@ -28,7 +28,7 @@ func RunAsLeader() {
 	}
 	log.Info("start heartbeater ...")
 
-	err = scheduler.GetDsSpaceBalancer().Start()
+	err = scheduler.GetDsCapacityBalancer().Start()
 	if err != nil {
 		log.Errorf("failed to start rebalance, err: %v", err)
 	}

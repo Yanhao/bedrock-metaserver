@@ -14,7 +14,7 @@ func RunAsFollower() {
 	bg_task.GetGarbageCleaner().Stop()
 	log.Info("stop garbage cleaner ...")
 
-	scheduler.GetDsSpaceBalancer().Stop()
+	scheduler.GetDsCapacityBalancer().Stop()
 	log.Info("stop rebalace ...")
 
 	bg_task.GetHeartBeater().Stop()

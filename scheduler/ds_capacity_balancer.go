@@ -13,32 +13,33 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 )
 
-type DsSpaceBalancer struct {
+type DsCapacityBalancer struct {
 	stop chan struct{}
 }
 
-func NewDsSpaceBalancer() *DsSpaceBalancer {
-	return &DsSpaceBalancer{
+func NewDsCapacityBalancer() *DsCapacityBalancer {
+	return &DsCapacityBalancer{
 		stop: make(chan struct{}),
 	}
 }
 
 var (
-	dsSpaceBalancer     *DsSpaceBalancer
-	dsSpaceBalancerOnce sync.Once
+	dsCapacityBalancer     *DsCapacityBalancer
+	dsCapacityBalancerOnce sync.Once
 )
 
-func GetDsSpaceBalancer() *DsSpaceBalancer {
-	dsSpaceBalancerOnce.Do(func() {
-		dsSpaceBalancer = NewDsSpaceBalancer()
+func GetDsCapacityBalancer() *DsCapacityBalancer {
+	dsCapacityBalancerOnce.Do(func() {
+		dsCapacityBalancer = NewDsCapacityBalancer()
 	})
 
-	return dsSpaceBalancer
+	return dsCapacityBalancer
 }
 
-func (rb *DsSpaceBalancer) Start() error {
+func (rb *DsCapacityBalancer) Start() error {
 	go func() {
 		ticker := time.NewTicker(time.Second * 10)
+		defer ticker.Stop()
 
 	out:
 		for {
@@ -51,18 +52,18 @@ func (rb *DsSpaceBalancer) Start() error {
 			}
 		}
 
-		log.Info("dataserver space balancer stopped ...")
+		log.Info("dataserver capacity balancer stopped ...")
 	}()
 
 	return nil
 }
 
-func (rb *DsSpaceBalancer) Stop() {
+func (rb *DsCapacityBalancer) Stop() {
 	close(rb.stop)
 	rb.stop = make(chan struct{})
 }
 
-func (rb *DsSpaceBalancer) doRebalanceByCapacity() {
+func (rb *DsCapacityBalancer) doRebalanceByCapacity() {
 	dsSet := manager.GetDataServerManager().GetDataServersCopy()
 
 	if len(dsSet) == 0 {

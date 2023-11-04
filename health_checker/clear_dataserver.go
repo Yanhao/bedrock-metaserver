@@ -1,7 +1,8 @@
-package scheduler
+package health_checker
 
 import (
 	"errors"
+	"math/rand"
 
 	log "github.com/sirupsen/logrus"
 
@@ -33,8 +34,12 @@ func ClearDataserver(addr string) error {
 			replicates = append(replicates, addr)
 		}
 
-		viableDataServers := generateViableDataServer(replicates)
-		ds := randomSelect(viableDataServers)
+		viableDataServers := manager.GetDataServerManager().GenerateViableDataServer(replicates)
+		if len(viableDataServers) == 0 {
+			continue
+		}
+
+		ds := viableDataServers[rand.Intn(len(viableDataServers))]
 		dataServerCli, _ := conns.GetApiClient(ds)
 
 		err = dataServerCli.CreateShard(uint64(shardID), shard.RangeKeyStart, shard.RangeKeyEnd)

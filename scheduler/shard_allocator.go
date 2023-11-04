@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
-	"net"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -52,55 +51,6 @@ func GetShardAllocator() *ShardAllocator {
 	return shardAllocator
 }
 
-func generateViableDataServer(selected []string) []string {
-	var ret []string
-
-	dm := manager.GetDataServerManager()
-	dataservers := dm.GetDataServersCopy()
-
-outer:
-	for addr, ds := range dataservers {
-		if ds.IsOverLoaded() {
-			continue
-		}
-
-		host, _, err := net.SplitHostPort(addr)
-		if err != nil {
-			continue
-		}
-
-		for _, s := range selected {
-			if s == addr {
-				continue outer
-			}
-
-			shost, _, err := net.SplitHostPort(s)
-			if err != nil {
-				continue outer
-			}
-
-			if shost == host {
-				//FIXME: remove the following comments
-				// continue outer
-			}
-		}
-
-		ret = append(ret, addr)
-	}
-
-	return ret
-}
-
-func randomSelect(dataServers []string) string {
-	length := len(dataServers)
-	if length == 0 {
-		log.Warnf("input dataserver is empty")
-		return ""
-	}
-
-	return dataServers[rand.Intn(length)]
-}
-
 const (
 	DefaultReplicatesCount = 3
 )
@@ -143,12 +93,12 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 
 	for i, times := count, MaxAllocateTimes; i > 0 && times > 0; {
 		log.Infof("i: %v, times: %v", i, times)
-		viableDataServers := generateViableDataServer(selectedDataServers)
+		viableDataServers := manager.GetDataServerManager().GenerateViableDataServer(selectedDataServers)
 		if len(viableDataServers) < i {
 			return nil, errors.New("dataserver is not enough to allocate shard")
 		}
 
-		server := randomSelect(viableDataServers)
+		server := viableDataServers[rand.Intn(len(viableDataServers))]
 		log.Infof("allocate shard: 0x%016x on dataserver: %s", shardID, server)
 
 		dataServerCli, _ := conns.GetApiClient(server)

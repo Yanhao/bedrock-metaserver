@@ -1,4 +1,4 @@
-package bg_task
+package health_checker
 
 import (
 	"sync"
@@ -9,7 +9,6 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/config"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
-	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
 // make sure the following data no need to be locked
@@ -24,30 +23,30 @@ const (
 	OfflinePeriod  = time.Minute * 30
 )
 
-type HeartBeater struct {
+type HealthChecker struct {
 	stop chan struct{}
 }
 
-func NewHeartBeater() *HeartBeater {
-	return &HeartBeater{
+func NewHealthChecker() *HealthChecker {
+	return &HealthChecker{
 		stop: make(chan struct{}),
 	}
 }
 
 var (
-	heartBeater     *HeartBeater
-	heartBeaterOnce sync.Once
+	healthChecker     *HealthChecker
+	healthCheckerOnce sync.Once
 )
 
-func GetHeartBeater() *HeartBeater {
-	heartBeaterOnce.Do(func() {
-		heartBeater = NewHeartBeater()
-		heartBeater.InitDataServers()
+func GetHealthChecker() *HealthChecker {
+	healthCheckerOnce.Do(func() {
+		healthChecker = NewHealthChecker()
+		healthChecker.InitDataServers()
 	})
-	return heartBeater
+	return healthChecker
 }
 
-func (hb *HeartBeater) Start() error {
+func (hc *HealthChecker) Start() error {
 	go func() {
 		ticker := time.NewTicker(time.Second * 10)
 
@@ -55,8 +54,8 @@ func (hb *HeartBeater) Start() error {
 		for {
 			select {
 			case <-ticker.C:
-				hb.doHandleHeartBeat()
-			case <-hb.stop:
+				hc.doHealthCheck()
+			case <-hc.stop:
 				break out
 			}
 		}
@@ -67,16 +66,12 @@ func (hb *HeartBeater) Start() error {
 	return nil
 }
 
-func (hb *HeartBeater) Stop() {
-	close(hb.stop)
-	hb.Reset()
+func (hc *HealthChecker) Stop() {
+	close(hc.stop)
+	hc.stop = make(chan struct{})
 }
 
-func (hb *HeartBeater) Reset() {
-	hb.stop = make(chan struct{})
-}
-
-func (hb *HeartBeater) InitDataServers() {
+func (hc *HealthChecker) InitDataServers() {
 	log.Info("init dataservers ...")
 
 	ActiveDataServers = make(map[string]*model.DataServer)
@@ -98,7 +93,7 @@ func (hb *HeartBeater) InitDataServers() {
 	}
 }
 
-func (hb *HeartBeater) doHandleHeartBeat() {
+func (hc *HealthChecker) doHealthCheck() {
 	log.Info("handle heartbeat ...")
 
 	if !config.GetConfig().EnableHeartBeatChecker {
@@ -143,7 +138,7 @@ func repairDataInServer(server *model.DataServer) {
 	log.Infof("start repair data in dataserver: %s", server.Addr())
 	return // FIXME: remove this line
 
-	err := scheduler.ClearDataserver(server.Addr())
+	err := ClearDataserver(server.Addr())
 	if err != nil {
 		log.Errorf("failed to clear data in dataserver %v, err: %v", server.Addr(), err)
 

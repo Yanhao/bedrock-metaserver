@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/clients/metaserver"
+	"sr.ht/moyanhao/bedrock-metaserver/health_checker"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 	"sr.ht/moyanhao/bedrock-metaserver/role"
@@ -360,7 +361,7 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *metaserver.Remo
 	}
 
 	go func() {
-		err = scheduler.ClearDataserver(req.Addr)
+		err = health_checker.ClearDataserver(req.Addr)
 		if err != nil {
 			return
 		}

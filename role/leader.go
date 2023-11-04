@@ -4,7 +4,7 @@ import (
 	"github.com/fatih/color"
 	log "github.com/sirupsen/logrus"
 
-	"sr.ht/moyanhao/bedrock-metaserver/bg_task"
+	"sr.ht/moyanhao/bedrock-metaserver/health_checker"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
@@ -22,23 +22,17 @@ func RunAsLeader() {
 	}
 	log.Info("load dataservers from kv ...")
 
-	err = bg_task.GetHeartBeater().Start()
+	err = health_checker.GetHealthChecker().Start()
 	if err != nil {
 		log.Errorf("failed to start heartbeater, err: %v", err)
 	}
-	log.Info("start heartbeater ...")
+	log.Info("start health checker ...")
 
 	err = scheduler.GetDsCapacityBalancer().Start()
 	if err != nil {
 		log.Errorf("failed to start rebalance, err: %v", err)
 	}
-	log.Info("start rebalance ...")
-
-	err = bg_task.GetGarbageCleaner().Start()
-	if err != nil {
-		log.Errorf("failed to start garbage cleaner, err: %v", err)
-	}
-	log.Info("start garbage cleaner ...")
+	log.Info("start rebalancer ...")
 
 	manager.GetShardManager().ClearCache()
 	log.Info("clear shard cache ...")

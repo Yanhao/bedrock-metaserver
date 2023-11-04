@@ -251,3 +251,41 @@ func (dm *DataServerManager) UpdateStatus(req *metaserver.HeartBeatRequest) erro
 
 	return nil
 }
+
+func (dm *DataServerManager) GenerateViableDataServer(selected []string) []string {
+	var ret []string
+
+	dataservers := dm.GetDataServersCopy()
+
+outer:
+	for addr, ds := range dataservers {
+		if ds.IsOverLoaded() {
+			continue
+		}
+
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			continue
+		}
+
+		for _, s := range selected {
+			if s == addr {
+				continue outer
+			}
+
+			shost, _, err := net.SplitHostPort(s)
+			if err != nil {
+				continue outer
+			}
+
+			if shost == host {
+				//FIXME: remove the following comments
+				// continue outer
+			}
+		}
+
+		ret = append(ret, addr)
+	}
+
+	return ret
+}

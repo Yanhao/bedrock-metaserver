@@ -5,18 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b1268240-6886-4de5-bf9f-ce84ab65be16" name="变更" comment="">
-      <change beforePath="$PROJECT_DIR$/bg_task/heartbeat.go" beforeDir="false" afterPath="$PROJECT_DIR$/bg_task/heartbeat.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmd/server/metaserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/server/metaserver.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dal/dataserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/dal/dataserver.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dal/shard.go" beforeDir="false" afterPath="$PROJECT_DIR$/dal/shard.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dal/storage.go" beforeDir="false" afterPath="$PROJECT_DIR$/dal/storage.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dataserver/connections.go" beforeDir="false" afterPath="$PROJECT_DIR$/dataserver/connections.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dataserver/dataserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/dataserver/dataserver.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/shard.go" beforeDir="false" afterPath="$PROJECT_DIR$/model/shard.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scheduler/clear_dataserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/scheduler/clear_dataserver.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scheduler/shard_allocator.go" beforeDir="false" afterPath="$PROJECT_DIR$/scheduler/shard_allocator.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/service/service.go" beforeDir="false" afterPath="$PROJECT_DIR$/service/service.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tso/txid_allocator.go" beforeDir="false" afterPath="$PROJECT_DIR$/tso/txid_allocator.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bg_task/gc.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/bg_task/heartbeat.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/health_checker/ds_health_checker.go" beforeDir="false" afterPath="$PROJECT_DIR$/health_checker/ds_health_checker.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/role/follower.go" beforeDir="false" afterPath="$PROJECT_DIR$/role/follower.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/role/leader.go" beforeDir="false" afterPath="$PROJECT_DIR$/role/leader.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,6 +36,10 @@
   <component name="ProblemsViewState">
     <option name="selectedTabId" value="ProjectErrors" />
   </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "customColor": "",
+  "associatedIndex": 6
+}]]></component>
   <component name="ProjectId" id="27IXFLvMwwQAuY6P1m5uAzqlz88" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
@@ -55,6 +52,7 @@
     "RunOnceActivity.go.format.on.save.advertiser.fired": "true",
     "RunOnceActivity.go.formatter.settings.were.checked": "true",
     "RunOnceActivity.go.migrated.go.modules.settings": "true",
+    "RunOnceActivity.go.modules.automatic.dependencies.download": "true",
     "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
     "RunOnceActivity.go.watchers.conflict.with.on.save.actions.check.performed": "true",
     "WebServerToolWindowFactoryState": "false",

@@ -665,12 +665,13 @@ func (m *MetaService) AllocateTxids(ctx context.Context, req *metaserver.Allocat
 
 	resp := &metaserver.AllocateTxidsResponse{}
 
-	txIDs, err := tso.GetTxIDAllocator().Allocate(req.Count)
+	txIdStart, txIdEnd, err := tso.GetTxIDAllocator().Allocate(req.Count, true)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
-	resp.Txids = txIDs
+	resp.TxidRangeStart = txIdStart
+	resp.TxidRangeEnd = txIdEnd
 
 	return resp, nil
 }

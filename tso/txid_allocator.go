@@ -43,8 +43,7 @@ func GetTxIDAllocator() *TxIDsAllocator {
 }
 
 func NewTxIDsAllocator() *TxIDsAllocator {
-	ec := kv_engine.GetEtcdClient()
-	resp, err := ec.KV.Get(context.Background(), TXID_KEY)
+	resp, err := kv_engine.GetEtcdClient().Get(context.Background(), TXID_KEY)
 	if err != nil {
 		panic(fmt.Sprintf("get /txid key failed, err: %v", err))
 	}
@@ -69,33 +68,17 @@ func NewTxIDsAllocator() *TxIDsAllocator {
 	}
 }
 
-func (t *TxIDsAllocator) Allocate(count uint32) ([]uint64, error) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
-	var ret []uint64
-	for i := count; i > 0; i-- {
-		v, err := t.AllocateOne(false)
-		if err != nil {
-			return nil, err
-		}
-
-		ret = append(ret, v)
-	}
-
-	return ret, nil
-}
-
-func (t *TxIDsAllocator) AllocateOne(withLock bool) (uint64, error) {
+func (t *TxIDsAllocator) Allocate(count uint32, withLock bool) (uint64, uint64, error) {
 	if withLock {
 		t.lock.Lock()
 		defer t.lock.Unlock()
 	}
 
-	if t.nowPosition < t.preAllcateRange {
-		t.nowPosition += 1
+	if t.nowPosition+uint64(count) < t.preAllcateRange {
+		cur := t.nowPosition
+		t.nowPosition += uint64(count)
 
-		return t.timestamp + t.nowPosition, nil
+		return t.timestamp + cur, t.timestamp + t.nowPosition, nil
 	}
 
 	t.timestamp = uint64(time.Now().UnixNano()) & 0xFFFF_FFFF
@@ -108,15 +91,14 @@ func (t *TxIDsAllocator) AllocateOne(withLock bool) (uint64, error) {
 	data, err := json.Marshal(tsov)
 	if err != nil {
 		log.Errorf("failed to marshal tosValue data, err: %v", err)
-		return 0, err
+		return 0, 0, err
 	}
 
-	ec := kv_engine.GetEtcdClient()
-	_, err = ec.Put(context.TODO(), TXID_KEY, string(data))
+	_, err = kv_engine.GetEtcdClient().Put(context.TODO(), TXID_KEY, string(data))
 	if err != nil {
 		log.Errorf("failed to put tso value, err: %v", err)
-		return 0, err
+		return 0, 0, err
 	}
 
-	return t.AllocateOne(false)
+	return t.Allocate(count, false)
 }

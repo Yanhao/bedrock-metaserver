@@ -154,6 +154,10 @@ func KvGetLastStorageId() (uint64, error) {
 		return 0, err
 	}
 
+	if len(resp.Kvs) == 0 {
+		return 0, nil
+	}
+
 	if len(resp.Kvs) != 1 {
 		return 0, errors.New("wrong kv size")
 	}

@@ -3,10 +3,10 @@ module sr.ht/moyanhao/bedrock-metaserver
 go 1.21
 
 require (
+	github.com/BurntSushi/toml v1.3.2
 	github.com/fatih/color v1.15.0
 	github.com/hashicorp/golang-lru/v2 v2.0.4
 	github.com/jinzhu/copier v0.3.5
-	github.com/pelletier/go-toml/v2 v2.1.0
 	github.com/sirupsen/logrus v1.9.3
 	go.etcd.io/etcd/client/v3 v3.5.9
 	go.etcd.io/etcd/server/v3 v3.5.9
@@ -47,6 +47,7 @@ require (
 	github.com/prometheus/procfs v0.11.0 // indirect
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20220101234140-673ab2c3ae75 // indirect
 	github.com/xiang90/probing v0.0.0-20221125231312-a49e3df8f510 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect

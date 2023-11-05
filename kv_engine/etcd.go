@@ -49,6 +49,8 @@ func NewEtcdNode() *EtcdNode {
 
 	clientAddrUrl, _ := url.Parse(etcdConfig.ClientAddr)
 	peerAddrUrl, _ := url.Parse(etcdConfig.PeerAddr)
+	log.Debugf("config: %v", config.GetConfig())
+	log.Debugf("clientAddrUrl: %v, peerAddrUrl: %v", etcdConfig.ClientAddr, etcdConfig.PeerAddr)
 
 	cfg.ListenClientUrls = []url.URL{*clientAddrUrl}
 	cfg.ListenPeerUrls = []url.URL{*peerAddrUrl}

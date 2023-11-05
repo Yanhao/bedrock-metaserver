@@ -4,32 +4,35 @@ import (
 	"errors"
 	"os"
 
-	"github.com/pelletier/go-toml/v2"
+	"github.com/BurntSushi/toml"
 )
 
 type EtcdConfig struct {
-	Name             string `toml:"etcd_name"`
-	DataDir          string `toml:"etcd_data_dir"`
-	WalDir           string `toml:"etcd_wal_dir"`
-	PreVote          bool   `toml:"etcd_pre_vote"`
-	PeerAddr         string `toml:"etcd_peer_addr"`
-	ClientAddr       string `toml:"etcd_client_addr"`
-	ClientTimeoutSec int64  `toml:"etcd_client_timeout_sec"`
-	ClusterPeers     string `toml:"etcd_cluster_peers"`
+	Name             string `toml:"name"`
+	DataDir          string `toml:"data_dir"`
+	WalDir           string `toml:"wal_dir"`
+	PreVote          bool   `toml:"pre_vote"`
+	PeerAddr         string `toml:"peer_addr"`
+	ClientAddr       string `toml:"client_addr"`
+	ClientTimeoutSec int64  `toml:"client_timeout_sec"`
+	ClusterPeers     string `toml:"cluster_peers"`
 }
 
 type SchedulerConfig struct {
 	BigShardSizeThreshold           int64 `toml:"big_shard_size_threshold"`
 	DataserverSpaceBalanceThreshold int64 `toml:"dataserver_space_balance_threshold"`
 }
+type ServerConfig struct {
+	Addr                   string `toml:"addr"`
+	PprofListenAddr        string `toml:"pprof_listen_addr"`
+	LogFile                string `toml:"log_file"`
+	EnableHeartBeatChecker bool   `toml:"enable_heart_beat_checker"`
+}
 
 type Configuration struct {
-	Etcd                   EtcdConfig      `toml:"etcd"`
-	Scheduler              SchedulerConfig `toml:"scheduler"`
-	ServerAddr             string          `toml:"server_addr"`
-	PprofListenAddr        string          `toml:"pprof_listen_addr"`
-	LogFile                string          `toml:"log_file"`
-	EnableHeartBeatChecker bool            `toml:"enable_heart_beat_checker"`
+	Etcd      EtcdConfig      `toml:"etcd"`
+	Scheduler SchedulerConfig `toml:"scheduler"`
+	Server    ServerConfig    `toml:"server"`
 }
 
 var msConfig *Configuration
@@ -39,8 +42,6 @@ func GetConfig() *Configuration {
 }
 
 func loadConfigFromFile(filePath string) error {
-	ret := &Configuration{}
-
 	f, err := os.Open(filePath)
 	if err != nil {
 		return errors.New("failed to open configuration file")
@@ -48,7 +49,6 @@ func loadConfigFromFile(filePath string) error {
 	defer f.Close()
 
 	buf := make([]byte, 1024*8)
-
 	count, err := f.Read(buf)
 	if err != nil {
 		return errors.New("failed to read configuration file")
@@ -60,7 +60,7 @@ func loadConfigFromFile(filePath string) error {
 		return errors.New("failed to parse toml file")
 	}
 
-	msConfig = ret
+	msConfig = &c
 	return nil
 }
 

@@ -57,7 +57,7 @@ func writeStack(buf []byte) {
 
 // need to be called after configuration initialized
 func SetupHttpPprof() {
-	addr := config.GetConfig().PprofListenAddr
+	addr := config.GetConfig().Server.PprofListenAddr
 
 	go func() {
 		err := http.ListenAndServe(addr, nil)

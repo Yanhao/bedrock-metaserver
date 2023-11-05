@@ -96,7 +96,7 @@ func (hc *HealthChecker) InitDataServers() {
 func (hc *HealthChecker) doHealthCheck() {
 	log.Info("handle heartbeat ...")
 
-	if !config.GetConfig().EnableHeartBeatChecker {
+	if !config.GetConfig().Server.EnableHeartBeatChecker {
 		return
 	}
 

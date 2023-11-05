@@ -12,10 +12,6 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 )
 
-const (
-	KvLastStorageIDkey = "/last_storage_id"
-)
-
 var (
 	ErrNoSuchStorage = errors.New("no such storage")
 )

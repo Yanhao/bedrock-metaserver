@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jinzhu/copier"
+	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 	"sr.ht/moyanhao/bedrock-metaserver/clients/metaserver"
 
@@ -133,7 +134,7 @@ func (dm *DataServerManager) GetDataServersCopy() map[string]*model.DataServer {
 	dm.dataServersLock.RLock()
 	defer dm.dataServersLock.RUnlock()
 
-	log.Infof("dataservers: %#v", dm.dataServers)
+	log.Infof("dataservers: %#v", lo.Keys(dm.dataServers))
 	ret := make(map[string]*model.DataServer)
 
 	copier.CopyWithOption(&ret, dm.dataServers, copier.Option{IgnoreEmpty: true, DeepCopy: true})

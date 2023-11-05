@@ -93,7 +93,7 @@ func (rb *DsCapacityBalancer) doRebalanceByCapacity() {
 	}
 
 	shardIDs, err := manager.GetShardManager().GetShardIDsInDataServer(minFreeCapaciryDs.Addr())
-	if err != nil {
+	if err != nil || len(shardIDs) == 0 {
 		return
 	}
 

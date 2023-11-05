@@ -93,7 +93,7 @@ func (m *MetaService) ScanShardRange(ctx context.Context, req *metaserver.ScanSh
 }
 
 func (m *MetaService) Info(ctx context.Context, req *metaserver.InfoRequest) (*metaserver.InfoResponse, error) {
-	log.Infof("Info request")
+	log.Debug("Info request")
 
 	err := InfoParamCheck(req)
 	if err != nil {
@@ -298,7 +298,19 @@ func (m *MetaService) StorageInfo(ctx context.Context, req *metaserver.StorageIn
 	}
 
 	for _, name := range req.Names {
-		_ = name
+		st, error := manager.GetStorageManager().GetStorageByName(name)
+		if error != nil {
+			return nil, status.Errorf(codes.Internal, "get storage by name failed, name: %s, err: %v", name, err)
+		}
+
+		resp.Storages = append(resp.Storages, &metaserver.Storage{
+			Id:           uint32(st.ID),
+			Name:         st.Name,
+			CreateTs:     timestamppb.New(st.CreateTs),
+			DeletedTs:    timestamppb.New(st.DeleteTs),
+			Owner:        st.Owner,
+			LastShardIsn: uint32(st.LastShardISN),
+		})
 	}
 
 	return resp, nil

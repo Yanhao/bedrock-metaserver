@@ -33,7 +33,7 @@ func (s *Storage) Copy() *Storage {
 	return &ret
 }
 
-// 自定义 MarshalJSON 方法，将 time.Time 字段转换为 Unix 时间戳进行序列化
+// Custom MarshalJSON method to convert time.Time fields to Unix timestamps for serialization
 func (s *Storage) MarshalJSON() ([]byte, error) {
 	type Alias Storage
 
@@ -50,7 +50,7 @@ func (s *Storage) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// 自定义 UnmarshalJSON 方法，将 Unix 时间戳转换为 time.Time 字段进行反序列化
+// Custom UnmarshalJSON method to convert Unix timestamps to time.Time fields for deserialization
 func (s *Storage) UnmarshalJSON(data []byte) error {
 	type Alias Storage
 

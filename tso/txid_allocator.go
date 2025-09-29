@@ -9,7 +9,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
+	"sr.ht/moyanhao/bedrock-metaserver/meta_store"
 )
 
 const (
@@ -43,7 +43,7 @@ func GetTxIDAllocator() *TxIDsAllocator {
 }
 
 func NewTxIDsAllocator() *TxIDsAllocator {
-	resp, err := kv_engine.GetEtcdClient().Get(context.Background(), TXID_KEY)
+	resp, err := meta_store.GetEtcdClient().Get(context.Background(), TXID_KEY)
 	if err != nil {
 		panic(fmt.Sprintf("get /txid key failed, err: %v", err))
 	}
@@ -94,7 +94,7 @@ func (t *TxIDsAllocator) Allocate(count uint32, withLock bool) (uint64, uint64, 
 		return 0, 0, err
 	}
 
-	_, err = kv_engine.GetEtcdClient().Put(context.TODO(), TXID_KEY, string(data))
+	_, err = meta_store.GetEtcdClient().Put(context.TODO(), TXID_KEY, string(data))
 	if err != nil {
 		log.Errorf("failed to put tso value, err: %v", err)
 		return 0, 0, err

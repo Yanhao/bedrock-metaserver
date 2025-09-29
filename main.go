@@ -16,8 +16,9 @@ import (
 
 	"sr.ht/moyanhao/bedrock-metaserver/clients/metaserver"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
-	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
+	"sr.ht/moyanhao/bedrock-metaserver/meta_store"
 	"sr.ht/moyanhao/bedrock-metaserver/role"
+	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 	"sr.ht/moyanhao/bedrock-metaserver/utils"
 )
 
@@ -77,8 +78,6 @@ func main() {
 
 	mustInitLog()
 
-	rand.Seed(time.Now().UnixNano())
-
 	log.Info("metaserver starting ...")
 
 	config.MustLoadConfig(*configFile)
@@ -91,9 +90,15 @@ func main() {
 	log.Info("setup http pprof ...")
 
 	log.Info("init logging ...")
-	kv_engine.MustStartEmbedEtcd()
+	meta_store.MustStartEmbedEtcd()
 
-	role.MustInitLeaderShip(kv_engine.GetEtcdClient(), role.RunAsLeader, role.RunAsFollower)
+	role.MustInitLeaderShip(meta_store.GetEtcdClient(), role.RunAsLeader, role.RunAsFollower)
+
+	// Set leader check function for scheduler to determine if tasks can be submitted
+	scheduler.SetLeaderChecker(func() bool {
+		leadership := role.GetLeaderShip()
+		return leadership != nil && leadership.IsMetaServerLeader()
+	})
 
 	startGrpcServer()
 

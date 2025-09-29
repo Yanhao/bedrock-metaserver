@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"math/rand"
@@ -9,9 +10,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"sr.ht/moyanhao/bedrock-metaserver/clients/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
+	"sr.ht/moyanhao/bedrock-metaserver/operation"
 )
 
 const (
@@ -89,7 +90,9 @@ func (sa *ShardAllocator) AllocateNewStorage(name string, rangeCount uint32) (*m
 
 func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count int, minKey, maxKey []byte) ([]string, error) {
 	var selectedDataServers []string
-	conns := dataserver.GetDataServerConns()
+
+	// Get global scheduler
+	scheduler := GetTaskScheduler()
 
 	for i, times := count, MaxAllocateTimes; i > 0 && times > 0; {
 		log.Infof("i: %v, times: %v", i, times)
@@ -101,12 +104,27 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 		server := viableDataServers[rand.Intn(len(viableDataServers))]
 		log.Infof("allocate shard: 0x%016x on dataserver: %s", shardID, server)
 
-		dataServerCli, _ := conns.GetApiClient(server)
+		// Create sync task
+		taskID := fmt.Sprintf("allocate-shard-%d-%s", shardID, server)
+		task := NewSyncTask(taskID, PriorityUrgent, fmt.Sprintf("allocate-shard-%d", shardID))
 
-		err := dataServerCli.CreateShard(uint64(shardID), minKey, maxKey)
+		// Create create shard operation
+		createOp := operation.NewCreateShardOperation(
+			server,
+			uint64(shardID),
+			minKey,
+			maxKey,
+			int(PriorityUrgent),
+		)
+		task.AddOperation(createOp)
+
+		// Submit task to scheduler
+		scheduler.SubmitTask(task)
+
+		// Wait for task completion (allocator needs to wait synchronously)
+		err := scheduler.WaitForTask(taskID)
 		if err != nil {
 			log.Warnf("failed to create shard from dataserver %v, err: %v", server, err)
-
 			times--
 			continue
 		}
@@ -206,13 +224,31 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 
 	log.Infof("new shard, id: 0x%016x", newShard.ID())
 
-	for replicateAddr := range shard.Replicates {
-		dataServerCli, err := dataserver.GetDataServerConns().GetApiClient(replicateAddr)
-		if err != nil {
-			return err
-		}
+	// Get global scheduler
+	scheduler := GetTaskScheduler()
 
-		if err := dataServerCli.SplitShard(uint64(shard.ID()), uint64(newShard.ID())); err != nil {
+	// Perform shard operation on each replicate
+	for replicateAddr := range shard.Replicates {
+		// Create sync task
+		taskID := fmt.Sprintf("split-shard-%d-%d-%s", shard.ID(), newShard.ID(), replicateAddr)
+		task := NewSyncTask(taskID, PriorityHigh, fmt.Sprintf("split-shard-%d", shard.ID()))
+
+		// Create split shard operation
+		splitOp := operation.NewSplitShardOperation(
+			replicateAddr,
+			uint64(shard.ID()),
+			uint64(newShard.ID()),
+			int(PriorityHigh),
+		)
+		task.AddOperation(splitOp)
+
+		// Submit task to scheduler
+		scheduler.SubmitTask(task)
+
+		// Wait for task completion (allocator needs to wait synchronously)
+		err := scheduler.WaitForTask(taskID)
+		if err != nil {
+			log.Errorf("failed to split shard on dataserver %v, err: %v", replicateAddr, err)
 			return err
 		}
 	}
@@ -279,16 +315,34 @@ func (sa *ShardAllocator) MergeShardByKey(storageID model.StorageID, key []byte)
 func (sa *ShardAllocator) doMergeShard(aShard, bShard *model.Shard) error {
 	aShard.RangeKeyEnd = bShard.RangeKeyEnd
 
-	conns := dataserver.GetDataServerConns()
-	aDs, _ := conns.GetApiClient(aShard.Leader)
-	err := aDs.MigrateShard(uint64(aShard.ID()), uint64(bShard.ID()), bShard.Leader)
-	if err != nil {
-		return err
+	// Get global scheduler
+	scheduler := GetTaskScheduler()
+
+	// Perform merge operation on each replicate
+	for addr := range aShard.Replicates {
+		// Create sync task
+		taskID := fmt.Sprintf("merge-shard-%d-%d-%s", aShard.ID(), bShard.ID(), addr)
+		task := NewSyncTask(taskID, PriorityHigh, fmt.Sprintf("merge-shard-%d-%d", aShard.ID(), bShard.ID()))
+
+		// Create merge shard operation
+		mergeOp := operation.NewMergeShardOperation(
+			addr,
+			uint64(aShard.ID()),
+			uint64(bShard.ID()),
+			int(PriorityHigh),
+		)
+		task.AddOperation(mergeOp)
+
+		// Submit task to scheduler
+		scheduler.SubmitTask(task)
+
+		// Wait for task completion (allocator needs to wait synchronously)
+		err := scheduler.WaitForTask(taskID)
+		if err != nil {
+			log.Errorf("failed to merge shard on dataserver %v, err: %v", addr, err)
+			return err
+		}
 	}
-
-	bDs, _ := conns.GetApiClient(bShard.Leader)
-
-	bDs.MergeShard(uint64(aShard.ID()), uint64(bShard.ID()))
 
 	shm := manager.GetShardManager()
 	shm.ShardDelete(bShard.ID())

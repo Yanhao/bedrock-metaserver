@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	client "go.etcd.io/etcd/client/v3"
 
-	"sr.ht/moyanhao/bedrock-metaserver/kv_engine"
+	"sr.ht/moyanhao/bedrock-metaserver/meta_store"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 )
 
@@ -36,7 +36,7 @@ func dataServerInIdcPrefixKey(idc string) string {
 }
 
 func KvGetDataServer(addr string) (*model.DataServer, error) {
-	resp, err := kv_engine.GetEtcdClient().KV.Get(context.TODO(), dataServerKey(addr))
+	resp, err := meta_store.GetEtcdClient().KV.Get(context.TODO(), dataServerKey(addr))
 	if err != nil || resp.Count == 0 {
 		return nil, ErrNoSuchShard
 	}
@@ -63,7 +63,7 @@ func KvPutDataServer(dataserver *model.DataServer) error {
 		return err
 	}
 
-	_, err = kv_engine.GetEtcdClient().Put(context.TODO(), dataServerKey(dataserver.Addr()), string(value))
+	_, err = meta_store.GetEtcdClient().Put(context.TODO(), dataServerKey(dataserver.Addr()), string(value))
 	if err != nil {
 		log.Warnf("failed to save dataserver to etcd, dataserver=%v", dataserver)
 		return err
@@ -73,7 +73,7 @@ func KvPutDataServer(dataserver *model.DataServer) error {
 }
 
 func KvDeleteDataServer(addr string) error {
-	_, err := kv_engine.GetEtcdClient().Delete(context.TODO(), dataServerKey(addr))
+	_, err := meta_store.GetEtcdClient().Delete(context.TODO(), dataServerKey(addr))
 	if err != nil {
 		log.Warn("failed to delete dataserver from kv")
 		return err
@@ -83,7 +83,7 @@ func KvDeleteDataServer(addr string) error {
 }
 
 func KvLoadAllDataServers() ([]*model.DataServer, error) {
-	resp, err := kv_engine.GetEtcdClient().Get(context.TODO(), KvPrefixDataServer, client.WithPrefix())
+	resp, err := meta_store.GetEtcdClient().Get(context.TODO(), KvPrefixDataServer, client.WithPrefix())
 	if err != nil {
 		log.Warn("failed to get dataserver from etcd")
 		return nil, err

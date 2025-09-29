@@ -48,7 +48,7 @@ type DataServer struct {
 	HotShards []ShardIDAndQps  `json:"hot_shards"`
 }
 
-// 自定义 MarshalJSON 方法，将 time.Time 字段转换为 Unix 时间戳进行序列化
+// Custom MarshalJSON method to convert time.Time fields to Unix timestamps for serialization
 func (ds *DataServer) MarshalJSON() ([]byte, error) {
 	type Alias DataServer
 

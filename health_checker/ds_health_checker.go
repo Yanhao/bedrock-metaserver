@@ -1,6 +1,8 @@
 package health_checker
 
 import (
+	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -9,6 +11,8 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/config"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
+	"sr.ht/moyanhao/bedrock-metaserver/operation"
+	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
 // make sure the following data no need to be locked
@@ -136,20 +140,78 @@ func (hc *HealthChecker) doHealthCheck() {
 
 func repairDataInServer(server *model.DataServer) {
 	log.Infof("start repair data in dataserver: %s", server.Addr())
-	return // FIXME: remove this line
 
-	err := ClearDataserver(server.Addr())
+	// Get all shards on this data server
+	shardIDs, err := manager.GetShardManager().GetShardIDsInDataServer(server.Addr())
 	if err != nil {
-		log.Errorf("failed to clear data in dataserver %v, err: %v", server.Addr(), err)
-
+		log.Errorf("failed to get shard IDs in dataserver %v, err: %v", server.Addr(), err)
 		return
 	}
 
+	// Create a repair task for each shard
+	taskScheduler := scheduler.NewTaskScheduler(5)
+	if err := taskScheduler.Start(); err != nil {
+		log.Errorf("Failed to start task scheduler: %v", err)
+		return
+	}
+
+	for _, shardID := range shardIDs {
+		// Get shard information
+		shard, err := manager.GetShardManager().GetShard(shardID)
+		if err != nil {
+			log.Errorf("failed to get shard %v, err: %v", shardID, err)
+			continue
+		}
+
+		// Create shard repair task
+		taskID := "repair-shard-" + time.Now().Format("20060102150405") + "-" + string(rand.Intn(1000))
+		task := scheduler.NewBaseTask(taskID, scheduler.PriorityUrgent, fmt.Sprintf("repair-shard-%d", shardID))
+
+		// Select an active data server as target
+		activeDS := selectActiveDataServer()
+		if activeDS == nil {
+			log.Errorf("no active dataserver available to repair shard %v", shardID)
+			continue
+		}
+
+		// Create repair shard operation
+		createOp := operation.NewCreateShardOperation(activeDS.Addr(), uint64(shardID), shard.RangeKeyStart, shard.RangeKeyEnd, 100)
+		task.AddOperation(createOp)
+
+		// Submit task to scheduler
+		if err := taskScheduler.SubmitTask(task); err != nil {
+			log.Errorf("Failed to submit repair task for shard %v: %v", shardID, err)
+			continue
+		}
+
+		log.Infof("Submitted repair task for shard %v to dataserver %v", shardID, activeDS.Addr())
+	}
+
+	// Clean up and remove offline data server
 	dm := manager.GetDataServerManager()
 	dm.RemoveDataServer(server.Addr())
 
-	// FIXME: protect by lock
+	// Remove offline data server mapping (lock protected)
+	dsMutex.Lock()
 	delete(OfflineDataServers, server.Addr())
+	dsMutex.Unlock()
 
 	log.Infof("successfully repair data in dataserver: %s", server.Addr())
 }
+
+// selectActiveDataServer selects an active data server
+func selectActiveDataServer() *model.DataServer {
+	if len(ActiveDataServers) == 0 {
+		return nil
+	}
+
+	// Simple implementation: return the first active data server
+	for _, ds := range ActiveDataServers {
+		return ds
+	}
+
+	return nil
+}
+
+// dsMutex protects the data server maps
+var dsMutex sync.RWMutex

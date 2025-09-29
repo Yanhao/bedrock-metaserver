@@ -4,9 +4,9 @@ import (
 	"github.com/fatih/color"
 	log "github.com/sirupsen/logrus"
 
+	"sr.ht/moyanhao/bedrock-metaserver/balancer"
 	"sr.ht/moyanhao/bedrock-metaserver/health_checker"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
-	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
 func RunAsLeader() {
@@ -28,7 +28,7 @@ func RunAsLeader() {
 	}
 	log.Info("start health checker ...")
 
-	err = scheduler.GetDsCapacityBalancer().Start()
+	err = balancer.GetDsCapacityBalancer().Start()
 	if err != nil {
 		log.Errorf("failed to start rebalance, err: %v", err)
 	}

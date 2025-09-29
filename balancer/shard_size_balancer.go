@@ -1,4 +1,4 @@
-package scheduler
+package balancer
 
 import (
 	"slices"
@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
+	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
 type ShardSizeBalancer struct {
@@ -76,7 +77,7 @@ func (s *ShardSizeBalancer) doShardSizeBalance() {
 			if shard.Size < config.GetConfig().Scheduler.BigShardSizeThreshold {
 				continue
 			}
-			_ = GetShardAllocator().SplitShard(shard.ID)
+			_ = scheduler.GetShardAllocator().SplitShard(shard.ID)
 		}
 	}
 

@@ -1,4 +1,4 @@
-package kv_engine
+package meta_store
 
 import (
 	"errors"

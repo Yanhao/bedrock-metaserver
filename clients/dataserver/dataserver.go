@@ -106,7 +106,7 @@ func (ds *DataServerApi) TransferShardLeader(shardID uint64, replicates []string
 
 func (ds *DataServerApi) SplitShard(shardID, newShardID uint64) error {
 	req := &SplitShardRequest{
-		ShardId: shardID,
+		ShardId:    shardID,
 		NewShardId: newShardID,
 	}
 

@@ -1,16 +1,18 @@
-package scheduler
+package balancer
 
 import (
+	"fmt"
 	"math/rand"
 	"slices"
 	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"sr.ht/moyanhao/bedrock-metaserver/clients/dataserver"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
+	"sr.ht/moyanhao/bedrock-metaserver/operation"
+	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
 type DsCapacityBalancer struct {
@@ -104,21 +106,29 @@ func (rb *DsCapacityBalancer) doRebalanceByCapacity() {
 		return
 	}
 
-	toDsCli, err := dataserver.GetDataServerConns().GetApiClient(maxFreeCapacityDs.Addr())
-	if err != nil {
+	// Create migration task and execute via scheduler
+	taskID := "balance-migrate-" + time.Now().Format("20060102150405") + "-" + string(rand.Intn(1000))
+	task := scheduler.NewBaseTask(taskID, scheduler.PriorityMedium, fmt.Sprintf("balance-migrate-shard-%d", shardID2Migrate))
+
+	// Create shard on target data server
+	createOp := operation.NewCreateShardOperation(maxFreeCapacityDs.Addr(), uint64(shardID2Migrate), shard.RangeKeyStart, shard.RangeKeyEnd, 5)
+	task.AddOperation(createOp)
+
+	// Migrate shard data from source to target data server
+	migrateOp := operation.NewMigrateShardOperation(minFreeCapaciryDs.Addr(), uint64(shardID2Migrate), uint64(shardID2Migrate), maxFreeCapacityDs.Addr(), 5)
+	task.AddOperation(migrateOp)
+
+	// Submit task to scheduler
+	taskScheduler := scheduler.NewTaskScheduler(5)
+	if err := taskScheduler.Start(); err != nil {
+		log.Errorf("Failed to start task scheduler: %v", err)
+		return
+	}
+	if err := taskScheduler.SubmitTask(task); err != nil {
+		log.Errorf("Failed to submit migration task: %v", err)
 		return
 	}
 
-	if err := toDsCli.CreateShard(uint64(shardID2Migrate), shard.RangeKeyStart, shard.RangeKeyEnd); err != nil {
-		return
-	}
-
-	fromDsCli, err := dataserver.GetDataServerConns().GetApiClient(minFreeCapaciryDs.Addr())
-	if err != nil {
-		return
-	}
-
-	if err := fromDsCli.MigrateShard(uint64(shardID2Migrate), uint64(shardID2Migrate), maxFreeCapacityDs.Addr()); err != nil {
-		return
-	}
+	log.Infof("Submitted shard migration task from %s to %s, shard ID: %d",
+		minFreeCapaciryDs.Addr(), maxFreeCapacityDs.Addr(), shardID2Migrate)
 }

@@ -15,6 +15,7 @@ import (
 
 	"sr.ht/moyanhao/bedrock-metaserver/clients/metaserver"
 	"sr.ht/moyanhao/bedrock-metaserver/config"
+	"sr.ht/moyanhao/bedrock-metaserver/interceptor"
 	"sr.ht/moyanhao/bedrock-metaserver/meta_store"
 	"sr.ht/moyanhao/bedrock-metaserver/role"
 	"sr.ht/moyanhao/bedrock-metaserver/utils"
@@ -26,7 +27,11 @@ func startGrpcServer() {
 		panic(fmt.Sprintf("failed to listen on %v\n", config.GetConfig().Server.Addr))
 	}
 
-	opts := []grpc.ServerOption{}
+	// Add error interceptors to gRPC server options
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(interceptor.UnaryErrorInterceptor()),
+		grpc.StreamInterceptor(interceptor.StreamErrorInterceptor()),
+	}
 
 	grpcServer := grpc.NewServer(opts...)
 	metaserver.RegisterMetaServiceServer(grpcServer, &MetaService{})
@@ -90,7 +95,11 @@ func main() {
 	log.Info("init logging ...")
 	meta_store.MustStartEmbedEtcd()
 
-	role.MustInitLeaderShip(meta_store.GetEtcdClient(), role.RunAsLeader, role.RunAsFollower)
+	etcdClient, err := meta_store.GetEtcdClient()
+	if err != nil {
+		panic(fmt.Sprintf("failed to get etcd client: %v", err))
+	}
+	role.MustInitLeaderShip(etcdClient, role.RunAsLeader, role.RunAsFollower)
 
 	startGrpcServer()
 

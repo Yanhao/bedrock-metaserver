@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sr.ht/moyanhao/bedrock-metaserver/clients/metaserver"
+	"sr.ht/moyanhao/bedrock-metaserver/errors"
 	"sr.ht/moyanhao/bedrock-metaserver/health_checker"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
@@ -30,7 +31,8 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *metaserver.HeartBeatRe
 	err := HeartBeatParamCheck(req)
 	if err != nil {
 		log.Warnf("HeartBeat: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid HeartBeat arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -40,11 +42,15 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *metaserver.HeartBeatRe
 	}
 
 	if err := manager.GetDataServerManager().MarkActive(req.GetAddr(), true); err != nil {
-		return nil, status.Errorf(codes.Internal, "inernal error: %v", err)
+		log.Errorf("failed to mark dataserver active, err: %v", err)
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to mark dataserver active")
+		return nil, err
 	}
 
 	if err := manager.GetDataServerManager().UpdateStatus(req); err != nil {
-		return nil, status.Errorf(codes.Internal, "inernal error: %v", err)
+		log.Errorf("failed to update dataserver status, err: %v", err)
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to update dataserver status")
+		return nil, err
 	}
 
 	log.Infof("receive heartbeat from %s", req.Addr)
@@ -58,7 +64,8 @@ func (m *MetaService) ScanShardRange(ctx context.Context, req *metaserver.ScanSh
 	err := ScanStorageShardsParamCheck(req)
 	if err != nil {
 		log.Warnf("ScanShardRange: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid ScanShardRange arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -71,7 +78,9 @@ func (m *MetaService) ScanShardRange(ctx context.Context, req *metaserver.ScanSh
 
 	shardsAndRange, err := manager.GetStorageManager().ScanShardRange(model.StorageID(req.StorageId), req.RangeStart)
 	if err != nil {
-		return resp, status.Errorf(codes.Internal, "get storage shards failed, err: %v", err)
+		log.Errorf("get storage shards failed, err: %v", err)
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to get storage shards")
+		return resp, err
 	}
 
 	for _, s := range shardsAndRange {
@@ -98,7 +107,8 @@ func (m *MetaService) Info(ctx context.Context, req *metaserver.InfoRequest) (*m
 	err := InfoParamCheck(req)
 	if err != nil {
 		log.Warnf("Info: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid Info arguments")
+		return nil, err
 	}
 
 	resp := &metaserver.InfoResponse{}
@@ -112,7 +122,8 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *metaserver.CreateS
 	err := CreateStorageParamCheck(req)
 	if err != nil {
 		log.Warnf("CreateStorage: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid CreateStorage arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -126,18 +137,21 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *metaserver.CreateS
 	st, err := manager.GetStorageManager().GetStorageByName(req.Name)
 	if err != nil {
 		log.Errorf("check storage by name failed, err: %v", err)
-		return resp, status.Errorf(codes.Internal, "check storage by name failed")
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to check storage by name")
+		return resp, err
 	}
 
 	if st != nil {
-		log.Errorf("shard name %v already exists", req.Name)
-		return resp, status.Errorf(codes.AlreadyExists, "shard name %v already exists", req.Name)
+		log.Errorf("storage name %v already exists", req.Name)
+		err = errors.New(errors.ErrCodeAlreadyExists, "storage name already exists")
+		return resp, err
 	}
 
 	storage, err := scheduler.GetShardAllocator().AllocateNewStorage(req.Name, req.InitialRangeCount)
 	if err != nil {
 		log.Errorf("create storage failed, err: %v", err)
-		return resp, status.Errorf(codes.Internal, "create storage failed")
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to create storage")
+		return resp, err
 	}
 
 	resp.Id = uint64(storage.ID)
@@ -151,7 +165,8 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *metaserver.DeleteS
 	err := DeleteStorageParamCheck(req)
 	if err != nil {
 		log.Warnf("DeleteStorage: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid DeleteStorage arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -176,7 +191,8 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *metaserver.DeleteS
 	err = manager.GetStorageManager().StorageDelete(model.StorageID(req.Id), recycleTime)
 	if err != nil {
 		log.Errorf("delete storage failed, err: %v", err)
-		return resp, status.Errorf(codes.Internal, "delete storage failed")
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to delete storage")
+		return resp, err
 	}
 
 	return resp, nil
@@ -186,7 +202,8 @@ func (m *MetaService) UndeleteStorage(ctx context.Context, req *metaserver.Undel
 	err := UndeleteStorageParamCheck(req)
 	if err != nil {
 		log.Warnf("UndeleteStorage: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid UndeleteStorage arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -200,7 +217,8 @@ func (m *MetaService) UndeleteStorage(ctx context.Context, req *metaserver.Undel
 	err = manager.GetStorageManager().StorageUndelete(model.StorageID(req.Id))
 	if err != nil {
 		log.Errorf("undelete storage failed, err: %v", err)
-		return resp, status.Errorf(codes.Internal, "undelete storage failed")
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to undelete storage")
+		return resp, err
 	}
 
 	return resp, nil
@@ -210,7 +228,8 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *metaserver.RenameS
 	err := RenameStorageParamCheck(req)
 	if err != nil {
 		log.Warnf("RenameStorage: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid RenameStorage arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -223,8 +242,9 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *metaserver.RenameS
 
 	err = manager.GetStorageManager().StorageRename(model.StorageID(req.Id), req.NewName)
 	if err != nil {
-		log.Errorf("create storage failed, err: %v", err)
-		return resp, status.Errorf(codes.Internal, "create storage failed")
+		log.Errorf("rename storage failed, err: %v", err)
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to rename storage")
+		return resp, err
 	}
 
 	return resp, nil
@@ -234,7 +254,8 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *metaserver.ResizeS
 	err := ResizeStorageParamCheck(req)
 	if err != nil {
 		log.Warnf("ResizeStorage: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid ResizeStorage arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -247,17 +268,23 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *metaserver.ResizeS
 
 	st, err := manager.GetStorageManager().GetStorage(model.StorageID(req.Id))
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "")
+		log.Warnf("ResizeStorage: failed to get storage, id=%d, err: %v", req.Id, err)
+		err = errors.Wrap(err, errors.ErrCodeNotFound, "storage not found")
+		return nil, err
 	}
 
 	if uint32(st.LastShardISN) >= uint32(req.NewShardCount) {
-		return nil, status.Errorf(codes.InvalidArgument, "")
+		log.Warnf("ResizeStorage: new shard count %d is not larger than current %d", req.NewShardCount, st.LastShardISN)
+		err = errors.New(errors.ErrCodeInvalidArgument, "new shard count must be larger than current count")
+		return nil, err
 	}
 
 	expandCount := req.NewShardCount - uint64(st.LastShardISN)
 	err = scheduler.GetShardAllocator().ExpandStorage(st.ID, uint32(expandCount))
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "")
+		log.Errorf("ResizeStorage: failed to expand storage, id=%d, err: %v", st.ID, err)
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to expand storage")
+		return nil, err
 	}
 
 	return resp, nil
@@ -268,7 +295,8 @@ func (m *MetaService) StorageInfo(ctx context.Context, req *metaserver.StorageIn
 	err := GetStoragesParamCheck(req)
 	if err != nil {
 		log.Warnf("GetStorages: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid GetStorages arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -282,7 +310,9 @@ func (m *MetaService) StorageInfo(ctx context.Context, req *metaserver.StorageIn
 	for _, id := range req.Ids {
 		st, err := manager.GetStorageManager().GetStorage(model.StorageID(id))
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "%v", err)
+			log.Errorf("failed to get storage, id=%d, err: %v", id, err)
+			err = errors.Wrap(err, errors.ErrCodeNotFound, "storage not found")
+			return nil, err
 		}
 
 		log.Infof("storage: %+v", st)
@@ -364,12 +394,12 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *metaserver.Remo
 	resp := &metaserver.RemoveDataServerResponse{}
 	_, _, err = net.SplitHostPort(req.Addr)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "")
+		return nil, status.Errorf(codes.InvalidArgument, "invalid data server address format")
 	}
 
 	dm := manager.GetDataServerManager()
 	if !dm.IsDataServerExists(req.Addr) {
-		return nil, status.Errorf(codes.NotFound, "")
+		return nil, status.Errorf(codes.NotFound, "data server not found")
 	}
 
 	go func() {
@@ -436,7 +466,8 @@ func (m *MetaService) UpdateDataServer(ctx context.Context, req *metaserver.Upda
 	err := UpdateDataServerParamCheck(req)
 	if err != nil {
 		log.Warnf("UpdateDataServer: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid UpdateDataServer arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -466,12 +497,14 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *metaserver.ShardInfoRe
 
 	sm := manager.GetShardManager()
 	if sm == nil {
-		return resp, status.Errorf(codes.Internal, "")
+		return resp, errors.New(errors.ErrCodeInternal, "shard manager is nil")
 	}
 
 	shard, err := sm.GetShard(model.ShardID(req.GetId()))
 	if err != nil {
-		return resp, status.Errorf(codes.Internal, "")
+		log.Errorf("Failed to get shard: %v", err)
+		err = errors.Wrap(err, errors.ErrCodeNotFound, "shard not found")
+		return nil, err
 	}
 
 	resp = &metaserver.ShardInfoResponse{
@@ -500,7 +533,8 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *metaserver.ShardInfoRe
 func (m *MetaService) CreateShard(ctx context.Context, req *metaserver.CreateShardRequest) (*metaserver.CreateShardResponse, error) {
 	if err := CreateShardParamCheck(req); err != nil {
 		log.Warnf("CreateShard: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid CreateShard arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -515,7 +549,8 @@ func (m *MetaService) CreateShard(ctx context.Context, req *metaserver.CreateSha
 	st, err := stm.GetStorage(model.StorageID(req.StorageId))
 	if err != nil || st == nil {
 		log.Warnf("no such storage, storage id: %v", req.StorageId)
-		return nil, status.Errorf(codes.FailedPrecondition, "no such storage, id=%v", req.StorageId)
+		err = errors.New(errors.ErrCodeNotFound, "storage not found")
+		return nil, err
 	}
 
 	shardID := model.GenerateShardID(model.StorageID(req.StorageId), model.ShardISN(req.ShardIsn))
@@ -523,13 +558,15 @@ func (m *MetaService) CreateShard(ctx context.Context, req *metaserver.CreateSha
 	_, err = shm.GetShard(shardID)
 	if err == nil {
 		log.Warnf("shard already exists, shard id: %v", shardID)
-		return nil, status.Errorf(codes.AlreadyExists, "shard already exists, id=%v", shardID)
+		err = errors.New(errors.ErrCodeAlreadyExists, "shard already exists")
+		return nil, err
 	}
 
 	shard, err := shm.CreateNewShardByIDs(model.StorageID(req.StorageId), model.ShardISN(req.ShardIsn))
 	if err != nil {
 		log.Warnf("failed to create new shard by id, err: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to create shard, err: %v", err)
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to create shard")
+		return nil, err
 	}
 
 	sa := scheduler.GetShardAllocator()
@@ -537,7 +574,8 @@ func (m *MetaService) CreateShard(ctx context.Context, req *metaserver.CreateSha
 	_, err = sa.AllocateShardReplicates(shard.ID(), scheduler.DefaultReplicatesCount, req.RangeStart, req.RangeEnd)
 	if err != nil {
 		log.Warnf("failed to allocate shard replicates, err: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to allocate replicates, err: %v", err)
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to allocate shard replicates")
+		return nil, err
 	}
 
 	return resp, nil
@@ -545,8 +583,9 @@ func (m *MetaService) CreateShard(ctx context.Context, req *metaserver.CreateSha
 
 func (m *MetaService) RemoveShard(ctx context.Context, req *metaserver.RemoveShardRequest) (*metaserver.RemoveShardResponse, error) {
 	if err := RemoveShardParamCheck(req); err != nil {
-		log.Warnf("CreateShard: invalid arguments, err: %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		log.Warnf("RemoveShard: invalid arguments, err: %v", err)
+		err = errors.Wrap(err, errors.ErrCodeInvalidArgument, "invalid RemoveShard arguments")
+		return nil, err
 	}
 
 	if !role.GetLeaderShip().IsMetaServerLeader() {
@@ -562,7 +601,8 @@ func (m *MetaService) RemoveShard(ctx context.Context, req *metaserver.RemoveSha
 	err := shm.MarkDelete(shardID)
 	if err != nil {
 		log.Warnf("failed to mark delete for shard, err: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to mark delete for shard, err: %v", err)
+		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to mark delete for shard")
+		return nil, err
 	}
 
 	return resp, nil
@@ -578,6 +618,7 @@ func (m *MetaService) SyncShardInDataServer(reqStream metaserver.MetaService_Syn
 		targetStream, err := mscli.SyncShardInDataServer(context.Background())
 		if err != nil {
 			log.Errorf("Failed to create stream to target node: %v", err)
+			err = errors.Wrap(err, errors.ErrCodeInternal, "failed to create stream to target node")
 			return err
 		}
 		defer targetStream.CloseSend()
@@ -590,12 +631,14 @@ func (m *MetaService) SyncShardInDataServer(reqStream metaserver.MetaService_Syn
 			}
 			if err != nil {
 				log.Errorf("sync shard in dataserver, stream receive failed, err: %v", err)
-				return status.Error(codes.Internal, err.Error())
+				err = errors.Wrap(err, errors.ErrCodeInternal, "failed to receive from sync shard stream")
+				return err
 			}
 
 			err = targetStream.Send(req)
 			if err != nil {
 				log.Errorf("Failed to send message to target node: %v", err)
+				err = errors.Wrap(err, errors.ErrCodeInternal, "failed to send message to target node")
 				return err
 			}
 		}
@@ -603,6 +646,7 @@ func (m *MetaService) SyncShardInDataServer(reqStream metaserver.MetaService_Syn
 		resp, err := targetStream.CloseAndRecv()
 		if err != nil {
 			log.Errorf("Failed to receive response from target node: %v", err)
+			err = errors.Wrap(err, errors.ErrCodeInternal, "failed to receive response from target node")
 			return err
 		}
 

@@ -2,9 +2,9 @@ package scheduler
 
 import (
 	"context"
-	"errors"
 	"sync"
 
+	"sr.ht/moyanhao/bedrock-metaserver/errors"
 	"sr.ht/moyanhao/bedrock-metaserver/operation"
 )
 
@@ -185,6 +185,6 @@ func TaskFactory(taskType string, id string, priority TaskPriority, reason strin
 	case "async":
 		return NewAsyncTask(id, priority, reason), nil
 	default:
-		return nil, errors.New("unknown task type")
+		return nil, errors.Newf(errors.ErrCodeInvalidArgument, "unknown task type: %s", taskType)
 	}
 }

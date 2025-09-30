@@ -43,7 +43,11 @@ func GetTxIDAllocator() *TxIDsAllocator {
 }
 
 func NewTxIDsAllocator() *TxIDsAllocator {
-	resp, err := meta_store.GetEtcdClient().Get(context.Background(), TXID_KEY)
+	etcdClient, err := meta_store.GetEtcdClient()
+	if err != nil {
+		panic(fmt.Sprintf("get etcd client failed, err: %v", err))
+	}
+	resp, err := etcdClient.Get(context.Background(), TXID_KEY)
 	if err != nil {
 		panic(fmt.Sprintf("get /txid key failed, err: %v", err))
 	}
@@ -94,7 +98,12 @@ func (t *TxIDsAllocator) Allocate(count uint32, withLock bool) (uint64, uint64, 
 		return 0, 0, err
 	}
 
-	_, err = meta_store.GetEtcdClient().Put(context.TODO(), TXID_KEY, string(data))
+	etcdClient, err := meta_store.GetEtcdClient()
+	if err != nil {
+		log.Errorf("get etcd client failed, err: %v", err)
+		return 0, 0, err
+	}
+	_, err = etcdClient.Put(context.TODO(), TXID_KEY, string(data))
 	if err != nil {
 		log.Errorf("failed to put tso value, err: %v", err)
 		return 0, 0, err

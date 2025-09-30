@@ -1,8 +1,6 @@
 package manager
 
 import (
-	"errors"
-	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -13,11 +11,12 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/clients/metaserver"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal"
+	"sr.ht/moyanhao/bedrock-metaserver/errors"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 )
 
 var (
-	ErrNoSuchDataServer = errors.New("no such dataserver")
+	ErrNoSuchDataServer = errors.ErrNoSuchDataServer
 )
 
 type DataServerManager struct {
@@ -54,7 +53,8 @@ func (dm *DataServerManager) ClearCache() {
 func (dm *DataServerManager) LoadAllDataServers() error {
 	dataservers, err := dal.KvLoadAllDataServers()
 	if err != nil {
-		return err
+		log.Errorf("failed to load all data servers, err=%v", err)
+		return errors.Wrap(err, errors.ErrCodeDatabase, "failed to load all data servers")
 	}
 
 	dm.dataServersLock.Lock()
@@ -73,7 +73,7 @@ func (dm *DataServerManager) AddDataServer(ip, port string) error {
 	addr := net.JoinHostPort(ip, port)
 	if dm.IsDataServerExists(addr) {
 		log.Warnf("dataserver %v already in the cluster", addr)
-		return fmt.Errorf("%s already in the cluster", addr)
+		return errors.Newf(errors.ErrCodeAlreadyExists, "data server %s already in the cluster", addr)
 	}
 
 	dataserver := &model.DataServer{
@@ -88,8 +88,8 @@ func (dm *DataServerManager) AddDataServer(ip, port string) error {
 
 	err := dal.KvPutDataServer(dataserver)
 	if err != nil {
-		log.Errorf("failed put dataserver %v to kv", dataserver.Addr())
-		return err
+		log.Errorf("failed put dataserver %v to kv, err=%v", dataserver.Addr(), err)
+		return errors.Wrap(err, errors.ErrCodeDatabase, "failed to put data server to kv")
 	}
 
 	// fault injection point
@@ -107,7 +107,12 @@ func (dm *DataServerManager) RemoveDataServer(addr string) error {
 
 	delete(dm.dataServers, addr)
 
-	return dal.KvDeleteDataServer(addr)
+	err := dal.KvDeleteDataServer(addr)
+	if err != nil {
+		log.Errorf("failed to delete data server from kv, addr=%s, err=%v", addr, err)
+		return errors.Wrap(err, errors.ErrCodeDatabase, "failed to delete data server")
+	}
+	return nil
 }
 
 func (dm *DataServerManager) GetDataServer(addr string) (*model.DataServer, error) {

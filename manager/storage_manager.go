@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -9,11 +8,12 @@ import (
 	"go.uber.org/atomic"
 
 	"sr.ht/moyanhao/bedrock-metaserver/dal"
+	"sr.ht/moyanhao/bedrock-metaserver/errors"
 	"sr.ht/moyanhao/bedrock-metaserver/model"
 )
 
 var (
-	ErrNoSuchStorage = errors.New("no such storage")
+	ErrNoSuchStorage = errors.New(errors.ErrCodeNotFound, "no such storage")
 )
 
 type StorageManager struct {
@@ -130,7 +130,7 @@ func (sm *StorageManager) GetStorageByName(name string) (*model.Storage, error) 
 		return nil, err
 	}
 	if st == nil {
-		return nil, nil
+		return nil, errors.New(errors.ErrCodeNotFound, "storage not found")
 	}
 
 	s := st.Copy()

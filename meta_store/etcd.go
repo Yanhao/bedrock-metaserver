@@ -1,7 +1,6 @@
 package meta_store
 
 import (
-	"errors"
 	"net/url"
 	"sync"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"go.etcd.io/etcd/server/v3/embed"
 
 	"sr.ht/moyanhao/bedrock-metaserver/config"
+	"sr.ht/moyanhao/bedrock-metaserver/errors"
 )
 
 type EtcdNode struct {
@@ -31,11 +31,12 @@ func GetEtcdNode() *EtcdNode {
 	return etcdNode
 }
 
-func GetEtcdClient() *client.Client {
-	if GetEtcdNode() == nil || GetEtcdNode().client == nil {
-		panic("etcd is not init!")
+func GetEtcdClient() (*client.Client, error) {
+	en := GetEtcdNode()
+	if en == nil || en.client == nil {
+		return nil, errors.New(errors.ErrCodeNotInitialized, "etcd is not initialized")
 	}
-	return GetEtcdNode().client
+	return en.client, nil
 }
 
 func NewEtcdNode() *EtcdNode {
@@ -74,7 +75,7 @@ func (en *EtcdNode) Start() error {
 	e, err := embed.StartEtcd(en.config)
 	if err != nil {
 		log.Errorf("failed to start embed etcd node, err: %v", err)
-		return err
+		return errors.Wrap(err, errors.ErrCodeSystem, "failed to start embedded etcd")
 	}
 
 	select {
@@ -83,7 +84,7 @@ func (en *EtcdNode) Start() error {
 	case <-time.After(time.Minute):
 		e.Server.Stop()
 		log.Error("failed to start embed etcd")
-		return errors.New("start etcd timeout")
+		return errors.New(errors.ErrCodeTimeout, "start etcd timeout")
 	}
 
 	en.etcdServer = e
@@ -97,7 +98,7 @@ func (en *EtcdNode) Start() error {
 
 	if err != nil {
 		log.Errorf("failed to create clientv3, err: %v", err)
-		return err
+		return errors.Wrap(err, errors.ErrCodeSystem, "failed to create etcd client")
 	}
 
 	return nil
@@ -111,7 +112,7 @@ func (en *EtcdNode) Stop() error {
 		log.Info("embed etcd is stop")
 	case <-time.After(time.Minute):
 		log.Error("failed to stop embed etcd")
-		return errors.New("stop etcd timeout")
+		return errors.New(errors.ErrCodeTimeout, "stop etcd timeout")
 	}
 
 	return nil
@@ -120,7 +121,7 @@ func (en *EtcdNode) Stop() error {
 func MustStartEmbedEtcd() {
 	en := GetEtcdNode()
 	if err := en.Start(); err != nil {
-		panic("failed to start embed etcd server")
+		log.Fatalf("failed to start embed etcd server, err: %v", err)
 	}
 
 	log.Info("start embed etcd ...")

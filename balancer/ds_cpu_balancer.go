@@ -120,13 +120,8 @@ func (cb *DsCpuBalancer) doRebalanceByCpu() {
 	migrateOp := operation.NewMigrateShardOperation(maxCpuDs.Addr(), uint64(shardID2Migrate), uint64(shardID2Migrate), minCpuDs.Addr(), 5)
 	task.AddOperation(migrateOp)
 
-	// Submit task to scheduler
-	taskScheduler := scheduler.NewTaskScheduler(5)
-	if err := taskScheduler.Start(); err != nil {
-		log.Errorf("Failed to start task scheduler: %v", err)
-		return
-	}
-	if err := taskScheduler.SubmitTask(task); err != nil {
+	// Submit task to global scheduler
+	if err := scheduler.GetTaskScheduler().SubmitTask(task); err != nil {
 		log.Errorf("Failed to submit CPU balance migration task: %v", err)
 		return
 	}

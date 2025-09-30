@@ -108,7 +108,7 @@ func (l *LeaderShip) getLease() *clientv3.Lease {
 }
 
 func (l *LeaderShip) campaign() bool {
-	// creat a new lease with 10s, record it within LeaderShip
+	// create a new lease with 10s, record it within LeaderShip
 	ls := clientv3.NewLease(l.client)
 	l.setLease(&ls)
 
@@ -123,7 +123,7 @@ func (l *LeaderShip) campaign() bool {
 	}
 	l.leaseID = grantResp.ID
 
-	// try to compaign
+	// try to campaign
 	resp, err := l.client.Txn(ctx).
 		If(clientv3.Compare(clientv3.CreateRevision(l.leaderKey), "=", 0)).
 		Then(clientv3.OpPut(l.leaderKey, l.leaderValue, clientv3.WithLease(grantResp.ID))).

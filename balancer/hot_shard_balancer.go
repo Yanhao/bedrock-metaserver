@@ -129,13 +129,8 @@ func (hb *HotShardBalancer) doRebalanceHotShards() {
 		splitOp := operation.NewSplitShardOperation(dsWithHotShard.Addr(), uint64(hotShard.ID), uint64(newShardID), 10)
 		task.AddOperation(splitOp)
 
-		// Submit task to scheduler
-		taskScheduler := scheduler.NewTaskScheduler(5)
-		if err := taskScheduler.Start(); err != nil {
-			log.Errorf("Failed to start task scheduler: %v", err)
-			continue
-		}
-		if err := taskScheduler.SubmitTask(task); err != nil {
+		// Submit task to global scheduler
+		if err := scheduler.GetTaskScheduler().SubmitTask(task); err != nil {
 			log.Errorf("Failed to submit hot shard split task for shard %v: %v", hotShard.ID, err)
 			continue
 		}

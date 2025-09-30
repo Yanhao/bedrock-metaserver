@@ -29,7 +29,7 @@ func RunAsLeader() {
 
 	err = health_checker.GetHealthChecker().Start()
 	if err != nil {
-		log.Errorf("failed to start heartbeater, err: %v", err)
+		log.Errorf("failed to start health checker, err: %v", err)
 	}
 	log.Info("start health checker ...")
 

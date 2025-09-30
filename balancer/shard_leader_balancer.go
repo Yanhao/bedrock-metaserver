@@ -224,13 +224,8 @@ func (slb *ShardLeaderBalancer) createAndSubmitLeaderTransferTask(shardID model.
 	transferOp := operation.NewTransferLeaderOperation(sourceDS, uint64(shardID), targets, 5)
 	task.AddOperation(transferOp)
 
-	// Submit task to scheduler
-	taskScheduler := scheduler.NewTaskScheduler(5)
-	if err := taskScheduler.Start(); err != nil {
-		log.Errorf("Failed to start task scheduler: %v", err)
-		return
-	}
-	if err := taskScheduler.SubmitTask(task); err != nil {
+	// Submit task to global scheduler
+	if err := scheduler.GetTaskScheduler().SubmitTask(task); err != nil {
 		log.Errorf("Failed to submit leader transfer task for shard %v: %v", shardID, err)
 		return
 	}

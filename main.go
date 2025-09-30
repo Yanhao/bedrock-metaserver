@@ -62,11 +62,18 @@ func (f *CustomFormatter) Format(entry *log.Entry) ([]byte, error) {
 	return []byte(log), nil
 }
 
-func mustInitLog() {
+// mustInitLog initializes the logger with the specified log level
+// Returns error if initialization fails instead of panicking
+func mustInitLog(level string) error {
 	// log.SetFormatter(&log.JSONFormatter{})
-	log.SetLevel(log.InfoLevel)
+	logLevel, err := log.ParseLevel(level)
+	if err != nil {
+		return fmt.Errorf("invalid log level: %s, err: %w", level, err)
+	}
+	log.SetLevel(logLevel)
 	log.SetReportCaller(true)
 	log.SetFormatter(&CustomFormatter{})
+	return nil
 }
 
 func main() {
@@ -79,12 +86,16 @@ func main() {
 		os.Exit(-1)
 	}
 
-	mustInitLog()
-
 	log.Info("metaserver starting ...")
 
 	config.MustLoadConfig(*configFile)
 	log.Info("loading configuration ...")
+
+	if err := mustInitLog(config.GetConfig().Server.LogLevel); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	log.Info("init logging ...")
 
 	utils.SetupStackTrap()
 	log.Info("setup stack trap routine ...")
@@ -92,7 +103,6 @@ func main() {
 	utils.SetupHttpPprof()
 	log.Info("setup http pprof ...")
 
-	log.Info("init logging ...")
 	meta_store.MustStartEmbedEtcd()
 
 	etcdClient, err := meta_store.GetEtcdClient()

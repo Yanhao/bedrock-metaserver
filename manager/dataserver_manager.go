@@ -219,7 +219,7 @@ func (dm *DataServerManager) MarkOffline(addr string) error {
 		return ErrNoSuchDataServer
 	}
 
-	d.Status = model.LiveStatusInactive
+	d.Status = model.LiveStatusOffline
 
 	go dal.KvPutDataServer(d.Copy())
 

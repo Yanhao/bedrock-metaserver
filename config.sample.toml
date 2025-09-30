@@ -13,3 +13,4 @@ addr = "0.0.0.0:1080"
 log_file = "metaserver.log"
 enable_heartbeat_checker = false
 pprof_addr = "0.0.0.0:6063"
+log_level = "info"

@@ -124,7 +124,8 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 		// Wait for task completion (allocator needs to wait synchronously)
 		err := scheduler.WaitForTask(taskID)
 		if err != nil {
-			log.Warnf("failed to create shard from dataserver %v, err: %v", server, err)
+			log.Warnf("failed to create shard %s (ID: 0x%016x) from dataserver %v, remaining attempts: %d, err: %v",
+				fmt.Sprintf("allocate-shard-%d", shardID), shardID, server, times-1, err)
 			times--
 			continue
 		}

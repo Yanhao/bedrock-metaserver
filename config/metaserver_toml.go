@@ -22,10 +22,12 @@ type SchedulerConfig struct {
 	BigShardSizeThreshold           int64 `toml:"big_shard_size_threshold"`
 	DataserverSpaceBalanceThreshold int64 `toml:"dataserver_space_balance_threshold"`
 }
+
 type ServerConfig struct {
 	Addr                   string `toml:"addr"`
 	PprofListenAddr        string `toml:"pprof_listen_addr"`
 	LogFile                string `toml:"log_file"`
+	LogLevel               string `toml:"log_level"`
 	EnableHeartBeatChecker bool   `toml:"enable_heart_beat_checker"`
 }
 

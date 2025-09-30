@@ -83,7 +83,11 @@ func (ds *DataServerApi) DeleteShard(shardID uint64) error {
 
 	resp, err := ds.client.DeleteShard(context.TODO(), req)
 	if err != nil || resp == nil {
-		return errors.New("")
+		log.Errorf("failed to delete shard %d from dataserver %s, err: %v", shardID, ds.addr, err)
+		if err != nil {
+			return err
+		}
+		return errors.New("empty response from dataserver")
 	}
 
 	return nil

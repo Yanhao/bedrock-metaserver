@@ -15,11 +15,13 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
-// make sure the following data no need to be locked
+// Global data server status maps with proper mutex protection
 var (
 	ActiveDataServers   map[string]*model.DataServer
 	InactiveDataServers map[string]*model.DataServer
 	OfflineDataServers  map[string]*model.DataServer
+	// Mutex to protect access to data server status maps
+	dsMutex sync.RWMutex
 )
 
 const (
@@ -78,6 +80,10 @@ func (hc *HealthChecker) Stop() {
 func (hc *HealthChecker) InitDataServers() {
 	log.Info("init dataservers ...")
 
+	// Acquire write lock before initializing data server status maps
+	dsMutex.Lock()
+	defer dsMutex.Unlock()
+
 	ActiveDataServers = make(map[string]*model.DataServer)
 	InactiveDataServers = make(map[string]*model.DataServer)
 	OfflineDataServers = make(map[string]*model.DataServer)
@@ -106,6 +112,10 @@ func (hc *HealthChecker) doHealthCheck() {
 
 	dm := manager.GetDataServerManager()
 	dataservers := dm.GetDataServersCopy()
+
+	// Acquire write lock before modifying data server status maps
+	dsMutex.Lock()
+	defer dsMutex.Unlock()
 
 	for _, s := range dataservers {
 		if s.LastHeartBeatTs.Before(time.Now().Add(-OfflinePeriod)) {
@@ -212,6 +222,3 @@ func selectActiveDataServer() *model.DataServer {
 
 	return nil
 }
-
-// dsMutex protects the data server maps
-var dsMutex sync.RWMutex

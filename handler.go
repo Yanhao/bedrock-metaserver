@@ -27,6 +27,65 @@ type MetaService struct {
 	metaserver.UnimplementedMetaServiceServer
 }
 
+func forwardToLeaderIfNotLeader[T any](ctx context.Context, req any, forwardFunc func(metaserver.MetaServiceClient) (T, error)) (T, error) {
+	var zero T
+	if !role.GetLeaderShip().IsMetaServerLeader() {
+		leader := role.GetLeaderShip().GetMetaServerLeader()
+		mscli, err := metaserver.GetMetaServerConns().GetClient(leader)
+		if err != nil {
+			log.Errorf("failed to get leader client, leader: %v, err: %v", leader, err)
+			return zero, errors.Wrap(err, errors.ErrCodeInternal, "failed to get leader client")
+		}
+		return forwardFunc(mscli)
+	}
+	return zero, nil
+}
+
+func forwardStreamingToLeader(reqStream metaserver.MetaService_SyncShardInDataServerServer, streamFunc func(metaserver.MetaServiceClient) (metaserver.MetaService_SyncShardInDataServerClient, error)) error {
+	if !role.GetLeaderShip().IsMetaServerLeader() {
+		leader := role.GetLeaderShip().GetMetaServerLeader()
+		mscli, err := metaserver.GetMetaServerConns().GetClient(leader)
+		if err != nil {
+			log.Errorf("failed to get leader client, leader: %v, err: %v", leader, err)
+			return errors.Wrap(err, errors.ErrCodeInternal, "failed to get leader client")
+		}
+
+		targetStream, err := streamFunc(mscli)
+		if err != nil {
+			log.Errorf("Failed to create stream to target node: %v", err)
+			return errors.Wrap(err, errors.ErrCodeInternal, "failed to create stream to target node")
+		}
+		defer targetStream.CloseSend()
+		log.Infof("create sync shard request stream to %v", leader)
+
+		for {
+			req, err := reqStream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Errorf("sync shard in dataserver, stream receive failed, err: %v", err)
+				return errors.Wrap(err, errors.ErrCodeInternal, "failed to receive from sync shard stream")
+			}
+
+			err = targetStream.Send(req)
+			if err != nil {
+				log.Errorf("Failed to send message to target node: %v", err)
+				return errors.Wrap(err, errors.ErrCodeInternal, "failed to send message to target node")
+			}
+		}
+
+		resp, err := targetStream.CloseAndRecv()
+		if err != nil {
+			log.Errorf("Failed to receive response from target node: %v", err)
+			return errors.Wrap(err, errors.ErrCodeInternal, "failed to receive response from target node")
+		}
+
+		return reqStream.SendAndClose(resp)
+	}
+	return nil
+}
+
 func (m *MetaService) HeartBeat(ctx context.Context, req *metaserver.HeartBeatRequest) (*emptypb.Empty, error) {
 	err := HeartBeatParamCheck(req)
 	if err != nil {
@@ -35,10 +94,12 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *metaserver.HeartBeatRe
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.HeartBeat(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*emptypb.Empty, error) {
+		return client.HeartBeat(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	if err := manager.GetDataServerManager().MarkActive(req.GetAddr(), true); err != nil {
@@ -68,10 +129,12 @@ func (m *MetaService) ScanShardRange(ctx context.Context, req *metaserver.ScanSh
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.ScanShardRange(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.ScanShardRangeResponse, error) {
+		return client.ScanShardRange(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.ScanShardRangeResponse{}
@@ -126,10 +189,12 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *metaserver.CreateS
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.CreateStorage(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.CreateStorageResponse, error) {
+		return client.CreateStorage(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.CreateStorageResponse{}
@@ -169,10 +234,12 @@ func (m *MetaService) DeleteStorage(ctx context.Context, req *metaserver.DeleteS
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.DeleteStorage(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.DeleteStorageResponse, error) {
+		return client.DeleteStorage(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.DeleteStorageResponse{}
@@ -206,10 +273,12 @@ func (m *MetaService) UndeleteStorage(ctx context.Context, req *metaserver.Undel
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.UndeleteStorage(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.UndeleteStorageResponse, error) {
+		return client.UndeleteStorage(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.UndeleteStorageResponse{}
@@ -232,10 +301,12 @@ func (m *MetaService) RenameStorage(ctx context.Context, req *metaserver.RenameS
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.RenameStorage(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.RenameStorageResponse, error) {
+		return client.RenameStorage(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.RenameStorageResponse{}
@@ -258,10 +329,12 @@ func (m *MetaService) ResizeStorage(ctx context.Context, req *metaserver.ResizeS
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.ResizeStorage(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.ResizeStorageResponse, error) {
+		return client.ResizeStorage(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.ResizeStorageResponse{}
@@ -299,10 +372,12 @@ func (m *MetaService) StorageInfo(ctx context.Context, req *metaserver.StorageIn
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.StorageInfo(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.StorageInfoResponse, error) {
+		return client.StorageInfo(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.StorageInfoResponse{}
@@ -354,10 +429,12 @@ func (m *MetaService) AddDataServer(ctx context.Context, req *metaserver.AddData
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.AddDataServer(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.AddDataServerResponse, error) {
+		return client.AddDataServer(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.AddDataServerResponse{}
@@ -385,10 +462,12 @@ func (m *MetaService) RemoveDataServer(ctx context.Context, req *metaserver.Remo
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.RemoveDataServer(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.RemoveDataServerResponse, error) {
+		return client.RemoveDataServer(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.RemoveDataServerResponse{}
@@ -424,10 +503,12 @@ func (m *MetaService) ListDataServer(ctx context.Context, req *metaserver.ListDa
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.ListDataServer(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.ListDataServerResponse, error) {
+		return client.ListDataServer(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.ListDataServerResponse{}
@@ -470,10 +551,12 @@ func (m *MetaService) UpdateDataServer(ctx context.Context, req *metaserver.Upda
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.UpdateDataServer(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.UpdateDataServerResponse, error) {
+		return client.UpdateDataServer(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.UpdateDataServerResponse{}
@@ -487,10 +570,12 @@ func (m *MetaService) ShardInfo(ctx context.Context, req *metaserver.ShardInfoRe
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.ShardInfo(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.ShardInfoResponse, error) {
+		return client.ShardInfo(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.ShardInfoResponse{}
@@ -537,10 +622,12 @@ func (m *MetaService) CreateShard(ctx context.Context, req *metaserver.CreateSha
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.CreateShard(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.CreateShardResponse, error) {
+		return client.CreateShard(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.CreateShardResponse{}
@@ -588,10 +675,12 @@ func (m *MetaService) RemoveShard(ctx context.Context, req *metaserver.RemoveSha
 		return nil, err
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.RemoveShard(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.RemoveShardResponse, error) {
+		return client.RemoveShard(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.RemoveShardResponse{}
@@ -611,46 +700,10 @@ func (m *MetaService) RemoveShard(ctx context.Context, req *metaserver.RemoveSha
 func (m *MetaService) SyncShardInDataServer(reqStream metaserver.MetaService_SyncShardInDataServerServer) error {
 	log.Info("sync shard in dataserver ...")
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-
-		targetStream, err := mscli.SyncShardInDataServer(context.Background())
-		if err != nil {
-			log.Errorf("Failed to create stream to target node: %v", err)
-			err = errors.Wrap(err, errors.ErrCodeInternal, "failed to create stream to target node")
-			return err
-		}
-		defer targetStream.CloseSend()
-		log.Infof("create sync shard request stream to %v", leader)
-
-		for {
-			req, err := reqStream.Recv()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				log.Errorf("sync shard in dataserver, stream receive failed, err: %v", err)
-				err = errors.Wrap(err, errors.ErrCodeInternal, "failed to receive from sync shard stream")
-				return err
-			}
-
-			err = targetStream.Send(req)
-			if err != nil {
-				log.Errorf("Failed to send message to target node: %v", err)
-				err = errors.Wrap(err, errors.ErrCodeInternal, "failed to send message to target node")
-				return err
-			}
-		}
-
-		resp, err := targetStream.CloseAndRecv()
-		if err != nil {
-			log.Errorf("Failed to receive response from target node: %v", err)
-			err = errors.Wrap(err, errors.ErrCodeInternal, "failed to receive response from target node")
-			return err
-		}
-
-		return reqStream.SendAndClose(resp)
+	if err := forwardStreamingToLeader(reqStream, func(client metaserver.MetaServiceClient) (metaserver.MetaService_SyncShardInDataServerClient, error) {
+		return client.SyncShardInDataServer(context.Background())
+	}); err != nil {
+		return err
 	}
 
 	for {
@@ -701,10 +754,12 @@ func (m *MetaService) AllocateTxids(ctx context.Context, req *metaserver.Allocat
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	if !role.GetLeaderShip().IsMetaServerLeader() {
-		leader := role.GetLeaderShip().GetMetaServerLeader()
-		mscli, _ := metaserver.GetMetaServerConns().GetClient(leader)
-		return mscli.AllocateTxids(ctx, req)
+	if resp, err := forwardToLeaderIfNotLeader(ctx, req, func(client metaserver.MetaServiceClient) (*metaserver.AllocateTxidsResponse, error) {
+		return client.AllocateTxids(ctx, req)
+	}); err != nil {
+		return nil, err
+	} else if resp != nil {
+		return resp, nil
 	}
 
 	resp := &metaserver.AllocateTxidsResponse{}

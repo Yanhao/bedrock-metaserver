@@ -30,6 +30,12 @@ type TaskScheduler interface {
 	Stop() error
 	// WaitForTask waits for a specific task to complete
 	WaitForTask(taskID string) error
+	// AllowSubmission allows task submission
+	AllowSubmission()
+	// DisallowSubmission disallows task submission
+	DisallowSubmission()
+	// StopAllTasks stops all running tasks
+	StopAllTasks()
 }
 
 // taskScheduler is the concrete implementation of the scheduler
@@ -63,6 +69,10 @@ type taskScheduler struct {
 	runningReasons sync.Map
 	// taskReasons maps task IDs to their reasons for cleanup on completion
 	taskReasons sync.Map
+	// allowSubmission indicates if the scheduler allows task submission
+	allowSubmission bool
+	// submissionMutex protects the allowSubmission flag
+	submissionMutex sync.RWMutex
 }
 
 // NewTaskScheduler creates a new task scheduler
@@ -81,6 +91,7 @@ func NewTaskScheduler(workerCount int) TaskScheduler {
 		cancel:          cancel,
 		workerCount:     workerCount,
 		running:         false,
+		allowSubmission: false, // Default to not allowing task submission
 	}
 
 	return scheduler
@@ -93,11 +104,14 @@ func (s *taskScheduler) SubmitTask(task Task) error {
 		return nil
 	}
 
-	// Check if current node is the leader, only leader can submit tasks
-	if leaderChecker != nil && !leaderChecker() {
-		log.Debug("Not leader node, cannot submit task")
+	// Check if task submission is allowed
+	s.submissionMutex.RLock()
+	if !s.allowSubmission {
+		s.submissionMutex.RUnlock()
+		log.Debug("Task submission is not allowed")
 		return nil
 	}
+	s.submissionMutex.RUnlock()
 
 	s.runningMutex.RLock()
 	if !s.running {
@@ -173,6 +187,34 @@ func (s *taskScheduler) Stop() error {
 
 	log.Info("task scheduler stopped")
 	return nil
+}
+
+// AllowSubmission allows task submission
+func (s *taskScheduler) AllowSubmission() {
+	s.submissionMutex.Lock()
+	s.allowSubmission = true
+	s.submissionMutex.Unlock()
+}
+
+// DisallowSubmission disallows task submission
+func (s *taskScheduler) DisallowSubmission() {
+	s.submissionMutex.Lock()
+	s.allowSubmission = false
+	s.submissionMutex.Unlock()
+}
+
+// StopAllTasks stops all running tasks by clearing the task queue and waiting for running tasks to complete
+// Note: This will not cancel tasks that are already running, but it will prevent new tasks from being added to the queue
+func (s *taskScheduler) StopAllTasks() {
+	// Clear the task queue
+	for s.taskQueue.Len() > 0 {
+		_ = heap.Pop(s.taskQueue)
+	}
+
+	// Disallow new task submission
+	s.DisallowSubmission()
+
+	log.Info("All pending tasks have been cleared, and new task submission is disallowed")
 }
 
 // WaitForTask waits for a specific task to complete

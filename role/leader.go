@@ -7,6 +7,7 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/balancer"
 	"sr.ht/moyanhao/bedrock-metaserver/health_checker"
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
+	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 )
 
 func RunAsLeader() {
@@ -22,17 +23,46 @@ func RunAsLeader() {
 	}
 	log.Info("load dataservers from kv ...")
 
+	// Allow task submission when becoming leader
+	scheduler.GetTaskScheduler().AllowSubmission()
+	log.Info("allowed task submission as leader")
+
 	err = health_checker.GetHealthChecker().Start()
 	if err != nil {
 		log.Errorf("failed to start heartbeater, err: %v", err)
 	}
 	log.Info("start health checker ...")
 
+	// Start all balancers
 	err = balancer.GetDsCapacityBalancer().Start()
 	if err != nil {
-		log.Errorf("failed to start rebalance, err: %v", err)
+		log.Errorf("failed to start ds capacity balancer, err: %v", err)
 	}
-	log.Info("start rebalancer ...")
+	log.Info("start ds capacity balancer ...")
+
+	err = balancer.GetDsCpuBalancer().Start()
+	if err != nil {
+		log.Errorf("failed to start ds cpu balancer, err: %v", err)
+	}
+	log.Info("start ds cpu balancer ...")
+
+	err = balancer.GetHotShardBalancer().Start()
+	if err != nil {
+		log.Errorf("failed to start hot shard balancer, err: %v", err)
+	}
+	log.Info("start hot shard balancer ...")
+
+	err = balancer.GetShardLeaderBalancer().Start()
+	if err != nil {
+		log.Errorf("failed to start shard leader balancer, err: %v", err)
+	}
+	log.Info("start shard leader balancer ...")
+
+	err = balancer.GetShardSizeBalancer().Start()
+	if err != nil {
+		log.Errorf("failed to start shard size balancer, err: %v", err)
+	}
+	log.Info("start shard size balancer ...")
 
 	manager.GetShardManager().ClearCache()
 	log.Info("clear shard cache ...")

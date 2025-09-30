@@ -17,7 +17,6 @@ import (
 	"sr.ht/moyanhao/bedrock-metaserver/config"
 	"sr.ht/moyanhao/bedrock-metaserver/meta_store"
 	"sr.ht/moyanhao/bedrock-metaserver/role"
-	"sr.ht/moyanhao/bedrock-metaserver/scheduler"
 	"sr.ht/moyanhao/bedrock-metaserver/utils"
 )
 
@@ -80,7 +79,7 @@ func main() {
 	log.Info("metaserver starting ...")
 
 	config.MustLoadConfig(*configFile)
-	log.Info("loadding configruation ...")
+	log.Info("loading configuration ...")
 
 	utils.SetupStackTrap()
 	log.Info("setup stack trap routine ...")
@@ -92,12 +91,6 @@ func main() {
 	meta_store.MustStartEmbedEtcd()
 
 	role.MustInitLeaderShip(meta_store.GetEtcdClient(), role.RunAsLeader, role.RunAsFollower)
-
-	// Set leader check function for scheduler to determine if tasks can be submitted
-	scheduler.SetLeaderChecker(func() bool {
-		leadership := role.GetLeaderShip()
-		return leadership != nil && leadership.IsMetaServerLeader()
-	})
 
 	startGrpcServer()
 

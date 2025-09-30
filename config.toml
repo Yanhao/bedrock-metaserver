@@ -1,0 +1,22 @@
+[etcd]
+# Embedded Etcd Configuration
+# Each metaserver node will use its own name when running in Docker Compose
+name = "${METASERVER_NAME}"
+data_dir = "/app/data/etcd"
+wal_dir = "/app/data/etcd/wal"
+prevote = true
+# Configure cluster peers for the embedded etcd cluster
+cluster_peers = "metaserver-1=http://metaserver-1:2380,metaserver-2=http://metaserver-2:2380,metaserver-3=http://metaserver-3:2380"
+peer_addr = "http://0.0.0.0:2380"
+client_addr = "http://0.0.0.0:2379"
+client_timeout_sec = 3
+
+[server]
+addr = "0.0.0.0:1080"
+log_file = "metaserver.log"
+enable_heartbeat_checker = false
+pprof_addr = "0.0.0.0:6063"
+
+[scheduler]
+big_shard_size_threshold = 1073741824  # 1GB
+dataserver_space_balance_threshold = 1073741824  # 1GB

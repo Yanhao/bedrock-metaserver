@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # MetaServer cluster with embedded etcd
+  metaserver-1:
+    build: .
+    container_name: metaserver-1
+    ports:
+      - "1080:1080"
+      - "6063:6063"
+      - "2379:2379"  # Expose embedded etcd client port
+      - "2380:2380"  # Expose embedded etcd peer port
+    volumes:
+      - ./config.toml:/opt/bedrock/metaserver/config.toml:ro
+    networks:
+      - bedrock-network
+    command: ["./metaserver", "-config", "config.toml"]
+
+  metaserver-2:
+    build: .
+    container_name: metaserver-2
+    depends_on:
+      - metaserver-1
+    ports:
+      - "1081:1080"
+      - "6064:6063"
+      - "2479:2379"  # Expose embedded etcd client port
+      - "2480:2380"  # Expose embedded etcd peer port
+    volumes:
+      - ./config.toml:/opt/bedrock/metaserver/config.toml:ro
+    networks:
+      - bedrock-network
+    command: ["./metaserver", "-config", "config.toml"]
+
+  metaserver-3:
+    build: .
+    container_name: metaserver-3
+    depends_on:
+      - metaserver-2
+    ports:
+      - "1082:1080"
+      - "6065:6063"
+      - "2579:2379"  # Expose embedded etcd client port
+      - "2580:2380"  # Expose embedded etcd peer port
+    volumes:
+      - ./config.toml:/opt/bedrock/metaserver/config.toml:ro
+    networks:
+      - bedrock-network
+    command: ["./metaserver", "-config", "config.toml"]
+
+networks:
+  bedrock-network:
+    driver: bridge
+    name: bedrock-network

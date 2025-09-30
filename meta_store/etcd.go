@@ -2,6 +2,7 @@ package meta_store
 
 import (
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -59,10 +60,31 @@ func NewEtcdNode() *EtcdNode {
 	cfg.LogLevel = "warn"
 	cfg.InitialCluster = etcdConfig.ClusterPeers
 
-	cfg.AdvertiseClientUrls = cfg.ListenClientUrls
-	cfg.AdvertisePeerUrls = cfg.ListenPeerUrls
+	// Use advertise addresses from environment variables if available
+	// This is needed for Docker networking where binding address is 0.0.0.0
+	// but advertise address should be the container hostname
+	if advertisePeerAddr := os.Getenv("ADVERTISE_PEER_ADDR"); advertisePeerAddr != "" {
+		if advertisePeerUrl, err := url.Parse(advertisePeerAddr); err == nil {
+			cfg.AdvertisePeerUrls = []url.URL{*advertisePeerUrl}
+			log.Infof("Using ADVERTISE_PEER_ADDR from environment: %s", advertisePeerAddr)
+		}
+	} else {
+		cfg.AdvertisePeerUrls = cfg.ListenPeerUrls
+	}
+
+	if advertiseClientAddr := os.Getenv("ADVERTISE_CLIENT_ADDR"); advertiseClientAddr != "" {
+		if advertiseClientUrl, err := url.Parse(advertiseClientAddr); err == nil {
+			cfg.AdvertiseClientUrls = []url.URL{*advertiseClientUrl}
+			log.Infof("Using ADVERTISE_CLIENT_ADDR from environment: %s", advertiseClientAddr)
+		}
+	} else {
+		cfg.AdvertiseClientUrls = cfg.ListenClientUrls
+	}
 
 	cfg.QuotaBackendBytes = 0
+
+	log.Infof("Etcd configuration: Name=%s, InitialCluster=%s, ListenPeerUrls=%v, AdvertisePeerUrls=%v", 
+		cfg.Name, cfg.InitialCluster, cfg.ListenPeerUrls, cfg.AdvertisePeerUrls)
 
 	return &EtcdNode{
 		config:     cfg,

@@ -12,9 +12,12 @@ services:
       - "2380:2380"  # Expose embedded etcd peer port
     volumes:
       - ./config.toml:/opt/bedrock/metaserver/config.toml:ro
+      - metaserver1-data:/app/data/etcd
+    environment:
+      - METASERVER_NAME=metaserver-1
     networks:
       - bedrock-network
-    command: ["./metaserver", "-config", "config.toml"]
+    # Use the entrypoint defined in Dockerfile
 
   metaserver-2:
     build: .
@@ -28,9 +31,12 @@ services:
       - "2480:2380"  # Expose embedded etcd peer port
     volumes:
       - ./config.toml:/opt/bedrock/metaserver/config.toml:ro
+      - metaserver2-data:/app/data/etcd
+    environment:
+      - METASERVER_NAME=metaserver-2
     networks:
       - bedrock-network
-    command: ["./metaserver", "-config", "config.toml"]
+    # Use the entrypoint defined in Dockerfile
 
   metaserver-3:
     build: .
@@ -44,9 +50,54 @@ services:
       - "2580:2380"  # Expose embedded etcd peer port
     volumes:
       - ./config.toml:/opt/bedrock/metaserver/config.toml:ro
+      - metaserver3-data:/app/data/etcd
+    environment:
+      - METASERVER_NAME=metaserver-3
     networks:
       - bedrock-network
-    command: ["./metaserver", "-config", "config.toml"]
+    # Use the entrypoint defined in Dockerfile
+
+  # Prometheus for monitoring etcd and metaserver
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    depends_on:
+      - metaserver-1
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - bedrock-network
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--web.console.libraries=/usr/share/prometheus/console_libraries", "--web.console.templates=/usr/share/prometheus/consoles"]
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./etcd-grafana-dashboard.json:/etc/grafana/provisioning/dashboards/etcd-grafana-dashboard.json
+    networks:
+      - bedrock-network
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_ALLOW_ORG_CREATE=false
+
+volumes:
+  metaserver1-data:
+  metaserver2-data:
+  metaserver3-data:
+  prometheus-data:
+  grafana-data:
 
 networks:
   bedrock-network:

@@ -57,6 +57,16 @@ services:
       - bedrock-network
     # Use the entrypoint defined in Dockerfile
 
+  etcd-workbench:
+    image: tzfun/etcd-workbench
+    container_name: etcd-workbench
+    depends_on:
+      - metaserver-1
+    ports:
+      - "8002:8002"
+    networks:
+      - bedrock-network
+
   # Prometheus for monitoring etcd and metaserver
   prometheus:
     image: prom/prometheus:latest

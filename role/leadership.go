@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"runtime/debug"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -255,10 +257,15 @@ func GetLeaderShip() *LeaderShip {
 }
 
 func MustInitLeaderShip(client *clientv3.Client, leaderFunc, followerFunc func()) {
+	addr, err := netip.ParseAddrPort(config.GetConfig().Server.Addr)
+	if err != nil {
+		panic(err)
+	}
+
 	opts := LeaderShipOption{
 		client:       client,
 		key:          "metaserver-leader",
-		value:        config.GetConfig().Server.Addr,
+		value:        config.GetConfig().Etcd.Name + ":" + strconv.Itoa(int(addr.Port())),
 		leaseTime:    10,
 		renewalTime:  5,
 		LeaderFunc:   leaderFunc,

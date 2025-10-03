@@ -112,4 +112,5 @@ volumes:
 networks:
   bedrock-network:
     driver: bridge
+    external: true
     name: bedrock-network

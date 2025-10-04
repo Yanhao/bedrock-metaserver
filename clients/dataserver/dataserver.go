@@ -61,7 +61,7 @@ func (ds *DataServerApi) CreateShard(shardID uint64, minKey, maxKey []byte) erro
 		CreateTs:        now,
 		Replicates:      []string{},
 		ReplicaUpdateTs: now,
-		Leader:          "",
+		Leader:          "0.0.0.0:1",
 		LeaderChangeTs:  now,
 		MinKey:          minKey,
 		MaxKey:          maxKey,
@@ -69,7 +69,8 @@ func (ds *DataServerApi) CreateShard(shardID uint64, minKey, maxKey []byte) erro
 
 	resp, err := ds.client.CreateShard(context.TODO(), req)
 	if err != nil || resp == nil {
-		log.Errorf("failed to create shard, err: %v", err)
+		log.Errorf("failed to create shard, shard_id: %v, minKey: %v, maxKey:%v, DsAddr: %v, err: %v",
+			shardID, minKey, maxKey, ds.addr, err)
 		return err
 	}
 
@@ -102,6 +103,7 @@ func (ds *DataServerApi) TransferShardLeader(shardID uint64, replicates []string
 
 	resp, err := ds.client.TransferShardLeader(context.TODO(), req)
 	if err != nil || resp == nil {
+		log.Errorf("failed to transferleader, shardid: %v, addr: %v, err: %v", shardID, ds.addr, err)
 		return err
 	}
 

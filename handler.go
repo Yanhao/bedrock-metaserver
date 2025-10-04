@@ -103,7 +103,7 @@ func (m *MetaService) HeartBeat(ctx context.Context, req *metaserver.HeartBeatRe
 	}
 
 	if err := manager.GetDataServerManager().MarkActive(req.GetAddr(), true); err != nil {
-		log.Errorf("failed to mark dataserver active, err: %v", err)
+		log.Errorf("failed to mark dataserver active, addr: %s, err: %v", req.GetAddr(), err)
 		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to mark dataserver active")
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (m *MetaService) CreateStorage(ctx context.Context, req *metaserver.CreateS
 	resp := &metaserver.CreateStorageResponse{}
 
 	st, err := manager.GetStorageManager().GetStorageByName(req.Name)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		log.Errorf("check storage by name failed, err: %v", err)
 		err = errors.Wrap(err, errors.ErrCodeInternal, "failed to check storage by name")
 		return resp, err

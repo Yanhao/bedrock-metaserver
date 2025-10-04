@@ -43,6 +43,8 @@ type TaskScheduler interface {
 type taskScheduler struct {
 	// taskQueue is a priority queue for tasks
 	taskQueue *TaskPriorityQueue
+	// queueMutex protects the taskQueue from concurrent access
+	queueMutex sync.Mutex
 	// taskDone maps task IDs to their completion status
 	taskDone map[string]bool
 	// taskErrors maps task IDs to any errors that occurred
@@ -143,8 +145,10 @@ func (s *taskScheduler) SubmitTask(task Task) error {
 	// Mark the task as running
 	s.runningTasks.Store(taskID, true)
 
-	// Add task to the priority queue
+	// Add task to the priority queue with lock protection
+	s.queueMutex.Lock()
 	heap.Push(s.taskQueue, task)
+	s.queueMutex.Unlock()
 
 	return nil
 }
@@ -206,10 +210,12 @@ func (s *taskScheduler) DisallowSubmission() {
 // StopAllTasks stops all running tasks by clearing the task queue and waiting for running tasks to complete
 // Note: This will not cancel tasks that are already running, but it will prevent new tasks from being added to the queue
 func (s *taskScheduler) StopAllTasks() {
-	// Clear the task queue
+	// Clear the task queue with lock protection
+	s.queueMutex.Lock()
 	for s.taskQueue.Len() > 0 {
 		_ = heap.Pop(s.taskQueue)
 	}
+	s.queueMutex.Unlock()
 
 	// Disallow new task submission
 	s.DisallowSubmission()
@@ -259,8 +265,11 @@ func (s *taskScheduler) workerLoop() {
 	}
 }
 
-// getNextTask gets the next task from the queue
+// getNextTask gets the next task from the queue with lock protection
 func (s *taskScheduler) getNextTask() Task {
+	s.queueMutex.Lock()
+	defer s.queueMutex.Unlock()
+
 	if s.taskQueue.Len() == 0 {
 		return nil
 	}

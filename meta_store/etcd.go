@@ -57,7 +57,7 @@ func NewEtcdNode() *EtcdNode {
 	cfg.ListenClientUrls = []url.URL{*clientAddrUrl}
 	cfg.ListenPeerUrls = []url.URL{*peerAddrUrl}
 	// cfg.LogOutput = config.LogFile
-	cfg.LogLevel = "warn"
+	cfg.LogLevel = "error"
 	cfg.InitialCluster = etcdConfig.ClusterPeers
 
 	// Use advertise addresses from environment variables if available

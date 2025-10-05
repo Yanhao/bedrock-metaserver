@@ -66,7 +66,7 @@ func (sm *ShardManager) CreateNewShardByIDs(storageID model.StorageID, shardISN 
 		SID:             storageID,
 		CreateTs:        time.Now(),
 		IsDeleted:       false,
-		LeaderChangeTs:  time.Now(),
+		LeaderChangeTs:  time.Time{},
 		ReplicaUpdateTs: time.Now(),
 		Replicates:      map[string]struct{}{},
 	}

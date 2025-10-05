@@ -155,7 +155,7 @@ func (sm *StorageManager) FetchAddStorageLastISN(id model.StorageID) (model.Shar
 		return 0, err
 	}
 
-	log.Infof("shard isn: 0x%08x", ret)
+	log.Infof("storageid: %v, shard isn: 0x%08x", id, ret)
 	return ret, nil
 }
 

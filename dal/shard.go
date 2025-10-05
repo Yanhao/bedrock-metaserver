@@ -84,8 +84,8 @@ func KvPutShard(shard *model.Shard) error {
 		return errors.Wrap(err, errors.ErrCodeInternal, "failed to encode shard data")
 	}
 
-	keys := []string{shardKey(shard.ID()), shardInStorageKey(shard.SID, shard.ISN)}
-	values := []string{string(value), ""}
+	keys := []string{shardKey(shard.ID())}
+	values := []string{string(value)}
 
 	for addr := range shard.Replicates {
 		keys = append(keys, shardInDataServerKey(addr, shard.ID()))

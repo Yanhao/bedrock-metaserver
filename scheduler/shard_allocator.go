@@ -158,7 +158,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 }
 
 func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32) error {
-	for i := count; i > 0; i-- {
+	for i := 0; i < int(count); i++ {
 		shardIds, err := manager.GetShardManager().GetShardIDsInStorage(storageID)
 		if err != nil {
 			return err
@@ -178,12 +178,10 @@ func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32)
 				return err
 			}
 
-			log.Infof("new shard, id: 0x%016x", shard.ID())
+			log.Infof("expand new shard, id: 0x%016x", shard.ID())
 
 			_, err = sa.AllocateShardReplicates(shard.ID(), DefaultReplicatesCount, MinKey, MaxKey)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		for _, shardID := range shardIds {
@@ -197,13 +195,13 @@ func (sa *ShardAllocator) ExpandStorage(storageID model.StorageID, count uint32)
 }
 
 func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
+	log.Infof("split shard, id: 0x%016x", shardID)
+
 	shard, err := manager.GetShardManager().GetShard(shardID)
 	if err != nil {
 		log.Warnf("failed to get shard, err: %v", err)
 		return err
 	}
-
-	middleKey := shard.SplitShardRangeKey()
 
 	newShard, err := manager.GetShardManager().CreateNewShard(shard.SID)
 	if err != nil {
@@ -211,6 +209,7 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 		return err
 	}
 
+	middleKey := shard.SplitShardRangeKey()
 	newShard.RangeKeyStart = middleKey
 	newShard.RangeKeyEnd = shard.RangeKeyEnd
 	shard.RangeKeyEnd = middleKey
@@ -219,8 +218,12 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 		return err
 	}
 
-	err = manager.GetShardManager().PutShard(newShard)
-	if err != nil {
+	if err := manager.GetShardManager().PutShard(newShard); err != nil {
+		log.Warnf("put new shard failed, err: %v", err)
+		return err
+	}
+
+	if err := manager.GetShardManager().PutShard(shard); err != nil {
 		log.Warnf("put shard failed, err: %v", err)
 		return err
 	}
@@ -232,11 +235,10 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 
 	log.Infof("new shard, id: 0x%016x", newShard.ID())
 
-	scheduler := GetTaskScheduler()
-	for replicateAddr := range shard.Replicates {
-		taskID := fmt.Sprintf("split-shard-%d-%d-%s", shard.ID(), newShard.ID(), replicateAddr)
-		task := NewSyncTask(taskID, PriorityHigh, fmt.Sprintf("split-shard-%d", shard.ID()))
+	taskID := fmt.Sprintf("split-shard-%d-%d", shard.ID(), newShard.ID())
+	task := NewSyncTask(taskID, PriorityHigh, fmt.Sprintf("split-shard-%d", shard.ID()))
 
+	for replicateAddr := range shard.Replicates {
 		splitOp := operation.NewSplitShardOperation(
 			replicateAddr,
 			uint64(shard.ID()),
@@ -244,16 +246,17 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 			int(PriorityHigh),
 		)
 		task.AddOperation(splitOp)
+	}
 
-		if err := scheduler.SubmitTask(task); err != nil {
-			log.Errorf("submit task failed, err: %v", err)
-			return err
-		}
+	scheduler := GetTaskScheduler()
+	if err := scheduler.SubmitTask(task); err != nil {
+		log.Errorf("submit task failed, err: %v", err)
+		return err
+	}
 
-		if err := scheduler.WaitForTask(taskID); err != nil {
-			log.Errorf("failed to split shard on dataserver %v, err: %v", replicateAddr, err)
-			return err
-		}
+	if err := scheduler.WaitForTask(taskID); err != nil {
+		log.Errorf("failed to split shard on  err: %v", err)
+		return err
 	}
 
 	return nil

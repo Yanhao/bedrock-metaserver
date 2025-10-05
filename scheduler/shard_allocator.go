@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/jinzhu/copier"
 	log "github.com/sirupsen/logrus"
 
 	"sr.ht/moyanhao/bedrock-metaserver/manager"
@@ -66,7 +67,7 @@ func (sa *ShardAllocator) AllocateNewStorage(name string, rangeCount uint32) (*m
 		return nil, err
 	}
 
-	if err := manager.GetShardManager().PutShardIDByKey(storage.ID, MaxKey, model.GenerateShardID(storage.ID, 0)); err != nil {
+	if err := manager.GetShardManager().PutShardIDByKey(storage.ID, MinKey, model.GenerateShardID(storage.ID, 0)); err != nil {
 		return nil, err
 	}
 
@@ -206,35 +207,36 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 
 	newShard, err := manager.GetShardManager().CreateNewShard(shard.SID)
 	if err != nil {
+		log.Warnf("create new shard failed, err: %v", err)
 		return err
 	}
 
-	shard.RangeKeyEnd = middleKey
 	newShard.RangeKeyStart = middleKey
-	newShard.RangeKeyEnd = shard.RangeKeyStart
-
-	err = manager.GetShardManager().PutShard(shard)
-	if err != nil {
+	newShard.RangeKeyEnd = shard.RangeKeyEnd
+	shard.RangeKeyEnd = middleKey
+	newShard.Leader = shard.Leader
+	if err := copier.Copy(&newShard.Replicates, shard.Replicates); err != nil {
 		return err
 	}
 
 	err = manager.GetShardManager().PutShard(newShard)
 	if err != nil {
+		log.Warnf("put shard failed, err: %v", err)
+		return err
+	}
+
+	if err := manager.GetShardManager().
+		PutShardIDByKey(shard.SID, middleKey, newShard.ID()); err != nil {
 		return err
 	}
 
 	log.Infof("new shard, id: 0x%016x", newShard.ID())
 
-	// Get global scheduler
 	scheduler := GetTaskScheduler()
-
-	// Perform shard operation on each replicate
 	for replicateAddr := range shard.Replicates {
-		// Create sync task
 		taskID := fmt.Sprintf("split-shard-%d-%d-%s", shard.ID(), newShard.ID(), replicateAddr)
 		task := NewSyncTask(taskID, PriorityHigh, fmt.Sprintf("split-shard-%d", shard.ID()))
 
-		// Create split shard operation
 		splitOp := operation.NewSplitShardOperation(
 			replicateAddr,
 			uint64(shard.ID()),
@@ -243,12 +245,12 @@ func (sa *ShardAllocator) SplitShard(shardID model.ShardID) error {
 		)
 		task.AddOperation(splitOp)
 
-		// Submit task to scheduler
-		scheduler.SubmitTask(task)
+		if err := scheduler.SubmitTask(task); err != nil {
+			log.Errorf("submit task failed, err: %v", err)
+			return err
+		}
 
-		// Wait for task completion (allocator needs to wait synchronously)
-		err := scheduler.WaitForTask(taskID)
-		if err != nil {
+		if err := scheduler.WaitForTask(taskID); err != nil {
 			log.Errorf("failed to split shard on dataserver %v, err: %v", replicateAddr, err)
 			return err
 		}

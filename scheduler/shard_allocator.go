@@ -79,8 +79,7 @@ func (sa *ShardAllocator) AllocateNewStorage(name string, rangeCount uint32) (*m
 		}
 
 		for _, shardID := range shardIDs {
-			err := sa.SplitShard(shardID)
-			if err != nil {
+			if err := sa.SplitShard(shardID); err != nil {
 				return nil, err
 			}
 		}
@@ -92,8 +91,8 @@ func (sa *ShardAllocator) AllocateNewStorage(name string, rangeCount uint32) (*m
 func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count int, minKey, maxKey []byte) ([]string, error) {
 	var selectedDataServers []string
 
-	// Get global scheduler
-	scheduler := GetTaskScheduler()
+	taskID := fmt.Sprintf("allocate-shard-%d", shardID)
+	task := NewSyncTask(taskID, PriorityUrgent, fmt.Sprintf("allocate-shard-%d", shardID))
 
 	for i, times := count, MaxAllocateTimes; i > 0 && times > 0; {
 		log.Infof("i: %v, times: %v", i, times)
@@ -105,10 +104,6 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 		server := viableDataServers[rand.Intn(len(viableDataServers))]
 		log.Infof("allocate shard: 0x%016x on dataserver: %s", shardID, server)
 
-		// Create sync task
-		taskID := fmt.Sprintf("allocate-shard-%d-%s", shardID, server)
-		task := NewSyncTask(taskID, PriorityUrgent, fmt.Sprintf("allocate-shard-%d", shardID))
-
 		// Create create shard operation
 		createOp := operation.NewCreateShardOperation(
 			server,
@@ -119,20 +114,7 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 		)
 		task.AddOperation(createOp)
 
-		// Submit task to scheduler
-		scheduler.SubmitTask(task)
-
-		// Wait for task completion (allocator needs to wait synchronously)
-		err := scheduler.WaitForTask(taskID)
-		if err != nil {
-			log.Warnf("failed to create shard %s (ID: 0x%016x) from dataserver %v, remaining attempts: %d, err: %v",
-				fmt.Sprintf("allocate-shard-%d", shardID), shardID, server, times-1, err)
-			times--
-			continue
-		}
-
-		err = manager.GetShardManager().AddShardReplicates(shardID, []string{server})
-		if err != nil {
+		if err := manager.GetShardManager().AddShardReplicates(shardID, []string{server}); err != nil {
 			return nil, err
 		}
 
@@ -141,13 +123,16 @@ func (sa *ShardAllocator) AllocateShardReplicates(shardID model.ShardID, count i
 		i--
 		times--
 	}
-
 	if len(selectedDataServers) < count {
 		return selectedDataServers, errors.New("not enough replicates")
 	}
 
-	err := manager.GetShardManager().ReSelectLeader(shardID)
-	if err != nil {
+	GetTaskScheduler().SubmitTask(task)
+	if err := GetTaskScheduler().WaitForTask(taskID); err != nil {
+		log.Warnf("failed to create shard (ID: 0x%016x), err: %v", shardID, err)
+	}
+
+	if err := manager.GetShardManager().ReSelectLeader(shardID); err != nil {
 		log.Errorf("failed to select leader of shard, shard id: 0x016%x, err: %v", shardID, err)
 		return selectedDataServers, err
 	}
